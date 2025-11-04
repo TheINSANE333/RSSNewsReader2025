@@ -859,6 +859,9 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
     private void initializeWebViewSettings() {
         webView.getSettings().setJavaScriptEnabled(true);
         webView.getSettings().setDomStorageEnabled(true);
+        webView.getSettings().setBuiltInZoomControls(true);
+        webView.getSettings().setSupportZoom(true);
+        webView.getSettings().setDisplayZoomControls(false);
 
         int textZoom = sharedPreferencesRepository.getTextZoom();
         if (textZoom != 0) {
