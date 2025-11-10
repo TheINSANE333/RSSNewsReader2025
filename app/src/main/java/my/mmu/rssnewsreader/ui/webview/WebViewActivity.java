@@ -38,6 +38,7 @@ import io.reactivex.rxjava3.disposables.Disposable;
 import my.mmu.rssnewsreader.R;
 import my.mmu.rssnewsreader.data.sharedpreferences.SharedPreferencesRepository;
 import my.mmu.rssnewsreader.model.EntryInfo;
+import my.mmu.rssnewsreader.model.deepseek.ChatActivity;
 import my.mmu.rssnewsreader.service.tts.TtsExtractor;
 import my.mmu.rssnewsreader.service.tts.TtsPlayer;
 import my.mmu.rssnewsreader.service.tts.TtsPlaylist;
@@ -83,6 +84,7 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
     private MenuItem offlineButton;
     private MenuItem reloadButton;
     private MenuItem bookmarkButton;
+    private MenuItem chatbotButton;
     private MenuItem translationButton;
     private MenuItem highlightTextButton;
     private MenuItem backgroundMusicButton;
@@ -366,6 +368,7 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
         offlineButton = toolbar.getMenu().findItem(R.id.exitBrowser);
         reloadButton = toolbar.getMenu().findItem(R.id.reload);
         bookmarkButton = toolbar.getMenu().findItem(R.id.bookmark);
+        chatbotButton = toolbar.getMenu().findItem(R.id.chatbot);
         translationButton = toolbar.getMenu().findItem(R.id.translate);
         toggleTranslationButton = toolbar.getMenu().findItem(R.id.toggleTranslation);
         highlightTextButton = toolbar.getMenu().findItem(R.id.highlightText);
@@ -620,8 +623,18 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
         webView.loadDataWithBaseURL("file///android_res/", doc.html(), "text/html", "UTF-8", null);
     }
 
+    private void startChat() {
+        Log.d(TAG, "CHAT BUTTON PRESSED");
+        Intent intent = new Intent(this, ChatActivity.class);
+        startActivity(intent);
+    }
+
     private boolean handleOtherToolbarItems(int itemId) {
         switch (itemId) {
+            case R.id.chatbot:
+                startChat();
+                return true;
+
             case R.id.translate:
                 if (targetLanguage == null || targetLanguage.isEmpty()) {
                     showTranslationLanguageDialog(this);
