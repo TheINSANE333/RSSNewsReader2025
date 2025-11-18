@@ -6,6 +6,7 @@ import java.io.IOException;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
+import my.mmu.rssnewsreader.BuildConfig;
 import my.mmu.rssnewsreader.data.deepseek.ChatRequest;
 import my.mmu.rssnewsreader.data.deepseek.ChatResponse;
 import my.mmu.rssnewsreader.data.deepseek.Message;
@@ -18,7 +19,7 @@ import retrofit2.converter.gson.GsonConverterFactory;
 
 public class DeepSeekClient {
     private static final String BASE_URL = "https://openrouter.ai/api/v1/";
-    private static final String API_KEY = "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";
+    private static final String API_KEY = BuildConfig.DEEPSEEK_API_KEY;
     private static final String SITE_URL = "https://github.com/TheINSANE333/RSSNewsReader2025"; // Replace with your app/site URL
     private static final String SITE_NAME = "RSS News Reader 2025"; // Replace with your app name
 

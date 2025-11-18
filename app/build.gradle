@@ -3,6 +3,12 @@ plugins {
     id 'com.google.dagger.hilt.android'
 }
 
+def localProperties = new Properties()
+def localPropertiesFile = rootProject.file("local.properties")
+if (localPropertiesFile.exists()) {
+    localProperties.load(new FileInputStream(localPropertiesFile))
+}
+
 android {
     compileSdk 34
 
@@ -12,6 +18,9 @@ android {
         targetSdk 33
         versionCode 1
         versionName "1.0"
+
+        def deepseekKey = localProperties.getProperty("DEEPSEEK_API_KEY", "")
+        buildConfigField "String", "DEEPSEEK_API_KEY", "\"${deepseekKey}\""
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
 
