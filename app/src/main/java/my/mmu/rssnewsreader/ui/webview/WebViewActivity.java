@@ -296,7 +296,7 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
 
     private String createTranslationPrompt(String sourceLanguage, String targetLanguage, String content, String title) {
         return String.format(
-                "Translate the following HTML from %s to %s.\n\n" +
+                "Translate the following HTML to %s.\n\n" +
                         "RULES:\n" +
                         "- Translate ONLY the text between the HTML tags.\n" +
                         "- Do NOT modify, remove, or add any HTML tags.\n" +
@@ -304,7 +304,7 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
                         "- Do NOT add explanations or extra sentences.\n" +
                         "- Output ONLY the complete translated HTML.\n\n" +
                         "HTML TO TRANSLATE:\n%s\n%s",
-                sourceLanguage, targetLanguage, title, content
+                targetLanguage, title, content
         );
     }
 
