@@ -4,6 +4,7 @@ import android.util.Log;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 import my.mmu.rssnewsreader.data.deepseek.ChatRequest;
 import my.mmu.rssnewsreader.data.deepseek.ChatResponse;
@@ -30,6 +31,9 @@ public class DeepSeekClient {
         }
 
         OkHttpClient okHttpClient = new OkHttpClient.Builder()
+                .connectTimeout(120, TimeUnit.SECONDS)
+                .readTimeout(120, TimeUnit.SECONDS)
+                .writeTimeout(120, TimeUnit.SECONDS)
                 .addInterceptor(chain -> {
                     Request original = chain.request();
                     Request request = original.newBuilder()
@@ -55,7 +59,7 @@ public class DeepSeekClient {
 
     public String getChatResponse(List<Message> messages) throws IOException {
         // Use the free DeepSeek model
-        ChatRequest request = new ChatRequest("deepseek/deepseek-chat-v3.1:free", messages, 0.7, 2048);
+        ChatRequest request = new ChatRequest("openai/gpt-oss-20b:free", messages, 0.0, 100000);
 
         retrofit2.Response<ChatResponse> response = service.chatCompletion(request).execute();
 

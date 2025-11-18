@@ -36,9 +36,11 @@ import io.reactivex.rxjava3.core.Single;
 import io.reactivex.rxjava3.disposables.CompositeDisposable;
 import io.reactivex.rxjava3.disposables.Disposable;
 import my.mmu.rssnewsreader.R;
+import my.mmu.rssnewsreader.data.deepseek.Message;
 import my.mmu.rssnewsreader.data.sharedpreferences.SharedPreferencesRepository;
 import my.mmu.rssnewsreader.model.EntryInfo;
 import my.mmu.rssnewsreader.model.deepseek.ChatActivity;
+import my.mmu.rssnewsreader.model.deepseek.DeepSeekClient;
 import my.mmu.rssnewsreader.service.tts.TtsExtractor;
 import my.mmu.rssnewsreader.service.tts.TtsPlayer;
 import my.mmu.rssnewsreader.service.tts.TtsPlaylist;
@@ -57,6 +59,7 @@ import com.google.android.material.snackbar.Snackbar;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashSet;
 import java.util.List;
@@ -225,6 +228,7 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
         Log.d(TAG, "FINAL currentId: " + currentId + ", isTranslatedView: " + isTranslatedView);
     }
 
+    @SuppressLint("CheckResult")
     private void translate() {
         Log.d(TAG, "translate: html\n" + webViewViewModel.getHtmlById(currentId));
         makeSnackbar("Translation in progress");
@@ -252,15 +256,17 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
                             ? feedLanguage : identifiedLanguage;
 
                     Log.d(TAG, "Translating from " + sourceLanguage + " to " + targetLanguage);
-                    performTranslation(sourceLanguage, targetLanguage, content, entryInfo.getEntryTitle());
+                    Log.d("ORIGINAL CONTENT FOR TRANSLATION", content);
+                    performAITranslation(sourceLanguage, targetLanguage, content, entryInfo.getEntryTitle());
                 },
                 error -> {
                     Log.e(TAG, "Language identification failed, falling back to feedLanguage");
-                    performTranslation(feedLanguage, targetLanguage, content, entryInfo.getEntryTitle());
+                    performAITranslation(feedLanguage, targetLanguage, content, entryInfo.getEntryTitle());
                 }
         );
     }
 
+    @SuppressLint("CheckResult")
     private void performTranslation(String sourceLang, String targetLang, String html, String title) {
         Single<String> translationFlow;
         switch (translationMethod) {
@@ -287,6 +293,79 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
                 }
         );
     }
+
+    private String createTranslationPrompt(String sourceLanguage, String targetLanguage, String content, String title) {
+        return String.format(
+                "Translate the following HTML from %s to %s.\n\n" +
+                        "RULES:\n" +
+                        "- Translate ONLY the text between the HTML tags.\n" +
+                        "- Do NOT modify, remove, or add any HTML tags.\n" +
+                        "- Do NOT summarize.\n" +
+                        "- Do NOT add explanations or extra sentences.\n" +
+                        "- Output ONLY the complete translated HTML.\n\n" +
+                        "HTML TO TRANSLATE:\n%s\n%s",
+                sourceLanguage, targetLanguage, title, content
+        );
+    }
+
+    private void performAITranslation(String sourceLanguage, String targetLanguage, String content, String title) {
+        Log.d(TAG, "Starting AI translation from " + sourceLanguage + " to " + targetLanguage);
+
+        String translationPrompt = createTranslationPrompt(sourceLanguage, targetLanguage, content, title);
+
+        List<Message> messages = new ArrayList<>();
+
+        // Stronger and more strict system rules
+        messages.add(new Message(
+                "system",
+                "You are an HTML translation engine. " +
+                        "You ONLY translate the text content inside HTML tags. " +
+                        "You do NOT change, remove, or add any HTML tags, attributes, classes, IDs, or structure. " +
+                        "You MUST NOT output reasoning, explanations, chain-of-thought, probabilities, or extra text. " +
+                        "You MUST NOT add any sentences outside the translated HTML. " +
+                        "Output ONLY the full translated HTML, nothing else."
+        ));
+
+        // Assistant confirmation helps DeepSeek/OpenAI follow rules more reliably
+        messages.add(new Message(
+                "assistant",
+                "Understood. I will return only the translated HTML."
+        ));
+
+        messages.add(new Message("user", translationPrompt));
+
+        DeepSeekClient deepSeekClient = new DeepSeekClient();
+
+        new Thread(() -> {
+            try {
+                String translatedText = deepSeekClient.getChatResponse(messages);
+
+                runOnUiThread(() -> {
+                    loading.setVisibility(View.GONE);
+
+                    if (translatedText != null && !translatedText.trim().isEmpty()) {
+
+                        webViewViewModel.updateHtml(translatedText, currentId);
+                        makeSnackbar("Translation completed successfully");
+
+                        Log.d(TAG, "AI Translation completed");
+                        Log.d("TRANSLATION", translatedText);
+                    } else {
+                        makeSnackbar("Translation failed - empty response");
+                        Log.e(TAG, "AI returned empty output");
+                    }
+                });
+
+            } catch (Exception e) {
+                Log.e(TAG, "AI Translation error: " + e.getMessage(), e);
+                runOnUiThread(() -> {
+                    loading.setVisibility(View.GONE);
+                    makeSnackbar("Translation failed: " + e.getMessage());
+                });
+            }
+        }).start();
+    }
+
 
     @SuppressLint("SetJavaScriptEnabled")
     @Override
