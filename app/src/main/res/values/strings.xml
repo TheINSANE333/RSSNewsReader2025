@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">RSS News Reader</string>
+    <string name="app_name">LXZ RSS News Reader</string>
     <string name="action_settings">Settings</string>
     <!-- Strings used for fragments for navigation -->
     <string name="first_fragment_label">First Fragment</string>
@@ -140,7 +140,7 @@
     <string name="help_app_state_desc">The \'Save app state\' function will export an OPML (Outline Processor Markup Language) file to the storage. This file will contain the settings preferences, subscribed feeds, and articles, all of which will be written into the file.\n\nThe \'Load App State\' function allows the user to choose and import an OPML file. If the imported file contains settings preferences, feeds, and articles, the app will add them to the database.\n\nThese two functions are primarily used for transferring the settings and feeds from one phone to another.</string>
     <string name="help_bluetooth_cut_off">Why does the text-to-speech get cut off at the starting point when using Bluetooth</string>
     <string name="help_bluetooth_cut_off_desc">One of the reasons might be that some Bluetooth devices only keep the connection alive when audio is actively coming through, which is not the case with text-to-speech. As a result, the device tries to establish the connection at the starting point when text-to-speech starts speaking, causing the text-to-speech to cut off. To avoid this issue, you can try enabling background music in the Settings Page and see if it resolves the problem</string>
-    <string name="help_extraction_fail">Why does my extracted article not have any content?</string>
+    <string name="help_extraction_fail">Why does xiangze extracted article not have any content?</string>
     <string name="help_extraction_fail_desc">Some websites may require additional time for proper extraction. To allocate more time, you can visit the \'Manage\' tab on the feed page and click the reload button. Experiment with different delay times to determine the most suitable one.\n\nNote: Longer delay times will result in a longer extraction process. Please choose the shortest possible time, if applicable.</string>
     <string name="help_import_music">How can I import an audio file for background music?</string>
     <string name="help_import_music_desc">You can import an audio file on the Settings page under \'Upload background music\'. Please note that only audio files are supported, and video files are not supported. It is recommended to use the OGG format to avoid any distortion when looping.</string>
