@@ -65,7 +65,7 @@ public class ChatActivity extends AppCompatActivity {
         deepSeekClient = new DeepSeekClient();
 
         // Add welcome message
-        messages.add(new Message("assistant", "Hello! I'm DeepSeek AI. How can I help you today?"));
+        messages.add(new Message("assistant", "Hello! How can I help you today?"));
         adapter.notifyDataSetChanged();
     }
 
