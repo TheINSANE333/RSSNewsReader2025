@@ -1,4 +1,4 @@
-package xiangze.mmu.rssnewsreader.data.deepseek;
+package xiangze.mmu.rssnewsreader.data.ai;
 
 import java.util.List;
 

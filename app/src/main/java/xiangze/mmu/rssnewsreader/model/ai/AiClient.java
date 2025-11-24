@@ -1,29 +1,29 @@
-package xiangze.mmu.rssnewsreader.model.deepseek;
+package xiangze.mmu.rssnewsreader.model.ai;
 
 import java.io.IOException;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 import xiangze.mmu.rssnewsreader.BuildConfig;
-import xiangze.mmu.rssnewsreader.data.deepseek.ChatRequest;
-import xiangze.mmu.rssnewsreader.data.deepseek.ChatResponse;
-import xiangze.mmu.rssnewsreader.data.deepseek.Message;
-import xiangze.mmu.rssnewsreader.service.deepseek.DeepSeekService;
+import xiangze.mmu.rssnewsreader.data.ai.ChatRequest;
+import xiangze.mmu.rssnewsreader.data.ai.ChatResponse;
+import xiangze.mmu.rssnewsreader.data.ai.Message;
+import xiangze.mmu.rssnewsreader.service.ai.AiService;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.logging.HttpLoggingInterceptor;
 import retrofit2.Retrofit;
 import retrofit2.converter.gson.GsonConverterFactory;
 
-public class DeepSeekClient {
+public class AiClient {
     private static final String BASE_URL = "https://openrouter.ai/api/v1/";
-    private static final String API_KEY = BuildConfig.DEEPSEEK_API_KEY;
+    private static final String API_KEY = BuildConfig.API_KEY;
     private static final String SITE_URL = "https://github.com/TheINSANE333/RSSNewsReader2025"; // Replace with your app/site URL
     private static final String SITE_NAME = "RSS News Reader 2025"; // Replace with your app name
 
-    private DeepSeekService service;
+    private AiService service;
 
-    public DeepSeekClient() {
+    public AiClient() {
         // Validate API key
         if (API_KEY.equals("your_openrouter_api_key_here") || API_KEY.isEmpty()) {
             throw new IllegalStateException("OpenRouter API key not configured!");
@@ -53,11 +53,11 @@ public class DeepSeekClient {
                 .addConverterFactory(GsonConverterFactory.create())
                 .build();
 
-        service = retrofit.create(DeepSeekService.class);
+        service = retrofit.create(AiService.class);
     }
 
     public String getChatResponse(List<Message> messages) throws IOException {
-        // Use the free DeepSeek model
+        // Use the free OpenAI model
         ChatRequest request = new ChatRequest("openai/gpt-oss-20b:free", messages, 0.0, 100000);
 
         retrofit2.Response<ChatResponse> response = service.chatCompletion(request).execute();

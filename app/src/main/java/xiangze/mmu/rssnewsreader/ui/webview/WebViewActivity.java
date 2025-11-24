@@ -33,11 +33,11 @@ import androidx.lifecycle.ViewModelProvider;
 import io.reactivex.rxjava3.core.Single;
 import io.reactivex.rxjava3.disposables.CompositeDisposable;
 import xiangze.mmu.rssnewsreader.R;
-import xiangze.mmu.rssnewsreader.data.deepseek.Message;
+import xiangze.mmu.rssnewsreader.data.ai.Message;
 import xiangze.mmu.rssnewsreader.data.sharedpreferences.SharedPreferencesRepository;
 import xiangze.mmu.rssnewsreader.model.EntryInfo;
-import xiangze.mmu.rssnewsreader.model.deepseek.ChatActivity;
-import xiangze.mmu.rssnewsreader.model.deepseek.DeepSeekClient;
+import xiangze.mmu.rssnewsreader.model.ai.ChatActivity;
+import xiangze.mmu.rssnewsreader.model.ai.AiClient;
 import xiangze.mmu.rssnewsreader.service.tts.TtsExtractor;
 import xiangze.mmu.rssnewsreader.service.tts.TtsPlayer;
 import xiangze.mmu.rssnewsreader.service.tts.TtsPlaylist;
@@ -322,7 +322,7 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
                         "Output ONLY the full translated HTML, nothing else."
         ));
 
-        // Assistant confirmation helps DeepSeek/OpenAI follow rules more reliably
+        // Assistant confirmation helps OpenAI follow rules more reliably
         messages.add(new Message(
                 "assistant",
                 "Understood. I will return only the translated HTML."
@@ -330,11 +330,11 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
 
         messages.add(new Message("user", translationPrompt));
 
-        DeepSeekClient deepSeekClient = new DeepSeekClient();
+        AiClient aiClient = new AiClient();
 
         new Thread(() -> {
             try {
-                String translatedText = deepSeekClient.getChatResponse(messages);
+                String translatedText = aiClient.getChatResponse(messages);
 
                 runOnUiThread(() -> {
                     loading.setVisibility(View.GONE);

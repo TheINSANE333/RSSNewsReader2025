@@ -35,8 +35,8 @@
             android:parentActivityName=".ui.main.MainActivity"
             android:exported="false" />
         <activity
-            android:name=".model.deepseek.ChatActivity"
-            android:label="DeepSeek AI"
+            android:name=".model.ai.ChatActivity"
+            android:label="AI Chatbot"
             android:theme="@style/Theme.AppCompat.Light.NoActionBar" />
         <activity
             android:name=".ui.main.MainActivity"

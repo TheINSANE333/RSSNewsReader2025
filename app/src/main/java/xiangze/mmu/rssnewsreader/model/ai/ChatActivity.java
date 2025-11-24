@@ -1,4 +1,4 @@
-package xiangze.mmu.rssnewsreader.model.deepseek;
+package xiangze.mmu.rssnewsreader.model.ai;
 
 import android.os.Bundle;
 import android.util.Log;
@@ -19,8 +19,8 @@ import androidx.recyclerview.widget.RecyclerView;
 import java.util.ArrayList;
 import java.util.List;
 
-import xiangze.mmu.rssnewsreader.data.deepseek.Message;
-import xiangze.mmu.rssnewsreader.service.deepseek.ChatAdapter;
+import xiangze.mmu.rssnewsreader.data.ai.Message;
+import xiangze.mmu.rssnewsreader.service.ai.ChatAdapter;
 
 import xiangze.mmu.rssnewsreader.R;
 
@@ -31,7 +31,7 @@ public class ChatActivity extends AppCompatActivity {
     private ProgressBar progressBar;
     private ChatAdapter adapter;
     private List<Message> messages = new ArrayList<>();
-    private DeepSeekClient deepSeekClient;
+    private AiClient aiClient;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -62,7 +62,7 @@ public class ChatActivity extends AppCompatActivity {
         setupRecyclerView();
         setupClickListeners();
 
-        deepSeekClient = new DeepSeekClient();
+        aiClient = new AiClient();
 
         // Add welcome message
         messages.add(new Message("assistant", "Hello! How can I help you today?"));
@@ -79,7 +79,7 @@ public class ChatActivity extends AppCompatActivity {
         Toolbar toolbar = findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
         getSupportActionBar().setDisplayHomeAsUpEnabled(true);
-        getSupportActionBar().setTitle("DeepSeek AI");
+        getSupportActionBar().setTitle("AI Chatbot");
     }
 
     private void setupRecyclerView() {
@@ -122,11 +122,11 @@ public class ChatActivity extends AppCompatActivity {
             progressBar.setVisibility(View.VISIBLE);
             sendButton.setEnabled(false);
 
-            // Call DeepSeek API
+            // Call API
             new Thread(() -> {
                 try {
                     Log.d("ChatBot", "Starting API call...");
-                    String response = deepSeekClient.getChatResponse(messages);
+                    String response = aiClient.getChatResponse(messages);
                     Log.d("ChatBot", "API response received: " + response);
 
                     runOnUiThread(() -> {

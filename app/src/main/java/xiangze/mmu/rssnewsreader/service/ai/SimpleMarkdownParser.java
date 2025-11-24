@@ -1,4 +1,4 @@
-package xiangze.mmu.rssnewsreader.service.deepseek;
+package xiangze.mmu.rssnewsreader.service.ai;
 
 import android.text.Html;
 import android.text.SpannableString;

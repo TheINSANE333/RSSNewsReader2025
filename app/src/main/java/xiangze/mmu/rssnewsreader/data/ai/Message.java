@@ -1,4 +1,4 @@
-package xiangze.mmu.rssnewsreader.data.deepseek;
+package xiangze.mmu.rssnewsreader.data.ai;
 
 public class Message {
     public String role;

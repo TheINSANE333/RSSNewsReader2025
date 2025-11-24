@@ -1,4 +1,4 @@
-package xiangze.mmu.rssnewsreader.service.deepseek;
+package xiangze.mmu.rssnewsreader.service.ai;
 
 import android.text.SpannableString;
 import android.text.method.LinkMovementMethod;
@@ -13,7 +13,7 @@ import androidx.recyclerview.widget.RecyclerView;
 import java.util.List;
 
 import xiangze.mmu.rssnewsreader.R;
-import xiangze.mmu.rssnewsreader.data.deepseek.Message;
+import xiangze.mmu.rssnewsreader.data.ai.Message;
 
 public class ChatAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
     private static final int TYPE_USER = 1;
