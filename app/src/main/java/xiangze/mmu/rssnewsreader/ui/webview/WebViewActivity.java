@@ -304,64 +304,131 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
         );
     }
 
+    private List<String> splitHtmlIntoChunks(String html, int chunkSize) {
+        List<String> chunks = new ArrayList<>();
+
+        int length = html.length();
+        for (int i = 0; i < length; i += chunkSize) {
+            // safe slicing
+            String chunk = html.substring(i, Math.min(length, i + chunkSize));
+            chunks.add(chunk);
+        }
+
+        return chunks;
+    }
+
+    private String translateChunkWithRetry(AiClient aiClient, List<Message> messages) {
+
+        int maxRetries = 5;
+        int delayMs = 2500;
+
+        for (int attempt = 1; attempt <= maxRetries; attempt++) {
+            try {
+                return aiClient.getChatResponse(messages);
+
+            } catch (Exception e) {
+
+                boolean isRateLimit =
+                        e.getMessage() != null &&
+                                (e.getMessage().contains("429") ||
+                                        e.getMessage().toLowerCase().contains("rate"));
+
+                if (isRateLimit && attempt < maxRetries) {
+
+                    Log.e(TAG, "Rate limit hit, retry " + attempt);
+
+                    try { Thread.sleep(delayMs); } catch (InterruptedException ignored) {}
+
+                } else {
+                    throw new RuntimeException(e);
+                }
+            }
+        }
+
+        return null;
+    }
+
     private void performAITranslation(String sourceLanguage, String targetLanguage, String content, String title) {
-        Log.d(TAG, "Starting AI translation from " + sourceLanguage + " to " + targetLanguage);
 
-        String translationPrompt = createTranslationPrompt(sourceLanguage, targetLanguage, content, title);
+        Log.d(TAG, "Starting AI translation with chunk-safe mode...");
 
-        List<Message> messages = new ArrayList<>();
+        loading.setVisibility(View.VISIBLE);
 
-        // Stronger and more strict system rules
-        messages.add(new Message(
-                "system",
-                "You are an HTML translation engine. " +
-                        "You ONLY translate the text content inside HTML tags. " +
-                        "You do NOT change, remove, or add any HTML tags, attributes, classes, IDs, or structure. " +
-                        "You MUST NOT output reasoning, explanations, chain-of-thought, probabilities, or extra text. " +
-                        "You MUST NOT add any sentences outside the translated HTML. " +
-                        "Output ONLY the full translated HTML, nothing else."
-        ));
-
-        // Assistant confirmation helps OpenAI follow rules more reliably
-        messages.add(new Message(
-                "assistant",
-                "Understood. I will return only the translated HTML."
-        ));
-
-        messages.add(new Message("user", translationPrompt));
-
-        AiClient aiClient = new AiClient();
+        // split HTML ---
+        List<String> chunks = splitHtmlIntoChunks(content, 6000);  // safe size
+        Log.d(TAG, "Total chunks: " + chunks.size());
 
         new Thread(() -> {
-            try {
-                String translatedText = aiClient.getChatResponse(messages);
 
+            AiClient aiClient = new AiClient();
+            StringBuilder finalResult = new StringBuilder();
+
+            try {
+
+                for (int i = 0; i < chunks.size(); i++) {
+                    String chunk = chunks.get(i);
+
+                    Log.d(TAG, "Translating chunk " + (i + 1) + "/" + chunks.size());
+
+                    // messages
+                    List<Message> messages = new ArrayList<>();
+
+                    messages.add(new Message(
+                            "system",
+                            "Translate ONLY the text content inside HTML tags. " +
+                                    "Do NOT change, remove, or add any tags, attributes, IDs, or HTML structure. " +
+                                    "Return ONLY translated HTML."
+                    ));
+
+                    messages.add(new Message(
+                            "assistant",
+                            "Understood. I will output only translated HTML."
+                    ));
+
+                    messages.add(new Message(
+                            "user",
+                            createTranslationPrompt(
+                                    sourceLanguage,
+                                    targetLanguage,
+                                    chunk,
+                                    title
+                            )
+                    ));
+
+                    // translate with retry for 429
+                    String translatedChunk = translateChunkWithRetry(aiClient, messages);
+
+                    if (translatedChunk == null || translatedChunk.trim().isEmpty()) {
+                        Log.e(TAG, "Chunk " + i + " returned empty response, using original.");
+                        translatedChunk = chunk;
+                    }
+
+                    finalResult.append(translatedChunk);
+
+                    // Anti-rate-limit delay (even on success)
+                    try { Thread.sleep(2200); } catch (Exception ignored) {}
+                }
+
+                // Update UI
                 runOnUiThread(() -> {
                     loading.setVisibility(View.GONE);
-
-                    if (translatedText != null && !translatedText.trim().isEmpty()) {
-
-                        webViewViewModel.updateHtml(translatedText, currentId);
-                        makeSnackbar("Translation completed successfully");
-
-                        Log.d(TAG, "AI Translation completed");
-                        Log.d("TRANSLATION", translatedText);
-                    } else {
-                        makeSnackbar("Translation failed - empty response");
-                        Log.e(TAG, "AI returned empty output");
-                    }
+                    webViewViewModel.updateHtml(finalResult.toString(), currentId);
+                    makeSnackbar("Translation completed successfully");
+                    Log.d(TAG, "Translation complete, size = " + finalResult.length());
                 });
 
             } catch (Exception e) {
-                Log.e(TAG, "AI Translation error: " + e.getMessage(), e);
+
+                Log.e(TAG, "Translation error: " + e.getMessage(), e);
+
                 runOnUiThread(() -> {
                     loading.setVisibility(View.GONE);
                     makeSnackbar("Translation failed: " + e.getMessage());
                 });
             }
+
         }).start();
     }
-
 
     @SuppressLint("SetJavaScriptEnabled")
     @Override
