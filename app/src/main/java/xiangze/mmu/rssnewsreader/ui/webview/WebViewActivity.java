@@ -354,8 +354,10 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
 
         loading.setVisibility(View.VISIBLE);
 
-        // split HTML ---
-        List<String> chunks = splitHtmlIntoChunks(content, 6000);  // safe size
+        final String originalHtml = content;   // IMPORTANT: restored
+
+        // Split HTML
+        List<String> chunks = splitHtmlIntoChunks(content, 6000);
         Log.d(TAG, "Total chunks: " + chunks.size());
 
         new Thread(() -> {
@@ -370,7 +372,6 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
 
                     Log.d(TAG, "Translating chunk " + (i + 1) + "/" + chunks.size());
 
-                    // messages
                     List<Message> messages = new ArrayList<>();
 
                     messages.add(new Message(
@@ -395,7 +396,6 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
                             )
                     ));
 
-                    // translate with retry for 429
                     String translatedChunk = translateChunkWithRetry(aiClient, messages);
 
                     if (translatedChunk == null || translatedChunk.trim().isEmpty()) {
@@ -405,16 +405,23 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
 
                     finalResult.append(translatedChunk);
 
-                    // Anti-rate-limit delay (even on success)
                     try { Thread.sleep(2200); } catch (Exception ignored) {}
                 }
 
-                // Update UI
+                String finalHtml = finalResult.toString();
+
                 runOnUiThread(() -> {
+                    Log.d(TAG, "Translation complete, size = " + finalHtml.length());
                     loading.setVisibility(View.GONE);
-                    webViewViewModel.updateHtml(finalResult.toString(), currentId);
+
+                    // 🔥 RESTORED — ensures old system still works
+                    doWhenTranslationFinish(
+                            webViewViewModel.getLastVisitedEntry(),
+                            originalHtml,
+                            finalHtml
+                    );
+
                     makeSnackbar("Translation completed successfully");
-                    Log.d(TAG, "Translation complete, size = " + finalResult.length());
                 });
 
             } catch (Exception e) {
