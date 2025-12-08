@@ -71,6 +71,7 @@ public class TtsExtractor {
     private final HashMap<Long, Integer> retryCountMap = new HashMap<>();
     private final int MAX_RETRIES = 5;
     private long lastExtractStart = 0;
+    private String currentLoadToken = "";
 
     @SuppressLint("SetJavaScriptEnabled")
     @Inject
@@ -102,7 +103,6 @@ public class TtsExtractor {
         if (currentIdInProgress == ttsPlaylist.getPlayingId()) {
             if (ttsCallback != null) {
                 String lang = currentLanguage != null ? currentLanguage : "en";
-
                 Entry entry = entryRepository.getEntryById(currentIdInProgress);
                 String contentToRead;
 
@@ -297,10 +297,16 @@ public class TtsExtractor {
     public class WebClient extends WebViewClient {
 
         private final Handler handler = new Handler();
+        private String currentLoadToken = ""; // Unique ID for every page load attempt
+        private static final long TRANSLATION_COOLDOWN_MS = 3000;
+        private boolean hasProcessedCurrentToken = false;
 
         @Override
         public void onPageStarted(WebView view, String url, Bitmap favicon) {
             super.onPageStarted(view, url, favicon);
+            currentLoadToken = java.util.UUID.randomUUID().toString();
+            hasProcessedCurrentToken = false;
+            extractionInProgress = true;
         }
 
         @Override
@@ -313,191 +319,24 @@ public class TtsExtractor {
         public void onPageFinished(WebView view, String url) {
             Log.d(TAG, "[onPageFinished] triggered for: " + url);
             super.onPageFinished(view, url);
-            if (extractionInProgress && webView.getProgress() == 100) {
+            final String executionToken = currentLoadToken;
+            if (extractionInProgress && view.getProgress() == 100) {
                 handler.postDelayed(new Runnable() {
                     @Override
                     public void run() {
-                        webView.evaluateJavascript("(function() {return document.getElementsByTagName('html')[0].outerHTML;})();", new ValueCallback<String>() {
+                        if (!executionToken.equals(currentLoadToken) || !extractionInProgress || hasProcessedCurrentToken) {
+                            Log.d(TAG, "Ignoring stale onPageFinished event.");
+                            return;
+                        }
+                        view.evaluateJavascript("(function() {return document.getElementsByTagName('html')[0].outerHTML;})();", new ValueCallback<String>() {
                             @Override
                             public void onReceiveValue(final String value) {
-                                Log.d(TAG, "Receiving value...");
-                                JsonReader reader = new JsonReader(new StringReader(value));
-                                reader.setLenient(true);
-                                boolean stopExtracting = false;
-                                StringBuilder content = new StringBuilder();
-                                try {
-                                    if (reader.peek() == JsonToken.STRING) {
-                                        String html = reader.nextString();
-                                        boolean isTranslated = sharedPreferencesRepository.getIsTranslatedView(currentIdInProgress);
-                                        if (html != null) {
-                                            Readability4JExtended readability4J = new Readability4JExtended(currentLink, html);
-                                            Article article = readability4J.parse();
-
-                                            if (currentTitle != null && !currentTitle.isEmpty()) {
-                                                content.append(currentTitle).append(delimiter);
-                                            }
-
-                                            if (article.getContentWithUtf8Encoding() != null) {
-                                                Document doc = Jsoup.parse(article.getContentWithUtf8Encoding());
-                                                doc.select("img").removeAttr("width");
-                                                doc.select("img").removeAttr("height");
-                                                doc.select("img").removeAttr("sizes");
-                                                doc.select("img").removeAttr("srcset");
-                                                doc.select("h1").remove();
-                                                doc.select("img").attr("style", "border-radius: 5px; width: 100%; margin-left:0"); // find all images and set width to 100%
-                                                doc.select("figure").attr("style", "width: 100%; margin-left:0"); // find all images and set width to 100%
-                                                doc.select("iframe").attr("style", "width: 100%; margin-left:0"); // find all images and set width to 100%
-
-                                                List<String> tags = Arrays.asList("h2", "h3", "h4", "h5", "h6", "p", "td", "pre", "th", "li", "figcaption", "blockquote", "section");
-                                                for (Element element : doc.getAllElements()) {
-                                                    if (tags.contains(element.tagName())) {
-                                                        boolean sameContent = false;
-                                                        for (Element child : element.children()) {
-                                                            if (tags.contains(child.tagName())) {
-                                                                sameContent = true;
-                                                            }
-                                                        }
-                                                        if (!sameContent) {
-                                                            String text = element.text().trim();
-                                                            if (!text.isEmpty() && text.length() > 1) {
-                                                                if (currentTitle != null && !currentTitle.isEmpty()) {
-                                                                    content.append(delimiter).append(text);
-                                                                } else {
-                                                                    content.append(text);
-                                                                }
-                                                            } else {
-                                                                element.remove();
-                                                            }
-                                                        }
-                                                    }
-                                                }
-
-                                                entryRepository.updateHtml(doc.html(), currentIdInProgress);
-
-                                                if (entryRepository.getOriginalHtmlById(currentIdInProgress) == null) {
-                                                    entryRepository.updateOriginalHtml(doc.html(), currentIdInProgress);
-                                                    entryRepository.updateContent(content.toString(), currentIdInProgress);
-                                                }
-
-                                                final long processingId = currentIdInProgress;
-                                                final String processingTitle = currentTitle;
-
-                                                boolean shouldTranslate = sharedPreferencesRepository.getAutoTranslate();
-                                                String targetLanguage = sharedPreferencesRepository.getDefaultTranslationLanguage();
-
-                                                if (shouldTranslate) {
-                                                    Log.d(TAG, "Queue paused. Waiting for translation of ID: " + currentIdInProgress);
-                                                    textUtil.translateHtmlAllAtOnce(
-                                                                    currentLanguage, // source
-                                                                    targetLanguage,  // target
-                                                                    doc.html(),      // html
-                                                                    processingTitle,
-                                                                    processingId,
-                                                                    progress -> {}   // Empty progress for background scrape
-                                                            )
-                                                            .subscribeOn(Schedulers.io())
-                                                            .observeOn(AndroidSchedulers.mainThread()) // Must be Main thread to call WebClient methods
-                                                            .subscribe(translatedHtml -> {
-                                                                // --- SUCCESS ---
-                                                                Log.d(TAG, "Translation finished for ID: " + processingId);
-
-                                                                // Save Translated Data
-                                                                entryRepository.updateHtml(translatedHtml, currentIdInProgress);
-                                                                String translatedContent = textUtil.extractHtmlContent(translatedHtml, "--####--");
-                                                                entryRepository.updateTranslatedText(translatedContent, currentIdInProgress);
-                                                                entryRepository.updateTranslated(translatedContent, currentIdInProgress);
-
-                                                                // 3. NOW we move to the next item (One-by-One flow)
-                                                                finishAndMoveToNext();
-                                                            }, error -> {
-                                                                // --- ERROR ---
-                                                                Log.e(TAG, "Translation Failed for ID: " + processingId, error);
-
-                                                                // 4. STOP EVERYTHING
-                                                                // We do NOT call extractAllEntries(). The queue dies here.
-                                                                if (webViewCallback != null) {
-                                                                    webViewCallback.makeSnackbar("Translation error. Queue stopped.");
-                                                                    webViewCallback.finishedSetup();
-                                                                }
-                                                                extractionInProgress = false;
-                                                                currentIdInProgress = -1;
-                                                                // The loop ends because we didn't call extractAllEntries()
-                                                            });
-
-                                                }
-                                                else {
-                                                    // No translation needed? Proceed immediately.
-                                                    finishAndMoveToNext();
-                                                }
-
-                                                if (content.toString().isEmpty()) {
-                                                    stopExtracting = true;
-                                                }
-
-                                                if (currentIdInProgress == ttsPlaylist.getPlayingId()) {
-                                                    if (ttsCallback != null) {
-                                                        String lang = currentLanguage != null ? currentLanguage : "en";
-
-                                                        Entry entry = entryRepository.getEntryById(currentIdInProgress);
-                                                        String contentToRead;
-
-                                                        if (isTranslated && entry != null && entry.getTranslated() != null && !entry.getTranslated().trim().isEmpty()) {
-                                                            contentToRead = entry.getTranslated();
-                                                            Log.d(TAG, "[TtsExtractor] Using translated content for TTS");
-                                                        } else {
-                                                            contentToRead = entry != null ? entry.getContent() : "";
-                                                            Log.d(TAG, "[TtsExtractor] Using original content for TTS");
-                                                        }
-
-                                                        ttsCallback.extractToTts(contentToRead, lang);
-                                                        ttsCallback = null;
-                                                    }
-                                                } else {
-                                                    Log.d(TAG, "not playing this ID");
-                                                }
-                                            } else {
-                                                Log.d(TAG, "Empty content");
-                                            }
-                                        } else {
-                                            if (webViewCallback != null) {
-                                                webViewCallback.makeSnackbar("Failed to retrieve the html");
-                                            }
-                                            Log.d(TAG, "No html found!");
-                                        }
-                                    } else {
-                                        Log.e(TAG, "[onReceiveValue] Unexpected JSON token");
-                                        if (webViewCallback != null) {
-                                            webViewCallback.makeSnackbar("Extraction failed");
-                                        }
-                                        Log.d(TAG, "Error peeking reader!");
-                                    }
-                                } catch (Exception e) {
-                                    Log.e(TAG, "[onReceiveValue] Exception during extraction", e);
-                                    failedIds.add(currentIdInProgress);
-                                    Log.d(TAG, e.getMessage());
-                                    e.printStackTrace();
-                                } finally {
-                                    Log.d(TAG, "[onReceiveValue] Finally block: resetting flags for ID = " + currentIdInProgress);
-                                    currentIdInProgress = -1;
-                                    extractionInProgress = false;
-                                    extractAllEntries();
+                                if (!executionToken.equals(currentLoadToken) || hasProcessedCurrentToken) {
+                                    Log.d(TAG, "Ignoring JS callback. Token mismatch.");
+                                    return;
                                 }
-
-                                if (stopExtracting || content.toString().isEmpty()) {
-                                    Log.w(TAG, "Extraction failed for ID: " + currentIdInProgress);
-                                    failedIds.add(currentIdInProgress);
-                                }
-
-                                if (webViewCallback != null) {
-                                    Log.d(TAG, "Extraction complete. Notifying UI via finishedSetup()");
-                                    webViewCallback.finishedSetup();
-                                    webViewCallback = null;
-                                }
-
-                                Log.d(TAG, "[onReceiveValue] Extraction completed for ID: " + currentIdInProgress);
-                                currentIdInProgress = -1;
-                                extractionInProgress = false;
-                                extractAllEntries();
+                                hasProcessedCurrentToken = true;
+                                processHtmlExtraction(value);
                             }
                         });
                     }
@@ -505,6 +344,178 @@ public class TtsExtractor {
             } else {
                 Log.d(TAG, "loading WebView");
             }
+        }
+    }
+
+    private void processHtmlExtraction(String value) {
+        Log.d(TAG, "Processing extracted HTML value...");
+        JsonReader reader = new JsonReader(new StringReader(value));
+        reader.setLenient(true);
+
+        try {
+            if (reader.peek() == JsonToken.STRING) {
+                String html = reader.nextString();
+
+                if (html != null) {
+                    // 1. Parse with Readability4J
+                    Readability4JExtended readability4J = new Readability4JExtended(currentLink, html);
+                    Article article = readability4J.parse();
+                    StringBuilder content = new StringBuilder();
+
+                    if (currentTitle != null && !currentTitle.isEmpty()) {
+                        content.append(currentTitle).append(delimiter);
+                    }
+
+                    if (article.getContentWithUtf8Encoding() != null) {
+                        // 2. Clean with Jsoup
+                        Document doc = Jsoup.parse(article.getContentWithUtf8Encoding());
+
+                        // Clean images and layout
+                        doc.select("img").removeAttr("width");
+                        doc.select("img").removeAttr("height");
+                        doc.select("img").removeAttr("sizes");
+                        doc.select("img").removeAttr("srcset");
+                        doc.select("h1").remove();
+                        doc.select("img").attr("style", "border-radius: 5px; width: 100%; margin-left:0");
+                        doc.select("figure").attr("style", "width: 100%; margin-left:0");
+                        doc.select("iframe").attr("style", "width: 100%; margin-left:0");
+
+                        // Filter text content
+                        List<String> tags = Arrays.asList("h2", "h3", "h4", "h5", "h6", "p", "td", "pre", "th", "li", "figcaption", "blockquote", "section");
+                        for (Element element : doc.getAllElements()) {
+                            if (tags.contains(element.tagName())) {
+                                boolean sameContent = false;
+                                for (Element child : element.children()) {
+                                    if (tags.contains(child.tagName())) {
+                                        sameContent = true;
+                                    }
+                                }
+                                if (!sameContent) {
+                                    String text = element.text().trim();
+                                    if (!text.isEmpty() && text.length() > 1) {
+                                        if (currentTitle != null && !currentTitle.isEmpty()) {
+                                            content.append(delimiter).append(text);
+                                        } else {
+                                            content.append(text);
+                                        }
+                                    } else {
+                                        element.remove();
+                                    }
+                                }
+                            }
+                        }
+
+                        // 3. Save Original Data Immediately
+                        entryRepository.updateOriginalHtml(doc.html(), currentIdInProgress);
+                        if (entryRepository.getOriginalHtmlById(currentIdInProgress) == null) {
+                            entryRepository.updateContent(content.toString(), currentIdInProgress);
+                        }
+
+                        boolean isTranslatedView = sharedPreferencesRepository.getIsTranslatedView(currentIdInProgress);
+                        String existingTranslated = entryRepository.getTranslatedTextById(currentIdInProgress);
+                        boolean hasTranslation = existingTranslated != null && !existingTranslated.trim().isEmpty();
+
+                        if (!isTranslatedView || !hasTranslation) {
+                            Log.d(TAG, "Updating main HTML to source language (No translation active).");
+                            entryRepository.updateHtml(doc.html(), currentIdInProgress);
+                        } else {
+                            Log.d(TAG, "Preserving existing translation in main HTML view.");
+                            // We DO NOT update 'html' here. We leave the old translation visible
+                            // while the background translation (below) prepares the new one.
+                        }
+
+                        // 4. Capture Final Variables for Async Logic
+                        final long processingId = currentIdInProgress;
+                        final String processingTitle = currentTitle;
+                        boolean shouldTranslate = sharedPreferencesRepository.getAutoTranslate();
+
+                        // 5. Language Check (Fixes "zh to zh" redundancy)
+                        String targetLang = sharedPreferencesRepository.getDefaultTranslationLanguage();
+                        // Assume currentLanguage was set during RSS parsing or previous steps
+                        boolean isSameLanguage = currentLanguage != null && currentLanguage.equalsIgnoreCase(targetLang);
+
+                        // 6. Translation Logic
+                        if (shouldTranslate && !isSameLanguage) {
+                            Log.d(TAG, "Queue paused. Translating ID: " + processingId + " (" + currentLanguage + " -> " + targetLang + ")");
+
+                            textUtil.translateHtmlAllAtOnce(
+                                            currentLanguage,
+                                            targetLang,
+                                            doc.html(),
+                                            processingTitle,
+                                            processingId,
+                                            progress -> {} // Empty progress callback
+                                    )
+                                    .subscribeOn(Schedulers.io())
+                                    .observeOn(AndroidSchedulers.mainThread())
+                                    .subscribe(translatedHtml -> {
+                                        // --- SUCCESS CALLBACK ---
+                                        Log.d(TAG, "Translation finished for ID: " + processingId);
+
+                                        // Update Database with Translation
+                                        entryRepository.updateHtml(translatedHtml, processingId);
+                                        String translatedContent = textUtil.extractHtmlContent(translatedHtml, "--####--");
+                                        entryRepository.updateTranslatedText(translatedContent, processingId);
+                                        entryRepository.updateTranslated(translatedContent, processingId);
+
+                                        // Safety check: did the ID change?
+                                        if (processingId != currentIdInProgress) {
+                                            Log.w(TAG, "ID changed during translation. Ignoring result.");
+                                            return;
+                                        }
+                                        // Create a new Handler associated with the main thread's Looper
+                                        Handler handler = new Handler(Looper.getMainLooper());
+
+                                        handler.postDelayed(() -> {
+                                            if (extractionInProgress && processingId == currentIdInProgress) {
+                                                finishAndMoveToNext();
+                                            }
+                                        }, WebClient.TRANSLATION_COOLDOWN_MS);
+                                    }, error -> {
+                                        // --- ERROR CALLBACK ---
+                                        Log.e(TAG, "Translation Failed for ID: " + processingId, error);
+
+                                        // STOP: Do not continue queue on error
+                                        if (webViewCallback != null) {
+                                            webViewCallback.makeSnackbar("Translation failed. Queue stopped.");
+                                            webViewCallback.finishedSetup();
+                                        }
+                                        extractionInProgress = false;
+                                        currentIdInProgress = -1;
+                                    });
+
+                        } else {
+                            // No translation needed (disabled or same language)
+                            if (isSameLanguage) {
+                                Log.d(TAG, "Skipping translation: Source and Target are both " + currentLanguage);
+                                finishAndMoveToNext();
+                            }
+                        }
+                    } else {
+                        Log.d(TAG, "Empty content found for ID: " + currentIdInProgress);
+                        failedIds.add(currentIdInProgress);
+                        finishAndMoveToNext();
+                    }
+                } else {
+                    Log.d(TAG, "No html found!");
+                    // Consider whether to stop or skip here. For now, we skip.
+                    failedIds.add(currentIdInProgress);
+                    finishAndMoveToNext();
+                }
+            } else {
+                failedIds.add(currentIdInProgress);
+                finishAndMoveToNext();
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "[onReceiveValue] Exception during extraction", e);
+            failedIds.add(currentIdInProgress);
+
+            if (webViewCallback != null) {
+                webViewCallback.makeSnackbar("Error: " + e.getMessage());
+                webViewCallback.finishedSetup();
+            }
+            extractionInProgress = false;
+            currentIdInProgress = -1;
         }
     }
 

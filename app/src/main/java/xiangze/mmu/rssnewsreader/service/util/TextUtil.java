@@ -186,7 +186,7 @@ public class TextUtil {
     private String translateChunkWithRetry(AiClient aiClient, List<Message> messages) {
 
         int maxRetries = 5;
-        int delayMs = 2500;
+        int delayMs = 30000;
 
         for (int attempt = 1; attempt <= maxRetries; attempt++) {
             try {
