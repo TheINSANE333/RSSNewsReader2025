@@ -95,6 +95,47 @@ public class TtsExtractor {
         });
     }
 
+    private void finishAndMoveToNext() {
+        Log.d(TAG, "Item complete. Moving to next...");
+
+        // Your existing cleanup logic
+        if (currentIdInProgress == ttsPlaylist.getPlayingId()) {
+            if (ttsCallback != null) {
+                String lang = currentLanguage != null ? currentLanguage : "en";
+
+                Entry entry = entryRepository.getEntryById(currentIdInProgress);
+                String contentToRead;
+
+                // We fetch the preference again to ensure we use the latest user setting
+                boolean isTranslated = sharedPreferencesRepository.getIsTranslatedView(currentIdInProgress);
+
+                if (isTranslated && entry != null && entry.getTranslated() != null && !entry.getTranslated().trim().isEmpty()) {
+                    contentToRead = entry.getTranslated();
+                    Log.d(TAG, "[TtsExtractor] Using translated content for TTS");
+                } else {
+                    contentToRead = entry != null ? entry.getContent() : "";
+                    Log.d(TAG, "[TtsExtractor] Using original content for TTS");
+                }
+
+                ttsCallback.extractToTts(contentToRead, lang);
+                ttsCallback = null; // Consume the callback so it doesn't fire again unexpectedly
+            }
+        } else {
+            Log.d(TAG, "Not playing this ID. Current: " + currentIdInProgress + ", Playing: " + ttsPlaylist.getPlayingId());
+        }
+
+        if (webViewCallback != null) {
+            webViewCallback.finishedSetup();
+            webViewCallback = null;
+        }
+
+        currentIdInProgress = -1;
+        extractionInProgress = false;
+
+        // LOAD THE NEXT URL
+        extractAllEntries();
+    }
+
     public void extractAllEntries() {
         Log.d(TAG, "extractAllEntries called | extractionInProgress = " + extractionInProgress);
 
@@ -338,8 +379,55 @@ public class TtsExtractor {
                                                     entryRepository.updateContent(content.toString(), currentIdInProgress);
                                                 }
 
-                                                if (sharedPreferencesRepository.getAutoTranslate()) {
-                                                    translateHtml(doc.html(), content.toString(), currentIdInProgress, currentTitle);
+                                                final long processingId = currentIdInProgress;
+                                                final String processingTitle = currentTitle;
+
+                                                boolean shouldTranslate = sharedPreferencesRepository.getAutoTranslate();
+                                                String targetLanguage = sharedPreferencesRepository.getDefaultTranslationLanguage();
+
+                                                if (shouldTranslate) {
+                                                    Log.d(TAG, "Queue paused. Waiting for translation of ID: " + currentIdInProgress);
+                                                    textUtil.translateHtmlAllAtOnce(
+                                                                    currentLanguage, // source
+                                                                    targetLanguage,  // target
+                                                                    doc.html(),      // html
+                                                                    processingTitle,
+                                                                    processingId,
+                                                                    progress -> {}   // Empty progress for background scrape
+                                                            )
+                                                            .subscribeOn(Schedulers.io())
+                                                            .observeOn(AndroidSchedulers.mainThread()) // Must be Main thread to call WebClient methods
+                                                            .subscribe(translatedHtml -> {
+                                                                // --- SUCCESS ---
+                                                                Log.d(TAG, "Translation finished for ID: " + processingId);
+
+                                                                // Save Translated Data
+                                                                entryRepository.updateHtml(translatedHtml, currentIdInProgress);
+                                                                String translatedContent = textUtil.extractHtmlContent(translatedHtml, "--####--");
+                                                                entryRepository.updateTranslatedText(translatedContent, currentIdInProgress);
+                                                                entryRepository.updateTranslated(translatedContent, currentIdInProgress);
+
+                                                                // 3. NOW we move to the next item (One-by-One flow)
+                                                                finishAndMoveToNext();
+                                                            }, error -> {
+                                                                // --- ERROR ---
+                                                                Log.e(TAG, "Translation Failed for ID: " + processingId, error);
+
+                                                                // 4. STOP EVERYTHING
+                                                                // We do NOT call extractAllEntries(). The queue dies here.
+                                                                if (webViewCallback != null) {
+                                                                    webViewCallback.makeSnackbar("Translation error. Queue stopped.");
+                                                                    webViewCallback.finishedSetup();
+                                                                }
+                                                                extractionInProgress = false;
+                                                                currentIdInProgress = -1;
+                                                                // The loop ends because we didn't call extractAllEntries()
+                                                            });
+
+                                                }
+                                                else {
+                                                    // No translation needed? Proceed immediately.
+                                                    finishAndMoveToNext();
                                                 }
 
                                                 if (content.toString().isEmpty()) {

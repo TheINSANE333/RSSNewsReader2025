@@ -304,19 +304,6 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
         );
     }
 
-    private List<String> splitHtmlIntoChunks(String html, int chunkSize) {
-        List<String> chunks = new ArrayList<>();
-
-        int length = html.length();
-        for (int i = 0; i < length; i += chunkSize) {
-            // safe slicing
-            String chunk = html.substring(i, Math.min(length, i + chunkSize));
-            chunks.add(chunk);
-        }
-
-        return chunks;
-    }
-
     private String translateChunkWithRetry(AiClient aiClient, List<Message> messages) {
 
         int maxRetries = 5;
@@ -350,71 +337,56 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
 
     private void performAITranslation(String sourceLanguage, String targetLanguage, String content, String title) {
 
-        Log.d(TAG, "Starting AI translation with chunk-safe mode...");
+        Log.d(TAG, "Starting AI translation (Single Request Mode)...");
 
         loading.setVisibility(View.VISIBLE);
 
-        final String originalHtml = content;   // IMPORTANT: restored
-
-        // Split HTML
-        List<String> chunks = splitHtmlIntoChunks(content, 6000);
-        Log.d(TAG, "Total chunks: " + chunks.size());
+        final String originalHtml = content;
 
         new Thread(() -> {
 
             AiClient aiClient = new AiClient();
-            StringBuilder finalResult = new StringBuilder();
 
             try {
+                // Prepare messages for the full content
+                List<Message> messages = new ArrayList<>();
 
-                for (int i = 0; i < chunks.size(); i++) {
-                    String chunk = chunks.get(i);
+                messages.add(new Message(
+                        "system",
+                        "Translate ONLY the text content inside HTML tags. " +
+                                "Do NOT change, remove, or add any tags, attributes, IDs, or HTML structure. " +
+                                "Return ONLY translated HTML."
+                ));
 
-                    Log.d(TAG, "Translating chunk " + (i + 1) + "/" + chunks.size());
+                messages.add(new Message(
+                        "assistant",
+                        "Understood. I will output only translated HTML."
+                ));
 
-                    List<Message> messages = new ArrayList<>();
+                messages.add(new Message(
+                        "user",
+                        createTranslationPrompt(
+                                sourceLanguage,
+                                targetLanguage,
+                                content, // Passing the full content directly
+                                title
+                        )
+                ));
 
-                    messages.add(new Message(
-                            "system",
-                            "Translate ONLY the text content inside HTML tags. " +
-                                    "Do NOT change, remove, or add any tags, attributes, IDs, or HTML structure. " +
-                                    "Return ONLY translated HTML."
-                    ));
+                // Execute the translation request
+                String translatedHtml = translateChunkWithRetry(aiClient, messages);
 
-                    messages.add(new Message(
-                            "assistant",
-                            "Understood. I will output only translated HTML."
-                    ));
-
-                    messages.add(new Message(
-                            "user",
-                            createTranslationPrompt(
-                                    sourceLanguage,
-                                    targetLanguage,
-                                    chunk,
-                                    title
-                            )
-                    ));
-
-                    String translatedChunk = translateChunkWithRetry(aiClient, messages);
-
-                    if (translatedChunk == null || translatedChunk.trim().isEmpty()) {
-                        Log.e(TAG, "Chunk " + i + " returned empty response, using original.");
-                        translatedChunk = chunk;
-                    }
-
-                    finalResult.append(translatedChunk);
-
-                    try { Thread.sleep(2200); } catch (Exception ignored) {}
+                // Validation
+                if (translatedHtml == null || translatedHtml.trim().isEmpty()) {
+                    throw new Exception("AI returned empty response.");
                 }
 
-                String finalHtml = finalResult.toString();
+                final String finalHtml = translatedHtml;
 
                 runOnUiThread(() -> {
                     Log.d(TAG, "Translation complete, size = " + finalHtml.length());
                     loading.setVisibility(View.GONE);
 
-                    // 🔥 RESTORED — ensures old system still works
                     doWhenTranslationFinish(
                             webViewViewModel.getLastVisitedEntry(),
                             originalHtml,

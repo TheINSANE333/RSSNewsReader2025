@@ -17,8 +17,10 @@ import org.jsoup.nodes.Element;
 import org.jsoup.parser.Tag;
 import org.jsoup.select.Elements;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import javax.inject.Inject;
@@ -29,10 +31,13 @@ import io.reactivex.rxjava3.core.Single;
 import io.reactivex.rxjava3.disposables.CompositeDisposable;
 import io.reactivex.rxjava3.functions.Consumer;
 import io.reactivex.rxjava3.schedulers.Schedulers;
+import xiangze.mmu.rssnewsreader.data.ai.Message;
 import xiangze.mmu.rssnewsreader.data.sharedpreferences.SharedPreferencesRepository;
+import xiangze.mmu.rssnewsreader.model.ai.AiClient;
 
 public class TextUtil {
     public static final String TAG = TextUtil.class.getSimpleName();
+    private static final Semaphore GLOBAL_TRANSLATION_LOCK = new Semaphore(1, true);
     private final CompositeDisposable compositeDisposable;
     private final SharedPreferencesRepository sharedPreferencesRepository;
 
@@ -172,6 +177,42 @@ public class TextUtil {
         });
     }
 
+    private String createTranslationPrompt(String source, String target, String content, String title) {
+        return "Translate the following HTML content from " + source + " to " + target + ".\n" +
+                "Title context: " + title + "\n\n" +
+                "HTML Content:\n" + content;
+    }
+
+    private String translateChunkWithRetry(AiClient aiClient, List<Message> messages) {
+
+        int maxRetries = 5;
+        int delayMs = 2500;
+
+        for (int attempt = 1; attempt <= maxRetries; attempt++) {
+            try {
+                return aiClient.getChatResponse(messages);
+
+            } catch (Exception e) {
+
+                boolean isRateLimit =
+                        e.getMessage() != null &&
+                                (e.getMessage().contains("429") ||
+                                        e.getMessage().toLowerCase().contains("rate"));
+
+                if (isRateLimit && attempt < maxRetries) {
+
+                    Log.e(TAG, "Rate limit hit, retry " + attempt);
+
+                    try { Thread.sleep(delayMs); } catch (InterruptedException ignored) {}
+
+                } else {
+                    throw new RuntimeException(e);
+                }
+            }
+        }
+
+        return null;
+    }
 
     // Translation Method: Concat texts from all the elements then translate the concatenated text
     // Pro: Faster performance. (e.g. translating very long content (198 elements) takes only 2 minutes,
@@ -188,114 +229,109 @@ public class TextUtil {
     // 3. The accuracy of translation can sometimes be compromised, resulting in unusual or unexpected translations.
     // 4. MLKit uses English as an intermediate language for translation. For example, when translating from Chinese to Malay, the process is actually Chinese -> English -> Malay. This indirect translation process may affect the quality of the final translation.
     public Single<String> translateHtmlAllAtOnce(String sourceLanguage, String targetLanguage, String html, String title, long articleId, Consumer<Integer> progressCallback) {
-        Log.d(TAG, "translateHtmlAllAtOnce: from " + sourceLanguage + " to " + targetLanguage);
-        return Single.create(emitter -> {
+        return Single.defer(() -> {
+
+            Log.d(TAG, "Attempting to acquire Translation Lock for ID: " + articleId);
+
+            // 1. BLOCK: This pauses the flow until the lock is free.
+            // If WebClient is translating, AutoTranslator waits here (and vice versa).
             try {
-                // First, translate the title
-                translateText(sourceLanguage, targetLanguage, title)
-                        .flatMap(translatedTitle -> {
-                            // Parse the HTML
-                            Document document = Jsoup.parse(html);
-                            // List of tags to extract text from
-                            List<String> tags = Arrays.asList("h2", "h3", "h4", "h5", "h6", "p", "td", "pre", "th", "li", "figcaption", "blockquote", "section");
-                            // Get all elements with the specified tags
-                            Elements elements = document.select(String.join(",", tags));
+                GLOBAL_TRANSLATION_LOCK.acquire();
+            } catch (InterruptedException e) {
+                return Single.error(e);
+            }
 
-                            // Check if the translated title has already been prepended
-                            Element existingTitleElement = document.select("p.translated-title").first();
-                            if (existingTitleElement == null) {
-                                Element titleParagraph = new Element(Tag.valueOf("p"), "");
-                                titleParagraph.text(translatedTitle);
-                                titleParagraph.addClass("translated-title");
-                                titleParagraph.attr("data-article-id", String.valueOf(articleId));
-                                document.body().prependChild(titleParagraph);
-                            }
+            Log.d(TAG, "Lock Acquired. Starting translation for ID: " + articleId);
 
-                            // Unique delimiter
-                            String delimiter = "++++++@@@@@@++++++";
-                            // Concatenate all the text
-                            StringBuilder stringBuilder = new StringBuilder();
-                            for (Element element : elements) {
-                                String text = element.text();
-                                stringBuilder.append(text);
-                                stringBuilder.append(delimiter);
-                            }
-                            Log.d(TAG, "translateHtml: translating " + elements.size() + " elements");
-                            if (elements.isEmpty()) {
-                                emitter.onSuccess(document.outerHtml());
-                                return Single.just(document.outerHtml());
-                            }
+            // 2. RUN: Your existing translation logic goes here.
+            // Ensure this returns a Single<String>.
+            return performActualTranslation(sourceLanguage, targetLanguage, html, title, articleId, progressCallback)
+                    .doFinally(() -> {
+                        // 3. RELEASE: This runs whether the translation Succeeds OR Fails.
+                        // It is critical to ensure the next item in line can proceed.
+                        GLOBAL_TRANSLATION_LOCK.release();
+                        Log.d(TAG, "Lock Released for ID: " + articleId);
+                    });
+        });
+    }
 
-                            AtomicInteger progress = new AtomicInteger(0);
-                            Thread progressThread = new Thread(() -> {
-                                try {
-                                    while (progress.get() < 90) {
-                                        Thread.sleep(300);
-                                        try {
-                                            progressCallback.accept(progress.incrementAndGet());
-                                        } catch (Throwable callbackException) {
-                                            Log.e(TAG, "Progress callback failed", callbackException);
-                                        }
-                                    }
-                                } catch (InterruptedException e) {
-                                    Thread.currentThread().interrupt(); // Restore interrupted status
-                                }
-                            });
-                            progressThread.start();
+    private Single<String> performActualTranslation(String sourceLanguage, String targetLanguage, String html, String title, long articleId, Consumer<Integer> progressCallback) {
+        Log.d(TAG, "translateHtmlAllAtOnce: AI Mode - from " + sourceLanguage + " to " + targetLanguage);
 
-                            String combinedText = stringBuilder.toString();
-                            return translateText(sourceLanguage, targetLanguage, combinedText)
-                                    .map(translatedText -> {
-                                        progressThread.interrupt(); // Stop progress simulation
-                                        try {
-                                            progressCallback.accept(100); // Finalize progress
-                                        } catch (Throwable callbackException) {
-                                            Log.e(TAG, "Progress callback failed on completion", callbackException);
-                                        }
-                                        Log.d(TAG, "translateHtml: translatedText: " + translatedText);
-                                        String[] translatedTexts = translatedText.split("((\\+ *){1,} *(@ *)* *(\\+ *){1,})|((\\+ *)* *(@ *){2,} *(\\+ *)*)");
-                                        Log.d(TAG, "translateHtml: totalTextstoTranslate: " + elements.size() + ", totalTranslatedTexts: " + translatedTexts.length);
-                                        // If total translatedTexts is less or equal than the total elements, replace the text then remove additional elements
-                                        if (translatedTexts.length <= elements.size()) {
-                                            for (int i = 0; i < translatedTexts.length; i++) {
-                                                Element originalElement = elements.get(i);
-                                                Element newElement = new Element(Tag.valueOf("p"), "");
-                                                newElement.text(translatedTexts[i]);
-                                                originalElement.replaceWith(newElement);
-                                            }
-                                            for (int i = translatedTexts.length; i < elements.size(); i++) {
-                                                elements.remove(elements.get(i));
-                                            }
-                                        }
-                                        // If total translatedTexts is more than the total elements, add additional elements
-                                        else {
-                                            for (int i = 0; i < elements.size(); i++) {
-                                                Element originalElement = elements.get(i);
-                                                Element newElement = new Element(Tag.valueOf("p"), "");
-                                                newElement.text(translatedTexts[i]);
-                                                originalElement.replaceWith(newElement);
-                                            }
-                                            for (int i = elements.size(); i < translatedTexts.length; i++) {
-                                                Element newElement = new Element(Tag.valueOf("p"), "");
-                                                newElement.text(translatedTexts[i]);
-                                                elements.add(newElement);
-                                            }
-                                        }
-                                        return document.outerHtml();
-                                    });
-                        })
-                        .subscribe(
-                                emitter::onSuccess,
-                                error -> {
-                                    try {
-                                        progressCallback.accept(0); // Reset progress on error
-                                    } catch (Throwable callbackException) {
-                                        Log.e(TAG, "Progress callback failed on error reset", callbackException);
-                                    }
-                                    emitter.onError(error);
-                });
+        return Single.create(emitter -> {
+
+            // 1. Keep the Simulated Progress Bar (Preserving original flow)
+            AtomicInteger progress = new AtomicInteger(0);
+            Thread progressThread = new Thread(() -> {
+                try {
+                    while (progress.get() < 90) {
+                        Thread.sleep(300); // Simulate progress while waiting for AI
+                        try {
+                            progressCallback.accept(progress.incrementAndGet());
+                        } catch (Throwable callbackException) {
+                            Log.e(TAG, "Progress callback failed", callbackException);
+                        }
+                    }
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
+            });
+            progressThread.start();
+
+            try {
+                // 2. Prepare the AI Client & Messages
+                AiClient aiClient = new AiClient();
+                List<Message> messages = new ArrayList<>();
+
+                messages.add(new Message(
+                        "system",
+                        "Translate ONLY the text content inside HTML tags. " +
+                                "Do NOT change, remove, or add any tags, attributes, IDs, or HTML structure. " +
+                                "Return ONLY translated HTML."
+                ));
+
+                messages.add(new Message(
+                        "assistant",
+                        "Understood. I will output only translated HTML."
+                ));
+
+                // Use your helper method to build the prompt
+                messages.add(new Message(
+                        "user",
+                        createTranslationPrompt(sourceLanguage, targetLanguage, html, title)
+                ));
+
+                // 3. Execute Blocking Request (Safe inside Single.create)
+                // Note: Ensure translateChunkWithRetry is accessible here
+                String translatedHtml = translateChunkWithRetry(aiClient, messages);
+
+                // 4. Stop Progress & Validate
+                progressThread.interrupt();
+
+                if (translatedHtml == null || translatedHtml.trim().isEmpty()) {
+                    throw new Exception("AI returned empty response.");
+                }
+
+                // 5. Finalize Success
+                try {
+                    progressCallback.accept(100);
+                } catch (Throwable e) {
+                    Log.e(TAG, "Progress callback failed on completion", e);
+                }
+
+                Log.d(TAG, "Translation complete, size = " + translatedHtml.length());
+                emitter.onSuccess(translatedHtml);
+
             } catch (Exception e) {
-                emitter.onError(new RuntimeException("An unexpected error occurred during translation.", e));
+                // 6. Handle Errors
+                progressThread.interrupt();
+                try {
+                    progressCallback.accept(0);
+                } catch (Throwable callbackException) {
+                    Log.e(TAG, "Progress callback failed on error reset", callbackException);
+                }
+                Log.e(TAG, "Translation error: " + e.getMessage(), e);
+                emitter.onError(e);
             }
         });
     }
