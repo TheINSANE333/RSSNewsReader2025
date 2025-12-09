@@ -71,7 +71,8 @@ public class TtsExtractor {
     private final HashMap<Long, Integer> retryCountMap = new HashMap<>();
     private final int MAX_RETRIES = 5;
     private long lastExtractStart = 0;
-    private String currentLoadToken = "";
+
+    private long lastSuccessfullyProcessedId = -1;
 
     @SuppressLint("SetJavaScriptEnabled")
     @Inject
@@ -98,6 +99,8 @@ public class TtsExtractor {
 
     private void finishAndMoveToNext() {
         Log.d(TAG, "Item complete. Moving to next...");
+
+        lastSuccessfullyProcessedId = currentIdInProgress;
 
         // Your existing cleanup logic
         if (currentIdInProgress == ttsPlaylist.getPlayingId()) {
@@ -169,6 +172,9 @@ public class TtsExtractor {
                 currentIdInProgress = entry.getId();
                 currentLink = entry.getLink();
                 currentTitle = entry.getTitle();
+
+                currentLanguage = null;
+
                 delayTime = feedRepository.getDelayTimeById(entry.getFeedId());
                 ContextCompat.getMainExecutor(context).execute(new Runnable() {
                     @Override
@@ -191,71 +197,6 @@ public class TtsExtractor {
             }
         }else {
             Log.d(TAG, "No entry returned by getEmptyContentEntry()");
-        }
-    }
-
-    private void translateHtml(String html, String content, final long currentIdInProgress, String currentTitle) {
-        String sourceLanguage = textUtil.identifyLanguageRx(content).blockingGet();
-        String targetLanguage = sharedPreferencesRepository.getDefaultTranslationLanguage();
-        setCurrentLanguage(targetLanguage, false);
-
-        if (!sourceLanguage.equals(targetLanguage)) {
-            Log.d(TAG, "translateHtml: translating from " + sourceLanguage + " to " + targetLanguage);
-
-            String method = sharedPreferencesRepository.getTranslationMethod();
-            Single<String> translationSingle;
-
-            if ("lineByLine".equalsIgnoreCase(method)) {
-                translationSingle = textUtil.translateHtmlLineByLine(
-                        sourceLanguage,
-                        targetLanguage,
-                        html,
-                        currentTitle,
-                        currentIdInProgress
-                );
-            } else if ("paragraphByParagraph".equalsIgnoreCase(method)) {
-                translationSingle = textUtil.translateHtmlByParagraph(
-                        sourceLanguage,
-                        targetLanguage,
-                        html,
-                        currentTitle,
-                        currentIdInProgress,
-                        progress -> {}
-                );
-            } else {
-                translationSingle = textUtil.translateHtmlAllAtOnce(
-                        sourceLanguage,
-                        targetLanguage,
-                        html,
-                        currentTitle,
-                        currentIdInProgress,
-                        progress -> {}
-                );
-            }
-
-            translationSingle
-                    .subscribeOn(Schedulers.io())
-                    .observeOn(AndroidSchedulers.mainThread())
-                    .subscribe(
-                            translatedHtml -> {
-                                entryRepository.updateHtml(translatedHtml, currentIdInProgress);
-                                String translatedContent = textUtil.extractHtmlContent(translatedHtml, delimiter);
-                                entryRepository.updateTranslatedText(translatedContent, currentIdInProgress);
-                                entryRepository.updateTranslated(translatedContent, currentIdInProgress);
-                                setCurrentLanguage(targetLanguage, true);
-
-                                if (!sharedPreferencesRepository.hasTranslationToggle(currentIdInProgress)) {
-                                    sharedPreferencesRepository.setIsTranslatedView(currentIdInProgress, true);
-                                    Log.d(TAG, "[translateHtml] Defaulting to translated view since this is first-time translation.");
-                                }
-
-                                Log.d(TAG, "translateHtml: translation completed and saved");
-                            },
-                            throwable -> {
-                                Log.e(TAG, "translateHtml: error translating", throwable);
-                                failedIds.add(currentIdInProgress);
-                            }
-                    );
         }
     }
 
@@ -296,7 +237,7 @@ public class TtsExtractor {
 
     public class WebClient extends WebViewClient {
 
-        private final Handler handler = new Handler();
+        private final Handler handler = new Handler(Looper.getMainLooper());
         private String currentLoadToken = ""; // Unique ID for every page load attempt
         private static final long TRANSLATION_COOLDOWN_MS = 3000;
         private boolean hasProcessedCurrentToken = false;
@@ -341,8 +282,6 @@ public class TtsExtractor {
                         });
                     }
                 }, delayTime * 1000L);
-            } else {
-                Log.d(TAG, "loading WebView");
             }
         }
     }
@@ -380,7 +319,6 @@ public class TtsExtractor {
                         doc.select("figure").attr("style", "width: 100%; margin-left:0");
                         doc.select("iframe").attr("style", "width: 100%; margin-left:0");
 
-                        // Filter text content
                         List<String> tags = Arrays.asList("h2", "h3", "h4", "h5", "h6", "p", "td", "pre", "th", "li", "figcaption", "blockquote", "section");
                         for (Element element : doc.getAllElements()) {
                             if (tags.contains(element.tagName())) {
@@ -405,11 +343,9 @@ public class TtsExtractor {
                             }
                         }
 
-                        // 3. Save Original Data Immediately
+                        // Save Content & Backup HTML
+                        entryRepository.updateContent(content.toString(), currentIdInProgress);
                         entryRepository.updateOriginalHtml(doc.html(), currentIdInProgress);
-                        if (entryRepository.getOriginalHtmlById(currentIdInProgress) == null) {
-                            entryRepository.updateContent(content.toString(), currentIdInProgress);
-                        }
 
                         boolean isTranslatedView = sharedPreferencesRepository.getIsTranslatedView(currentIdInProgress);
                         String existingTranslated = entryRepository.getTranslatedTextById(currentIdInProgress);
@@ -418,87 +354,108 @@ public class TtsExtractor {
                         if (!isTranslatedView || !hasTranslation) {
                             Log.d(TAG, "Updating main HTML to source language (No translation active).");
                             entryRepository.updateHtml(doc.html(), currentIdInProgress);
-                        } else {
-                            Log.d(TAG, "Preserving existing translation in main HTML view.");
-                            // We DO NOT update 'html' here. We leave the old translation visible
-                            // while the background translation (below) prepares the new one.
                         }
 
-                        // 4. Capture Final Variables for Async Logic
+                        // 3. Loop Guard
                         final long processingId = currentIdInProgress;
                         final String processingTitle = currentTitle;
+
+                        if (processingId == lastSuccessfullyProcessedId) {
+                            Log.e(TAG, "LOOP DETECTED on ID " + processingId + ". Aborting queue.");
+                            if (webViewCallback != null) {
+                                webViewCallback.makeSnackbar("Queue stopped: Loop detected.");
+                                webViewCallback.finishedSetup();
+                            }
+                            extractionInProgress = false;
+                            currentIdInProgress = -1;
+                            return;
+                        }
+
                         boolean shouldTranslate = sharedPreferencesRepository.getAutoTranslate();
 
-                        // 5. Language Check (Fixes "zh to zh" redundancy)
-                        String targetLang = sharedPreferencesRepository.getDefaultTranslationLanguage();
-                        // Assume currentLanguage was set during RSS parsing or previous steps
-                        boolean isSameLanguage = currentLanguage != null && currentLanguage.equalsIgnoreCase(targetLang);
+                        // 4. Determine Source Language (Detect if Unknown)
+                        Single<String> sourceLangSingle;
 
-                        // 6. Translation Logic
-                        if (shouldTranslate && !isSameLanguage) {
-                            Log.d(TAG, "Queue paused. Translating ID: " + processingId + " (" + currentLanguage + " -> " + targetLang + ")");
-
-                            textUtil.translateHtmlAllAtOnce(
-                                            currentLanguage,
-                                            targetLang,
-                                            doc.html(),
-                                            processingTitle,
-                                            processingId,
-                                            progress -> {} // Empty progress callback
-                                    )
-                                    .subscribeOn(Schedulers.io())
-                                    .observeOn(AndroidSchedulers.mainThread())
-                                    .subscribe(translatedHtml -> {
-                                        // --- SUCCESS CALLBACK ---
-                                        Log.d(TAG, "Translation finished for ID: " + processingId);
-
-                                        // Update Database with Translation
-                                        entryRepository.updateHtml(translatedHtml, processingId);
-                                        String translatedContent = textUtil.extractHtmlContent(translatedHtml, "--####--");
-                                        entryRepository.updateTranslatedText(translatedContent, processingId);
-                                        entryRepository.updateTranslated(translatedContent, processingId);
-
-                                        // Safety check: did the ID change?
-                                        if (processingId != currentIdInProgress) {
-                                            Log.w(TAG, "ID changed during translation. Ignoring result.");
-                                            return;
-                                        }
-                                        // Create a new Handler associated with the main thread's Looper
-                                        Handler handler = new Handler(Looper.getMainLooper());
-
-                                        handler.postDelayed(() -> {
-                                            if (extractionInProgress && processingId == currentIdInProgress) {
-                                                finishAndMoveToNext();
-                                            }
-                                        }, WebClient.TRANSLATION_COOLDOWN_MS);
-                                    }, error -> {
-                                        // --- ERROR CALLBACK ---
-                                        Log.e(TAG, "Translation Failed for ID: " + processingId, error);
-
-                                        // STOP: Do not continue queue on error
-                                        if (webViewCallback != null) {
-                                            webViewCallback.makeSnackbar("Translation failed. Queue stopped.");
-                                            webViewCallback.finishedSetup();
-                                        }
-                                        extractionInProgress = false;
-                                        currentIdInProgress = -1;
-                                    });
-
+                        if (currentLanguage != null && !currentLanguage.isEmpty() && !"und".equalsIgnoreCase(currentLanguage)) {
+                            // Language is known (e.g., set externally)
+                            sourceLangSingle = Single.just(currentLanguage);
                         } else {
-                            // No translation needed (disabled or same language)
-                            if (isSameLanguage) {
-                                Log.d(TAG, "Skipping translation: Source and Target are both " + currentLanguage);
-                                finishAndMoveToNext();
-                            }
+                            // Language is unknown -> Detect from content
+                            // This matches the logic you used in AutoTranslator
+                            Log.d(TAG, "Language unknown. Detecting from content...");
+                            sourceLangSingle = textUtil.identifyLanguageRx(content.toString());
                         }
+
+                        // 5. Chain: Identify -> Check -> Translate
+                        Handler handler = new Handler(Looper.getMainLooper());
+
+                        sourceLangSingle
+                                .subscribeOn(Schedulers.io())
+                                .observeOn(AndroidSchedulers.mainThread())
+                                .subscribe(detectedLang -> {
+                                    currentLanguage = detectedLang; // Update current language
+                                    String targetLang = sharedPreferencesRepository.getDefaultTranslationLanguage();
+
+                                    boolean isSameLanguage = detectedLang.equalsIgnoreCase(targetLang);
+
+                                    if (shouldTranslate && !isSameLanguage) {
+                                        Log.d(TAG, "Queue paused. Translating ID: " + processingId + " (" + detectedLang + " -> " + targetLang + ")");
+
+                                        textUtil.translateHtmlAllAtOnce(
+                                                        detectedLang,
+                                                        targetLang,
+                                                        doc.html(),
+                                                        processingTitle,
+                                                        processingId,
+                                                        progress -> {}
+                                                )
+                                                .subscribeOn(Schedulers.io())
+                                                .observeOn(AndroidSchedulers.mainThread())
+                                                .subscribe(translatedHtml -> {
+                                                    Log.d(TAG, "Translation finished for ID: " + processingId);
+
+                                                    entryRepository.updateHtml(translatedHtml, processingId);
+                                                    String translatedContent = textUtil.extractHtmlContent(translatedHtml, "--####--");
+                                                    entryRepository.updateTranslatedText(translatedContent, processingId);
+                                                    entryRepository.updateTranslated(translatedContent, processingId);
+
+                                                    if (processingId != currentIdInProgress) {
+                                                        Log.w(TAG, "ID changed during translation. Ignoring.");
+                                                        return;
+                                                    }
+
+                                                    handler.postDelayed(() -> {
+                                                        if (extractionInProgress && processingId == currentIdInProgress) {
+                                                            finishAndMoveToNext();
+                                                        }
+                                                    }, WebClient.TRANSLATION_COOLDOWN_MS);
+                                                }, error -> {
+                                                    Log.e(TAG, "Translation Failed for ID: " + processingId, error);
+                                                    extractionInProgress = false;
+                                                    currentIdInProgress = -1;
+                                                    if (webViewCallback != null) {
+                                                        webViewCallback.makeSnackbar("Translation failed.");
+                                                        webViewCallback.finishedSetup();
+                                                    }
+                                                });
+
+                                    } else {
+                                        Log.d(TAG, "Skipping translation. Same language (" + detectedLang + ") or disabled.");
+                                        finishAndMoveToNext();
+                                    }
+
+                                }, error -> {
+                                    Log.e(TAG, "Language detection failed", error);
+                                    // Fallback: Skip translation if detection fails
+                                    finishAndMoveToNext();
+                                });
+
                     } else {
                         Log.d(TAG, "Empty content found for ID: " + currentIdInProgress);
                         failedIds.add(currentIdInProgress);
                         finishAndMoveToNext();
                     }
                 } else {
-                    Log.d(TAG, "No html found!");
-                    // Consider whether to stop or skip here. For now, we skip.
                     failedIds.add(currentIdInProgress);
                     finishAndMoveToNext();
                 }
@@ -507,13 +464,8 @@ public class TtsExtractor {
                 finishAndMoveToNext();
             }
         } catch (Exception e) {
-            Log.e(TAG, "[onReceiveValue] Exception during extraction", e);
+            Log.e(TAG, "Exception during extraction", e);
             failedIds.add(currentIdInProgress);
-
-            if (webViewCallback != null) {
-                webViewCallback.makeSnackbar("Error: " + e.getMessage());
-                webViewCallback.finishedSetup();
-            }
             extractionInProgress = false;
             currentIdInProgress = -1;
         }
