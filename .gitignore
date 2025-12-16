@@ -5,7 +5,6 @@
 /app/build/intermediates/javac/debugAndroidTest/compileDebugAndroidTestJavaWithJavac/classes/
 /app/build/intermediates/javac/debugUnitTest/compileDebugUnitTestJavaWithJavac/classes/
 local.properties
-build.gradle
 .idea/caches/deviceStreaming.xml
 .idea/deploymentTargetSelector.xml
 build/reports/problems/problems-report.html
