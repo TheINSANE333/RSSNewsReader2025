@@ -8,3 +8,4 @@ local.properties
 build.gradle
 .idea/caches/deviceStreaming.xml
 .idea/deploymentTargetSelector.xml
+build/reports/problems/problems-report.html
