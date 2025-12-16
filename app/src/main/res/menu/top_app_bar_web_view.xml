@@ -15,6 +15,12 @@
         android:contentDescription="Translate"
         app:showAsAction="always" />
 
+    <item
+        android:id="@+id/summarize"
+        android:icon="@drawable/ic_summary"
+        android:title="Summarize"
+        android:contentDescription="Summarize"
+        app:showAsAction="always" />
 
     <item
         android:id="@+id/toggleTranslation"

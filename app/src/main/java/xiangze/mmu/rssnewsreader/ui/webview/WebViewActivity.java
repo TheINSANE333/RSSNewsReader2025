@@ -750,8 +750,100 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
         startActivity(intent);
     }
 
+    private void summarize() {
+        // 1. Data Retrieval
+        String html = webViewViewModel.getHtmlById(currentId);
+        EntryInfo entryInfo = webViewViewModel.getEntryInfoById(currentId);
+
+        if (entryInfo == null) {
+            makeSnackbar("Entry info could not be loaded.");
+            return;
+        }
+
+        Log.d(TAG, "Summarize: html length: " + (html != null ? html.length() : 0));
+
+        // 2. Prepare UI
+        makeSnackbar("Summarization in progress");
+        loading.setVisibility(View.VISIBLE);
+        loading.setProgress(0);
+
+        // 3. Prepare Data for AI
+        // We clean the HTML here to extract only text, saving tokens and improving AI focus
+        TextUtil textUtil = new TextUtil(sharedPreferencesRepository);
+        String cleanContent = (html != null) ? textUtil.extractHtmlContent(html, "--####--") : "";
+
+        String title = entryInfo.getEntryTitle();
+        String targetLanguage = sharedPreferencesRepository.getDefaultTranslationLanguage();
+
+        // 4. Background Execution
+        new Thread(() -> {
+            AiClient aiClient = new AiClient();
+
+            try {
+                List<Message> messages = new ArrayList<>();
+
+                // System Prompt
+                messages.add(new Message(
+                        "system",
+                        "You are a helpful assistant designed to summarize web articles. " +
+                                "Provide a concise summary of the content provided. " +
+                                "Do not include unrelated HTML tags in the output."
+                ));
+
+                // User Prompt
+                String prompt = String.format(
+                        "Please summarize the following article titled \"%s\".\n" +
+                                "Target Language: %s\n" +
+//                                "Format: Bullet points\n\n" +
+                                "Content:\n%s",
+                        title, targetLanguage, cleanContent
+                );
+
+                messages.add(new Message("user", prompt));
+
+                // Execute Request
+                // Updated to use the method available in your AiClient
+                String summaryResult = aiClient.getChatResponse(messages);
+
+                // Validation
+                if (summaryResult == null || summaryResult.trim().isEmpty()) {
+                    throw new Exception("AI returned empty response.");
+                }
+
+                // 5. Update UI (Main Thread)
+                runOnUiThread(() -> {
+                    Log.d(TAG, "Summarization complete, length: " + summaryResult.length());
+                    loading.setVisibility(View.GONE);
+
+                    // Open ChatActivity to display the result
+                    openChatWithSummary(summaryResult);
+                });
+
+            } catch (Exception e) {
+                Log.e(TAG, "Summarization error: " + e.getMessage(), e);
+
+                runOnUiThread(() -> {
+                    loading.setVisibility(View.GONE);
+                    makeSnackbar("Summarization failed: " + e.getMessage());
+                });
+            }
+
+        }).start();
+    }
+
+    private void openChatWithSummary(String summary) {
+        Intent intent = new Intent(this, ChatActivity.class);
+        // Pass the summary so ChatActivity can display it as an incoming message
+        intent.putExtra("initial_message", summary);
+        startActivity(intent);
+    }
+
     private boolean handleOtherToolbarItems(int itemId) {
         switch (itemId) {
+            case R.id.summarize:
+                summarize();
+                return true;
+
             case R.id.chatbot:
                 startChat();
                 return true;

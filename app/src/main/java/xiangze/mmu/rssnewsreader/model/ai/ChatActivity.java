@@ -64,8 +64,14 @@ public class ChatActivity extends AppCompatActivity {
 
         aiClient = new AiClient();
 
-        // Add welcome message
-        messages.add(new Message("assistant", "Hello! How can I help you today?"));
+        if (getIntent().hasExtra("initial_message")) {
+            String summary = getIntent().getStringExtra("initial_message");
+            messages.add(new Message("assistant", summary));
+        }
+        else {
+            // Add welcome message
+            messages.add(new Message("assistant", "Hello! How can I help you today?"));
+        }
         adapter.notifyDataSetChanged();
     }
 
