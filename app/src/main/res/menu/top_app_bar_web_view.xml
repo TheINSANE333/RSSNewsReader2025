@@ -6,7 +6,7 @@
         android:icon="@drawable/ic_chatbot"
         android:title="Chatbot"
         android:contentDescription="Chatbot"
-        app:showAsAction="always" />
+        app:showAsAction="ifRoom" />
 
     <item
         android:id="@+id/translate"
@@ -56,7 +56,7 @@
         android:icon="@drawable/ic_baseline_share_24"
         android:title="@string/share"
         android:contentDescription="@string/share"
-        app:showAsAction="always" />
+        app:showAsAction="ifRoom" />
 
     <item
         android:id="@+id/openInBrowser"
