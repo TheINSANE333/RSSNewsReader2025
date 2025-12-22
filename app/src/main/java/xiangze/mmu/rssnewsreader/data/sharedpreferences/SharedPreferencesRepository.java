@@ -91,6 +91,10 @@ public class SharedPreferencesRepository {
         return sharedPreferences.getInt("confidenceThreshold", 50);
     }
 
+    public int getSummaryLength() {
+        return sharedPreferences.getInt("summaryLength", 100);
+    }
+
     public void setConfidenceThreshold(int confidenceThreshold) {
         editor.putInt("confidenceThreshold", confidenceThreshold);
         editor.apply();

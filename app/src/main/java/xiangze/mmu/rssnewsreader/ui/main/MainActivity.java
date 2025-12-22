@@ -230,6 +230,7 @@ public class MainActivity extends AppCompatActivity {
                             serializer.attribute(null, "confidenceThreshold", Integer.toString(sharedPreferencesRepository.getConfidenceThreshold()));
                             serializer.attribute(null, "defaultTranslationLanguage", sharedPreferencesRepository.getDefaultTranslationLanguage());
                             serializer.attribute(null, "translationMethod", sharedPreferencesRepository.getTranslationMethod());
+                            serializer.attribute(null, "summaryLength", Integer.toString(sharedPreferencesRepository.getSummaryLength()));
                             serializer.endTag(null, "setting");
                             List<Feed> feeds = mainActivityViewModel.getAllStaticFeeds();
                             @SuppressLint("SimpleDateFormat") SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");

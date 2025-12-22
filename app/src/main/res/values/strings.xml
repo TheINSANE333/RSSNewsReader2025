@@ -54,6 +54,8 @@
     <string name="translationMethod_title">Translation method</string>
     <string name="translationMethod_summary">Choose how the app translates text.\'Line by Line\' is slower but more accurate, \'All at Once\' is faster but may be less accurate, and \'Paragraph by Paragraph\' offers a balance between the two.</string>
     <string name="confidence_threshold_summary">Higher % will result in better accuracy but will be less likely to change languages</string>
+    <string name="summarize_title">"Summary length"</string>
+    <string name="summarize_summary">"Set the amount of words for summarization"</string>
     <string name="languageIdentifier">Use Language Identifier</string>
     <string name="auto_translate_title">Auto-translate articles</string>
     <string name="auto_translate_on">Automatically translate articles to the default language</string>

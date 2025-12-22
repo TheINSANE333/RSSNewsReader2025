@@ -96,6 +96,17 @@
             app:summary="@string/confidence_threshold_summary"
             app:title="@string/confidence_threshold_title" />
 
+        <SeekBarPreference
+            android:max="300"
+            app:defaultValue="200"
+            app:icon="@drawable/ic_summary"
+            app:key="summaryLength"
+            app:min="100"
+            app:seekBarIncrement="10"
+            app:showSeekBarValue="true"
+            app:summary="@string/summarize_summary"
+            app:title="@string/summarize_title" />
+
     </PreferenceCategory>
 
     <PreferenceCategory

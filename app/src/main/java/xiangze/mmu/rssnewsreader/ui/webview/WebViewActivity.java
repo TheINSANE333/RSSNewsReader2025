@@ -122,6 +122,7 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
     private LinearLayout functionButtons;
     private MediaBrowserHelper mMediaBrowserHelper;
     private Set<Long> translatedArticleIds = new HashSet<>();
+    private int summaryLength = 200;
 
     @Inject
     TtsPlayer ttsPlayer;
@@ -440,6 +441,7 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
         translationMethod = sharedPreferencesRepository.getTranslationMethod();
         textUtil = new TextUtil(sharedPreferencesRepository);
         compositeDisposable = new CompositeDisposable();
+        summaryLength = sharedPreferencesRepository.getSummaryLength();
 
         initializeToolbarListeners();
         initializeWebViewSettings();
@@ -794,9 +796,9 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
                 String prompt = String.format(
                         "Please summarize the following article titled \"%s\".\n" +
                                 "Target Language: %s\n" +
-//                                "Format: Bullet points\n\n" +
+                                "Length: %s\n" +
                                 "Content:\n%s",
-                        title, targetLanguage, cleanContent
+                        title, targetLanguage, summaryLength, cleanContent
                 );
 
                 messages.add(new Message("user", prompt));
