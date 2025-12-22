@@ -7,6 +7,8 @@ import android.content.res.Configuration;
 import android.graphics.Bitmap;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.support.v4.media.MediaBrowserCompat;
 import android.support.v4.media.MediaMetadataCompat;
 import android.support.v4.media.session.MediaControllerCompat;
@@ -123,6 +125,7 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
     private MediaBrowserHelper mMediaBrowserHelper;
     private Set<Long> translatedArticleIds = new HashSet<>();
     private int summaryLength = 200;
+    private volatile boolean isRequestRunning = false;
 
     @Inject
     TtsPlayer ttsPlayer;
@@ -230,7 +233,7 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
         Log.d(TAG, "translate: html\n" + webViewViewModel.getHtmlById(currentId));
         makeSnackbar("Translation in progress");
         loading.setVisibility(View.VISIBLE);
-        loading.setProgress(0);
+        loading.setProgress(10);
 
         String content = webViewViewModel.getHtmlById(currentId);
         EntryInfo entryInfo = webViewViewModel.getEntryInfoById(currentId);
@@ -246,6 +249,7 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
 
         String feedLanguage = entryInfo.getFeedLanguage();
         String userConfiguredLang = sharedPreferencesRepository.getDefaultTranslationLanguage();
+        loading.setProgress(40);
 
         textUtil.identifyLanguageRx(content).subscribe(
                 identifiedLanguage -> {
@@ -336,20 +340,55 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
         return null;
     }
 
-    private void performAITranslation(String sourceLanguage, String targetLanguage, String content, String title) {
+    private void startProgressSimulation(int start, int max, int stepDelayMs) {
+        isRequestRunning = true;
 
-        Log.d(TAG, "Starting AI translation (Single Request Mode)...");
+        new Thread(() -> {
+            int progress = start;
+            while (isRequestRunning && progress < max) {
+                progress++;
+                int value = progress;
 
-        loading.setVisibility(View.VISIBLE);
+                runOnUiThread(() -> loading.setProgress(value));
+
+                try {
+                    Thread.sleep(stepDelayMs);
+                } catch (InterruptedException ignored) {}
+            }
+        }).start();
+    }
+
+    private void stopProgressSimulation() {
+        isRequestRunning = false;
+    }
+
+    private void performAITranslation(
+            String sourceLanguage,
+            String targetLanguage,
+            String content,
+            String title
+    ) {
+
+        Log.d(TAG, "Starting AI translation (Single Request Mode)");
 
         final String originalHtml = content;
+
+        runOnUiThread(() -> {
+            loading.setVisibility(View.VISIBLE);
+            loading.setIndeterminate(false);
+            loading.setProgress(0);
+        });
 
         new Thread(() -> {
 
             AiClient aiClient = new AiClient();
 
             try {
-                // Prepare messages for the full content
+            /* =========================
+               Stage 1: Initialization
+               ========================= */
+                runOnUiThread(() -> loading.setProgress(10));
+
                 List<Message> messages = new ArrayList<>();
 
                 messages.add(new Message(
@@ -369,24 +408,54 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
                         createTranslationPrompt(
                                 sourceLanguage,
                                 targetLanguage,
-                                content, // Passing the full content directly
+                                content,
                                 title
                         )
                 ));
 
-                // Execute the translation request
+            /* =========================
+               Stage 2: Prompt Prepared
+               ========================= */
+                runOnUiThread(() -> loading.setProgress(25));
+
+            /* =========================
+               Stage 3: Network Request
+               ========================= */
+                startProgressSimulation(25, 85, 300);
+
+                // Optional stall fallback → indeterminate
+                new Handler(Looper.getMainLooper()).postDelayed(() -> {
+                    if (isRequestRunning) {
+                        loading.setIndeterminate(true);
+                    }
+                }, 15000);
+
                 String translatedHtml = translateChunkWithRetry(aiClient, messages);
 
-                // Validation
+                stopProgressSimulation();
+
+                runOnUiThread(() -> {
+                    loading.setIndeterminate(false);
+                    loading.setProgress(90);
+                });
+
+            /* =========================
+               Stage 4: Validation
+               ========================= */
                 if (translatedHtml == null || translatedHtml.trim().isEmpty()) {
                     throw new Exception("AI returned empty response.");
                 }
 
                 final String finalHtml = translatedHtml;
 
+            /* =========================
+               Stage 5: Apply Result
+               ========================= */
                 runOnUiThread(() -> {
-                    Log.d(TAG, "Translation complete, size = " + finalHtml.length());
+                    loading.setProgress(100);
                     loading.setVisibility(View.GONE);
+
+                    Log.d(TAG, "Translation complete, size = " + finalHtml.length());
 
                     doWhenTranslationFinish(
                             webViewViewModel.getLastVisitedEntry(),
@@ -399,9 +468,11 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
 
             } catch (Exception e) {
 
-                Log.e(TAG, "Translation error: " + e.getMessage(), e);
+                Log.e(TAG, "Translation error", e);
+                stopProgressSimulation();
 
                 runOnUiThread(() -> {
+                    loading.setIndeterminate(false);
                     loading.setVisibility(View.GONE);
                     makeSnackbar("Translation failed: " + e.getMessage());
                 });
@@ -776,6 +847,7 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
 
         String title = entryInfo.getEntryTitle();
         String targetLanguage = sharedPreferencesRepository.getDefaultTranslationLanguage();
+        loading.setProgress(20);
 
         // 4. Background Execution
         new Thread(() -> {
@@ -783,6 +855,7 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
 
             try {
                 List<Message> messages = new ArrayList<>();
+                runOnUiThread(() -> loading.setProgress(45));
 
                 // System Prompt
                 messages.add(new Message(
@@ -803,9 +876,13 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
 
                 messages.add(new Message("user", prompt));
 
+                runOnUiThread(() -> loading.setProgress(55));
+
                 // Execute Request
                 // Updated to use the method available in your AiClient
                 String summaryResult = aiClient.getChatResponse(messages);
+
+                runOnUiThread(() -> loading.setProgress(80));
 
                 // Validation
                 if (summaryResult == null || summaryResult.trim().isEmpty()) {
@@ -815,6 +892,7 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
                 // 5. Update UI (Main Thread)
                 runOnUiThread(() -> {
                     Log.d(TAG, "Summarization complete, length: " + summaryResult.length());
+                    loading.setProgress(100);
                     loading.setVisibility(View.GONE);
 
                     // Open ChatActivity to display the result
