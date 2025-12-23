@@ -252,62 +252,62 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
         loading.setProgress(40);
 
         textUtil.identifyLanguageRx(content).subscribe(
-                identifiedLanguage -> {
-                    String sourceLanguage = (userConfiguredLang != null && !userConfiguredLang.isEmpty())
-                            ? feedLanguage : identifiedLanguage;
+            identifiedLanguage -> {
+                String sourceLanguage = (userConfiguredLang != null && !userConfiguredLang.isEmpty())
+                        ? feedLanguage : identifiedLanguage;
 
-                    Log.d(TAG, "Translating from " + sourceLanguage + " to " + targetLanguage);
-                    Log.d("ORIGINAL CONTENT FOR TRANSLATION", content);
-                    performAITranslation(sourceLanguage, targetLanguage, content, entryInfo.getEntryTitle());
-                },
-                error -> {
-                    Log.e(TAG, "Language identification failed, falling back to feedLanguage");
-                    performAITranslation(feedLanguage, targetLanguage, content, entryInfo.getEntryTitle());
-                }
+                Log.d(TAG, "Translating from " + sourceLanguage + " to " + targetLanguage);
+                Log.d("ORIGINAL CONTENT FOR TRANSLATION", content);
+                performAITranslation(sourceLanguage, targetLanguage, content, entryInfo.getEntryTitle());
+            },
+            error -> {
+                Log.e(TAG, "Language identification failed, falling back to feedLanguage");
+                performAITranslation(feedLanguage, targetLanguage, content, entryInfo.getEntryTitle());
+            }
         );
     }
 
-    @SuppressLint("CheckResult")
-    private void performTranslation(String sourceLang, String targetLang, String html, String title) {
-        Single<String> translationFlow;
-        switch (translationMethod) {
-            case "lineByLine":
-                translationFlow = textUtil.translateHtmlLineByLine(sourceLang, targetLang, html, title, currentId, this::updateLoadingProgress);
-                break;
-            case "paragraphByParagraph":
-                translationFlow = textUtil.translateHtmlByParagraph(sourceLang, targetLang, html, title, currentId, this::updateLoadingProgress);
-                break;
-            default:
-                translationFlow = textUtil.translateHtmlAllAtOnce(sourceLang, targetLang, html, title, currentId, this::updateLoadingProgress);
-        }
+//    @SuppressLint("CheckResult")
+//    private void performTranslation(String sourceLang, String targetLang, String html, String title) {
+//        Single<String> translationFlow;
+//        switch (translationMethod) {
+//            case "lineByLine":
+//                translationFlow = textUtil.translateHtmlLineByLine(sourceLang, targetLang, html, title, currentId, this::updateLoadingProgress);
+//                break;
+//            case "paragraphByParagraph":
+//                translationFlow = textUtil.translateHtmlByParagraph(sourceLang, targetLang, html, title, currentId, this::updateLoadingProgress);
+//                break;
+//            default:
+//                translationFlow = textUtil.translateHtmlAllAtOnce(sourceLang, targetLang, html, title, currentId, this::updateLoadingProgress);
+//        }
+//
+//        final String originalHtml = html;
+//
+//        translationFlow.subscribe(
+//                translatedHtml -> {
+//                    Log.d(TAG, "Translation completed");
+//                    doWhenTranslationFinish(webViewViewModel.getLastVisitedEntry(), originalHtml, translatedHtml);
+//                },
+//                throwable -> {
+//                    Log.e(TAG, "Translation failed", throwable);
+//                    loading.setVisibility(View.GONE);
+//                }
+//        );
+//    }
 
-        final String originalHtml = html;
-
-        translationFlow.subscribe(
-                translatedHtml -> {
-                    Log.d(TAG, "Translation completed");
-                    doWhenTranslationFinish(webViewViewModel.getLastVisitedEntry(), originalHtml, translatedHtml);
-                },
-                throwable -> {
-                    Log.e(TAG, "Translation failed", throwable);
-                    loading.setVisibility(View.GONE);
-                }
-        );
-    }
-
-    private String createTranslationPrompt(String sourceLanguage, String targetLanguage, String content, String title) {
-        return String.format(
-                "Translate the following HTML to %s.\n\n" +
-                        "RULES:\n" +
-                        "- Translate ONLY the text between the HTML tags.\n" +
-                        "- Do NOT modify, remove, or add any HTML tags.\n" +
-                        "- Do NOT summarize.\n" +
-                        "- Do NOT add explanations or extra sentences.\n" +
-                        "- Output ONLY the complete translated HTML.\n\n" +
-                        "HTML TO TRANSLATE:\n%s\n%s",
-                targetLanguage, title, content
-        );
-    }
+//    private String createTranslationPrompt(String sourceLanguage, String targetLanguage, String content, String title) {
+//        return String.format(
+//                "Translate the following HTML to %s.\n\n" +
+//                        "RULES:\n" +
+//                        "- Translate ONLY the text between the HTML tags.\n" +
+//                        "- Do NOT modify, remove, or add any HTML tags.\n" +
+//                        "- Do NOT summarize.\n" +
+//                        "- Do NOT add explanations or extra sentences.\n" +
+//                        "- Output ONLY the complete translated HTML.\n\n" +
+//                        "HTML TO TRANSLATE:\n%s\n%s",
+//                targetLanguage, title, content
+//        );
+//    }
 
     private String translateChunkWithRetry(AiClient aiClient, List<Message> messages) {
 
@@ -384,43 +384,31 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
             AiClient aiClient = new AiClient();
 
             try {
-            /* =========================
-               Stage 1: Initialization
-               ========================= */
+                /* Stage 1: Initialization */
                 runOnUiThread(() -> loading.setProgress(10));
 
                 List<Message> messages = new ArrayList<>();
 
                 messages.add(new Message(
-                        "system",
-                        "Translate ONLY the text content inside HTML tags. " +
-                                "Do NOT change, remove, or add any tags, attributes, IDs, or HTML structure. " +
-                                "Return ONLY translated HTML."
+                    "system",
+                    "Translate text inside HTML tags to the target language. " +
+                            "Preserve all HTML exactly. Output only translated HTML."
                 ));
 
                 messages.add(new Message(
-                        "assistant",
-                        "Understood. I will output only translated HTML."
+                    "user",
+                    String.format(
+                            "Translate to %s:\n%s\n%s",
+                            targetLanguage,
+                            title,
+                            content
+                    )
                 ));
 
-                messages.add(new Message(
-                        "user",
-                        createTranslationPrompt(
-                                sourceLanguage,
-                                targetLanguage,
-                                content,
-                                title
-                        )
-                ));
-
-            /* =========================
-               Stage 2: Prompt Prepared
-               ========================= */
+                /* Stage 2: Prompt Prepared */
                 runOnUiThread(() -> loading.setProgress(25));
 
-            /* =========================
-               Stage 3: Network Request
-               ========================= */
+                /* Stage 3: Network Request */
                 startProgressSimulation(25, 85, 300);
 
                 // Optional stall fallback → indeterminate
@@ -439,18 +427,14 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
                     loading.setProgress(90);
                 });
 
-            /* =========================
-               Stage 4: Validation
-               ========================= */
+                /* Stage 4: Validation */
                 if (translatedHtml == null || translatedHtml.trim().isEmpty()) {
                     throw new Exception("AI returned empty response.");
                 }
 
                 final String finalHtml = translatedHtml;
 
-            /* =========================
-               Stage 5: Apply Result
-               ========================= */
+                /* Stage 5: Apply Result */
                 runOnUiThread(() -> {
                     loading.setProgress(100);
                     loading.setVisibility(View.GONE);
@@ -485,7 +469,6 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-
 
         webViewViewModel = new ViewModelProvider(this).get(WebViewViewModel.class);
 
