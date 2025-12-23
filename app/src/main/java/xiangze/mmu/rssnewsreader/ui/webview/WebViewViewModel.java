@@ -27,7 +27,11 @@ public class WebViewViewModel extends ViewModel {
 
     private final MutableLiveData<String> translatedHtmlLiveData = new MutableLiveData<>();
 
+    private final MutableLiveData<String> summarizedHtmlLiveData = new MutableLiveData<>();
+
     private final MutableLiveData<String> translatedTextReady = new MutableLiveData<>();
+
+    private final MutableLiveData<String> summarizedTextReady = new MutableLiveData<>();
 
     private final MutableLiveData<Boolean> loadingState = new MutableLiveData<>();
 
@@ -133,6 +137,8 @@ public class WebViewViewModel extends ViewModel {
         return translatedHtmlLiveData;
     }
 
+    public LiveData<String> getSummarizedHtmlLiveData() { return summarizedHtmlLiveData; }
+
     public String getOriginalHtmlById(long id) {
         return entryRepository.getOriginalHtmlById(id);
     }
@@ -160,8 +166,17 @@ public class WebViewViewModel extends ViewModel {
         return (entry != null) ? entry.getTranslated() : null;
     }
 
+    public String getSummarizedById(long id) {
+        Entry entry = getEntryById(id);
+        return (entry != null) ? entry.getSummarized() : null;
+    }
+
     public void updateTranslated(String text, long entryId) {
         entryRepository.updateTranslated(text, entryId);
+    }
+
+    public void updateSummarized(String text, long entryId) {
+        entryRepository.updateSummarized(text, entryId);
     }
 
     public void updateEntryTranslatedField(long entryId, String translatedContent) {
@@ -171,13 +186,30 @@ public class WebViewViewModel extends ViewModel {
         }
     }
 
+    public void updateEntrySummarizedField(long entryId, String summarizedContent) {
+        Entry entry = entryRepository.getEntryById(entryId);
+        if (entry != null) {
+            entry.setSummarized(summarizedContent);
+        }
+    }
+
     public LiveData<String> getTranslatedTextReady() {
         return translatedTextReady;
+    }
+
+    public LiveData<String> getSummarizedTextReady() {
+        return summarizedTextReady;
     }
 
     public void setTranslatedTextReady(long id, String text) {
         if (text != null && !text.trim().isEmpty()) {
             translatedTextReady.postValue(text);
+        }
+    }
+
+    public void setSummarizedTextReady(long id, String text) {
+        if (text != null && !text.trim().isEmpty()) {
+            summarizedTextReady.postValue(text);
         }
     }
 }

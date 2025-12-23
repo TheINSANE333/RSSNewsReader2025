@@ -210,6 +210,9 @@ public interface EntryDao {
     @Query("SELECT * FROM entry_table WHERE html IS NOT NULL AND html NOT LIKE '%translated-title%'")
     List<Entry> getUntranslatedEntries();
 
+    @Query("SELECT * FROM entry_table WHERE html IS NOT NULL AND html NOT LIKE '%summarized-title%'")
+    List<Entry> getUnsummarizedEntries();
+
     @Query("SELECT original_html FROM entry_table WHERE id = :id")
     String getOriginalHtmlById(long id);
 
@@ -221,4 +224,11 @@ public interface EntryDao {
 
     @Query("UPDATE entry_table SET translated = :translated WHERE id = :id")
     void updateTranslatedText(String translated, long id);
+
+    @Query("UPDATE entry_table SET summarized = :summarized WHERE id = :id")
+    void updateSummarized(String summarized, long id);
+
+    @Query("UPDATE entry_table SET summarized = :summarized WHERE id = :id")
+    void updateSummarizedText(String summarized, long id);
+
 }

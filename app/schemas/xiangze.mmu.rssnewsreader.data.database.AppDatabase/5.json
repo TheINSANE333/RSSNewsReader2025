@@ -2,7 +2,7 @@
   "formatVersion": 1,
   "database": {
     "version": 5,
-    "identityHash": "48c16822b1efa5c3e4386234ef970ac3",
+    "identityHash": "6ad2ac2e0654b675087ed151de3cda50",
     "entities": [
       {
         "tableName": "feed_table",
@@ -75,7 +75,7 @@
       },
       {
         "tableName": "entry_table",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `feedId` INTEGER NOT NULL, `priority` INTEGER NOT NULL, `title` TEXT, `link` TEXT, `description` TEXT, `content` TEXT, `html` TEXT, `imageUrl` TEXT, `category` TEXT, `publishedDate` INTEGER, `visitedDate` INTEGER, `sentCountStopAt` INTEGER NOT NULL, `bookmark` TEXT, `isCached` INTEGER NOT NULL DEFAULT 0, `original_html` TEXT, `translated` TEXT)",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `feedId` INTEGER NOT NULL, `priority` INTEGER NOT NULL, `title` TEXT, `link` TEXT, `description` TEXT, `content` TEXT, `html` TEXT, `imageUrl` TEXT, `category` TEXT, `publishedDate` INTEGER, `visitedDate` INTEGER, `bookmark` TEXT, `sentCountStopAt` INTEGER NOT NULL, `isCached` INTEGER NOT NULL DEFAULT 0, `original_html` TEXT, `translated` TEXT, `summarized` TEXT)",
         "fields": [
           {
             "fieldPath": "id",
@@ -150,16 +150,16 @@
             "notNull": false
           },
           {
-            "fieldPath": "sentCountStopAt",
-            "columnName": "sentCountStopAt",
-            "affinity": "INTEGER",
-            "notNull": true
-          },
-          {
             "fieldPath": "bookmark",
             "columnName": "bookmark",
             "affinity": "TEXT",
             "notNull": false
+          },
+          {
+            "fieldPath": "sentCountStopAt",
+            "columnName": "sentCountStopAt",
+            "affinity": "INTEGER",
+            "notNull": true
           },
           {
             "fieldPath": "isCached",
@@ -177,6 +177,12 @@
           {
             "fieldPath": "translated",
             "columnName": "translated",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "summarized",
+            "columnName": "summarized",
             "affinity": "TEXT",
             "notNull": false
           }
@@ -270,7 +276,7 @@
     "views": [],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '48c16822b1efa5c3e4386234ef970ac3')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '6ad2ac2e0654b675087ed151de3cda50')"
     ]
   }
 }

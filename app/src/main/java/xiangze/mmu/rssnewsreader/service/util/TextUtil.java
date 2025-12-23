@@ -284,21 +284,20 @@ public class TextUtil {
                 List<Message> messages = new ArrayList<>();
 
                 messages.add(new Message(
-                        "system",
-                        "Translate ONLY the text content inside HTML tags. " +
-                                "Do NOT change, remove, or add any tags, attributes, IDs, or HTML structure. " +
-                                "Return ONLY translated HTML."
+                    "system",
+                    "Translate text inside HTML tags to the target language. " +
+                            "Preserve all HTML exactly. Output only translated HTML."
                 ));
 
+                // Build the prompt
                 messages.add(new Message(
-                        "assistant",
-                        "Understood. I will output only translated HTML."
-                ));
-
-                // Use your helper method to build the prompt
-                messages.add(new Message(
-                        "user",
-                        createTranslationPrompt(sourceLanguage, targetLanguage, html, title)
+                    "user",
+                    String.format(
+                            "Translate to %s:\n%s\n%s",
+                            targetLanguage,
+                            title,
+                            html
+                    )
                 ));
 
                 // 3. Execute Blocking Request (Safe inside Single.create)

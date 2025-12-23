@@ -76,6 +76,7 @@
     <string name="exit_browser">Offline mode</string>
     <string name="reload">Re-extract article</string>
     <string name="reading_mode">Switch to reading mode</string>
+    <string name="summary_mode">Switch to summary mode</string>
     <string name="playing_mode">Switch to playing mode</string>
     <string name="highlight_text_turn_on">Turn on highlight text</string>
     <string name="highlight_text_turn_off">Turn off highlight text</string>

@@ -317,6 +317,7 @@ public class EntryRepository {
             entry.setHtml(null);
             entry.setOriginalHtml(null);
             entry.setTranslated(null);
+            entry.setSummarized(null);
             entry.setSentCountStopAt(0);
             entry.setCached(false);
             update(entry);
@@ -365,6 +366,10 @@ public class EntryRepository {
         return entryDao.getUntranslatedEntries();
     }
 
+    public List<Entry> getUnsummarizedEntries() {
+        return entryDao.getUnsummarizedEntries();
+    }
+
     public void updateOriginalHtml(String originalHtml, long id) {
         entryDao.updateOriginalHtml(originalHtml, id);
     }
@@ -375,6 +380,10 @@ public class EntryRepository {
 
     public void updateTranslated(String translated, long id) {
         entryDao.updateTranslated(translated, id);
+    }
+
+    public void updateSummarized(String summarized, long id) {
+        entryDao.updateSummarized(summarized, id);
     }
 
     public LiveData<Entry> getEntryEntityById(long id) {
@@ -396,8 +405,25 @@ public class EntryRepository {
         }
     }
 
+    public void updateSummarizedText(String summarizedContent, long entryId) {
+        entryDao.updateSummarizedText(summarizedContent, entryId);
+
+        Entry entry = getEntryById(entryId);
+        if (entry != null) {
+            entry.setSummarized(summarizedContent);
+            entryCache.put(entryId, entry);
+            Log.d(TAG, "Cache updated with summarized text for entry ID: " + entryId);
+        }
+    }
+
     public String getTranslatedTextById(long id) {
         Entry entry = entryDao.getEntryById(id);
         return (entry != null) ? entry.getTranslated() : null;
     }
+
+    public String getSummarizedTextById(long id) {
+        Entry entry = entryDao.getEntryById(id);
+        return (entry != null) ? entry.getSummarized() : null;
+    }
+
 }

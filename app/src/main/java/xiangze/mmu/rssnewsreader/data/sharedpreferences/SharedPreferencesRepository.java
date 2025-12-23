@@ -16,6 +16,7 @@ public class SharedPreferencesRepository {
     private SharedPreferences.Editor editor;
     private final Context context;
     private static final String KEY_TOGGLE_STATE_PREFIX = "is_translated_view_";
+    private static final String KEY_TOGGLE_STATE_PREFIX2 = "is_summarized_view_";
     private static final String KEY_SCROLL_X_PREFIX = "scroll_x_";
     private static final String KEY_SCROLL_Y_PREFIX = "scroll_y_";
     private static final String KEY_WEB_VIEW_MODE = "web_view_mode_";
@@ -177,12 +178,27 @@ public class SharedPreferencesRepository {
                 .apply();
     }
 
+    public void setIsSummarizedView(long entryId, boolean isSummarizedView) {
+        sharedPreferences.edit()
+                .putBoolean(KEY_TOGGLE_STATE_PREFIX2 + entryId, isSummarizedView)
+                .apply();
+    }
+
+
     public boolean getIsTranslatedView(long entryId) {
         return sharedPreferences.getBoolean(KEY_TOGGLE_STATE_PREFIX + entryId,false);
     }
 
+    public boolean getIsSummarizedView(long entryId) {
+        return sharedPreferences.getBoolean(KEY_TOGGLE_STATE_PREFIX2 + entryId,false);
+    }
+
     public boolean hasTranslationToggle(long entryId) {
         return sharedPreferences.contains(KEY_TOGGLE_STATE_PREFIX + entryId);
+    }
+
+    public boolean hasSummarizationToggle(long entryId) {
+        return sharedPreferences.contains(KEY_TOGGLE_STATE_PREFIX2 + entryId);
     }
 
     public void setScrollX(long entryId, int value) {

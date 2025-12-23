@@ -9,7 +9,6 @@ import java.util.Date;
 
 @Entity(tableName = "entry_table")
 public class Entry {
-
     @PrimaryKey(autoGenerate = true)
     private long id;
     private long feedId;
@@ -23,8 +22,8 @@ public class Entry {
     private String category;
     private Date publishedDate;
     private Date visitedDate;
-    private int sentCountStopAt;
     private String bookmark;
+    private int sentCountStopAt;
     @ColumnInfo(defaultValue = "0")
     private boolean isCached;
     @ColumnInfo(name = "original_html")
@@ -32,6 +31,9 @@ public class Entry {
     @Nullable
     @ColumnInfo(name = "translated")
     private String translated;
+    @Nullable
+    @ColumnInfo(name = "summarized")
+    private String summarized;
 
     public Entry(long feedId, String title, String link, String description, String imageUrl, String category, Date publishedDate) {
         this.feedId = feedId;
@@ -178,4 +180,13 @@ public class Entry {
     public void setTranslated(String translated) {
         this.translated = translated;
     }
+
+    public String getSummarized() {
+        return summarized;
+    }
+
+    public void setSummarized(String summarized) {
+        this.summarized = summarized;
+    }
+
 }

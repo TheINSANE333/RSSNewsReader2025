@@ -91,6 +91,14 @@
         app:showAsAction="ifRoom" />
 
     <item
+        android:id="@+id/switchSummarizeMode"
+        android:icon="@drawable/ic_book"
+        android:title="@string/summary_mode"
+        android:contentDescription="@string/summary_mode"
+        android:visible="false"
+        app:showAsAction="ifRoom" />
+
+    <item
         android:id="@+id/switchPlayMode"
         android:icon="@drawable/ic_play"
         android:title="@string/playing_mode"
