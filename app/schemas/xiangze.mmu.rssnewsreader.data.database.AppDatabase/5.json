@@ -2,7 +2,7 @@
   "formatVersion": 1,
   "database": {
     "version": 5,
-    "identityHash": "6ad2ac2e0654b675087ed151de3cda50",
+    "identityHash": "7e0704857436074397d17625efa04c71",
     "entities": [
       {
         "tableName": "feed_table",
@@ -75,7 +75,7 @@
       },
       {
         "tableName": "entry_table",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `feedId` INTEGER NOT NULL, `priority` INTEGER NOT NULL, `title` TEXT, `link` TEXT, `description` TEXT, `content` TEXT, `html` TEXT, `imageUrl` TEXT, `category` TEXT, `publishedDate` INTEGER, `visitedDate` INTEGER, `bookmark` TEXT, `sentCountStopAt` INTEGER NOT NULL, `isCached` INTEGER NOT NULL DEFAULT 0, `original_html` TEXT, `translated` TEXT, `summarized` TEXT)",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `feedId` INTEGER NOT NULL, `priority` INTEGER NOT NULL, `title` TEXT, `link` TEXT, `description` TEXT, `content` TEXT, `html` TEXT, `translatedHtml` TEXT, `summarizedHtml` TEXT, `imageUrl` TEXT, `category` TEXT, `publishedDate` INTEGER, `visitedDate` INTEGER, `bookmark` TEXT, `sentCountStopAt` INTEGER NOT NULL, `isCached` INTEGER NOT NULL DEFAULT 0, `original_html` TEXT, `translated` TEXT, `summarized` TEXT)",
         "fields": [
           {
             "fieldPath": "id",
@@ -122,6 +122,18 @@
           {
             "fieldPath": "html",
             "columnName": "html",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "translatedHtml",
+            "columnName": "translatedHtml",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "summarizedHtml",
+            "columnName": "summarizedHtml",
             "affinity": "TEXT",
             "notNull": false
           },
@@ -276,7 +288,7 @@
     "views": [],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '6ad2ac2e0654b675087ed151de3cda50')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '7e0704857436074397d17625efa04c71')"
     ]
   }
 }

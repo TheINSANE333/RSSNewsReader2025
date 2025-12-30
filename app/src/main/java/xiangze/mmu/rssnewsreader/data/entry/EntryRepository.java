@@ -108,6 +108,22 @@ public class EntryRepository {
         entryDao.updateHtml(html, id);
     }
 
+    public void updateTranslatedHtml(String html, long id) {
+        entryDao.updateTranslatedHtml(html, id);
+    }
+
+    public void updateSummarizedHtml(String html, long id) {
+        entryDao.updateSummarizedHtml(html, id);
+    }
+
+    public String getTranslatedHtmlById(long id) {
+        return entryDao.getTranslatedHtmlById(id);
+    }
+
+    public String getSummarizedHtmlById(long id) {
+        return entryDao.getSummarizedHtmlById(id);
+    }
+
     public List<Long> getIdsByFeedId(long id) {
         return entryDao.getIdsByFeedId(id);
     }

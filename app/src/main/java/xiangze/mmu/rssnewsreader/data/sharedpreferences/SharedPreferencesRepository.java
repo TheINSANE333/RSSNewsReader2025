@@ -184,7 +184,6 @@ public class SharedPreferencesRepository {
                 .apply();
     }
 
-
     public boolean getIsTranslatedView(long entryId) {
         return sharedPreferences.getBoolean(KEY_TOGGLE_STATE_PREFIX + entryId,false);
     }

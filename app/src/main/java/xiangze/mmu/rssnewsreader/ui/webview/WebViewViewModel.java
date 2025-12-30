@@ -74,6 +74,16 @@ public class WebViewViewModel extends ViewModel {
         translatedHtmlLiveData.postValue(html);
     }
 
+    public void updateTranslatedHtml(String html, long id) {
+        entryRepository.updateTranslatedHtml(html, id);
+//        translatedHtmlLiveData.postValue(html);
+    }
+
+    public void updateSummarizedHtml(String html, long id) {
+        entryRepository.updateSummarizedHtml(html, id);
+//        translatedHtmlLiveData.postValue(html);
+    }
+
     public void updateContent(String content, long id) {
         entryRepository.updateContent(content, id);
     }
@@ -88,6 +98,14 @@ public class WebViewViewModel extends ViewModel {
 
     public String getHtmlById(long id) {
         return entryRepository.getHtmlById(id);
+    }
+
+    public String getTranslatedHtmlById(long id) {
+        return entryRepository.getTranslatedHtmlById(id);
+    }
+
+    public String getSummarizedHtmlById(long id) {
+        return entryRepository.getSummarizedHtmlById(id);
     }
 
     public String getStyle() {

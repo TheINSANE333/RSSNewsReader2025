@@ -129,6 +129,18 @@ public interface EntryDao {
     @Query("UPDATE entry_table SET html = :html WHERE id = :id")
     void updateHtml(String html, long id);
 
+    @Query("UPDATE entry_table SET translatedHtml = :html WHERE id = :id")
+    void updateTranslatedHtml(String html, long id);
+
+    @Query("SELECT translatedHtml FROM entry_table WHERE id = :id")
+    String getTranslatedHtmlById(long id);
+
+    @Query("UPDATE entry_table SET summarizedHtml = :html WHERE id = :id")
+    void updateSummarizedHtml(String html, long id);
+
+    @Query("SELECT summarizedHtml FROM entry_table WHERE id = :id")
+    String getSummarizedHtmlById(long id);
+
     @Query("SELECT id FROM entry_table ORDER BY visitedDate DESC LIMIT 1")
     long getLastVisitedEntryId();
 

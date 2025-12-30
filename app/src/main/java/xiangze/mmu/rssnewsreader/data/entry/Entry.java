@@ -18,6 +18,8 @@ public class Entry {
     private String description;
     private String content;
     private String html;
+    private String translatedHtml;
+    private String summarizedHtml;
     private String imageUrl;
     private String category;
     private Date publishedDate;
@@ -187,6 +189,22 @@ public class Entry {
 
     public void setSummarized(String summarized) {
         this.summarized = summarized;
+    }
+
+    public String getTranslatedHtml() {
+        return translatedHtml;
+    }
+
+    public void setTranslatedHtml(String translatedHtml) {
+        this.translatedHtml = translatedHtml;
+    }
+
+    public String getSummarizedHtml() {
+        return summarizedHtml;
+    }
+
+    public void setSummarizedHtml(String summarizedHtml) {
+        this.summarizedHtml = summarizedHtml;
     }
 
 }

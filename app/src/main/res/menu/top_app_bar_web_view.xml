@@ -31,6 +31,14 @@
         app:showAsAction="always" />
 
     <item
+        android:id="@+id/toggleSummarization"
+        android:icon="@drawable/ic_summary"
+        android:title="Show Original"
+        android:contentDescription="Toggle Summarization"
+        android:visible="false"
+        app:showAsAction="ifRoom" />
+
+    <item
         android:id="@+id/zoomIn"
         android:icon="@drawable/ic_zoom_in"
         android:title="@string/zoom_in"
@@ -87,14 +95,6 @@
         android:icon="@drawable/ic_book"
         android:title="@string/reading_mode"
         android:contentDescription="@string/reading_mode"
-        android:visible="false"
-        app:showAsAction="ifRoom" />
-
-    <item
-        android:id="@+id/switchSummarizeMode"
-        android:icon="@drawable/ic_book"
-        android:title="@string/summary_mode"
-        android:contentDescription="@string/summary_mode"
         android:visible="false"
         app:showAsAction="ifRoom" />
 
