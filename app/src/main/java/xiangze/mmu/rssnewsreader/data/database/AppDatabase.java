@@ -20,7 +20,7 @@ import xiangze.mmu.rssnewsreader.data.playlist.PlaylistDao;
 import javax.inject.Inject;
 import javax.inject.Provider;
 
-@Database(entities = {Feed.class, Entry.class, Playlist.class, History.class}, version = 5)
+@Database(entities = {Feed.class, Entry.class, Playlist.class, History.class}, version = 6)
 @androidx.room.TypeConverters({TypeConverters.class})
 // make this abstract to let room do the implementation
 public abstract class AppDatabase extends RoomDatabase {
@@ -80,6 +80,25 @@ public abstract class AppDatabase extends RoomDatabase {
             }
         }
     };
+
+    public static final Migration MIGRATION_5_6 = new Migration(5, 6) {
+        @Override
+        public void migrate(@NonNull SupportSQLiteDatabase database) {
+
+            database.execSQL(
+                    "ALTER TABLE entry_table ADD COLUMN translated_html TEXT"
+            );
+
+            database.execSQL(
+                    "ALTER TABLE entry_table ADD COLUMN summarized_html TEXT"
+            );
+
+            database.execSQL(
+                    "ALTER TABLE entry_table ADD COLUMN summarized TEXT"
+            );
+        }
+    };
+
 
     public static class Callback extends RoomDatabase.Callback {
 

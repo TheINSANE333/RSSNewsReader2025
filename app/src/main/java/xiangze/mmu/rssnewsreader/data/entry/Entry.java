@@ -18,8 +18,6 @@ public class Entry {
     private String description;
     private String content;
     private String html;
-    private String translatedHtml;
-    private String summarizedHtml;
     private String imageUrl;
     private String category;
     private Date publishedDate;
@@ -33,6 +31,12 @@ public class Entry {
     @Nullable
     @ColumnInfo(name = "translated")
     private String translated;
+    @Nullable
+    @ColumnInfo(name = "translated_html")
+    private String translatedHtml;
+    @Nullable
+    @ColumnInfo(name = "summarized_html")
+    private String summarizedHtml;
     @Nullable
     @ColumnInfo(name = "summarized")
     private String summarized;
