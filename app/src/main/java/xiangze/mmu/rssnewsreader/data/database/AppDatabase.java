@@ -6,6 +6,7 @@ import androidx.room.RoomDatabase;
 import androidx.room.migration.Migration;
 import androidx.sqlite.db.SupportSQLiteDatabase;
 
+import android.database.Cursor;
 import android.util.Log;
 
 import xiangze.mmu.rssnewsreader.data.entry.Entry;
