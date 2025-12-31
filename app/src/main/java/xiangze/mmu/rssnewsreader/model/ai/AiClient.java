@@ -58,7 +58,7 @@ public class AiClient {
 
     public String getChatResponse(List<Message> messages) throws IOException {
         // Use the free OpenAI model
-        ChatRequest request = new ChatRequest("openai/gpt-oss-120b:free", messages, 0.0, 100000);
+        ChatRequest request = new ChatRequest("google/gemini-2.5-flash-lite", messages, 0.0, 100000);
 
         retrofit2.Response<ChatResponse> response = service.chatCompletion(request).execute();
 
