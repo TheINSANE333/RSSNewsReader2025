@@ -101,8 +101,8 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
     private boolean clearHistory;
     private MenuItem toggleTranslationButton;
     private MenuItem toggleSummarizationButton;
-    private boolean isTranslatedView = true;
-    private boolean isSummarizedView = true;
+    private boolean isTranslatedView = false;
+    private boolean isSummarizedView = false;
     private MaterialToolbar toolbar;
 
     // Translation
@@ -223,6 +223,9 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
 
         webView.loadDataWithBaseURL("file///android_res/", finalHtml, "text/html", "UTF-8", null);
 
+        isSummarizedView = false;
+        sharedPreferencesRepository.setIsSummarizedView(currentId, false);
+
         toggleTranslationButton.setVisible(true);
         isTranslatedView = true;
         sharedPreferencesRepository.setIsTranslatedView(currentId, true);
@@ -265,6 +268,9 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
         entryRepository.updateSummarizedText(summarizedContent, currentId);
 
         webView.loadDataWithBaseURL("file///android_res/", finalHtml, "text/html", "UTF-8", null);
+
+        isTranslatedView = false;
+        sharedPreferencesRepository.setIsTranslatedView(currentId, false);
 
         toggleSummarizationButton.setVisible(true);
         isSummarizedView = true;
@@ -576,12 +582,12 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
         EntryInfo entryInfo = webViewViewModel.getEntryInfoById(currentId);
         if (entryInfo != null && !doc.html().contains("class=\"entry-header\"")) {
             doc.selectFirst("body").prepend(
-                    webViewViewModel.getHtml(
-                            entryInfo.getEntryTitle(),
-                            entryInfo.getFeedTitle(),
-                            entryInfo.getEntryPublishedDate(),
-                            entryInfo.getFeedImageUrl()
-                    )
+                webViewViewModel.getHtml(
+                        entryInfo.getEntryTitle(),
+                        entryInfo.getFeedTitle(),
+                        entryInfo.getEntryPublishedDate(),
+                        entryInfo.getFeedImageUrl()
+                )
             );
         }
 
@@ -645,106 +651,110 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
             return;
         }
 
+        // 1. Handle Browser Mode immediately
         if (sharedPreferencesRepository.getWebViewMode(currentId)) {
             loadFromBrowserMode(entryInfo);
             return;
         }
 
-        Log.d("DEBUG", "Original: " + entry.getOriginalHtml());
-        Log.d("DEBUG", "Translated: " + entry.getTranslated());
-        Log.d("DEBUG", "Summarized: " + entry.getSummarized());
-
-        /* Toggle button visibility (translate) */
-        if (entry.getOriginalHtml() != null && entry.getTranslated() != null) {
-            toggleTranslationButton.setVisible(true);
+        // 2. Populate ViewModel with data from the database
+        if (entry.getOriginalHtml() != null) {
             webViewViewModel.updateOriginalHtml(entry.getOriginalHtml(), entry.getId());
+        }
 
-            if (entry.getHtml() != null) {
-                webViewViewModel.updateHtml(entry.getHtml(), entry.getId());
+        if (entry.getTranslated() != null) {
+            webViewViewModel.updateTranslated(entry.getTranslated(), currentId);
+
+            if (sharedPreferencesRepository.getIsTranslatedView(currentId)) {
+                webViewViewModel.updateTranslatedHtml(entry.getHtml(), currentId);
             }
-        } else {
-            toggleTranslationButton.setVisible(false);
         }
 
-        /* Toggle button visibility (summary) */
-        if (entry.getOriginalHtml() != null && entry.getSummarized() != null) {
-            toggleSummarizationButton.setVisible(true);
-            webViewViewModel.updateOriginalHtml(entry.getOriginalHtml(), entry.getId());
+        if (entry.getSummarized() != null) {
+            webViewViewModel.updateSummarized(entry.getSummarized(), currentId);
 
-            if (entry.getHtml() != null) {
-                webViewViewModel.updateHtml(entry.getHtml(), entry.getId());
+            if (sharedPreferencesRepository.getIsSummarizedView(currentId)) {
+                webViewViewModel.updateSummarizedHtml(entry.getHtml(), currentId);
             }
+        }
+
+        if (entry.getHtml() != null) {
+            webViewViewModel.updateHtml(entry.getHtml(), entry.getId());
+        }
+
+
+        // 3. Resolve View State (Mutual Exclusivity)
+        // Priority: Summarized > Translated > Original
+        boolean prefSum = sharedPreferencesRepository.getIsSummarizedView(currentId);
+        boolean prefTrans = sharedPreferencesRepository.getIsTranslatedView(currentId);
+
+        // Sanitize state: prevent both being true
+        if (prefSum && entry.getSummarized() != null) {
+            isSummarizedView = true;
+            isTranslatedView = false;
+            // Force prefs to match sanitized state
+            sharedPreferencesRepository.setIsTranslatedView(currentId, false);
+        } else if (prefTrans && entry.getTranslated() != null) {
+            isTranslatedView = true;
+            isSummarizedView = false;
+            // Force prefs to match sanitized state
+            sharedPreferencesRepository.setIsSummarizedView(currentId, false);
         } else {
-            toggleSummarizationButton.setVisible(false);
+            // Default to Original
+            isTranslatedView = false;
+            isSummarizedView = false;
+            sharedPreferencesRepository.setIsTranslatedView(currentId, false);
+            sharedPreferencesRepository.setIsSummarizedView(currentId, false);
         }
 
-        /*  Resolve current view mode
-            Priority: summarized > translated > original
-         */
-        if (!sharedPreferencesRepository.hasTranslationToggle(currentId)) {
-            if (entry.getTranslated() != null && entry.getHtml() != null) {
-                isTranslatedView = true;
-            } else {
-                isTranslatedView = false;
-            }
+        Log.d(TAG, "loadEntryContent: State Resolved -> Translated: " + isTranslatedView + ", Summarized: " + isSummarizedView);
+
+        // 4. Update Toolbar Buttons
+        refreshButtonVisibility();
+
+        // 5. Determine Content to Load
+        String htmlToLoad;
+        String contentToRead;
+        String lang;
+
+        if (isSummarizedView) {
+            htmlToLoad = webViewViewModel.getHtmlById(currentId); // Assuming DB 'html' field held the summary
+            contentToRead = entry.getSummarized();
+            lang = getLanguageForCurrentView(currentId, true, "en");
+        } else if (isTranslatedView) {
+            htmlToLoad = webViewViewModel.getHtmlById(currentId); // Assuming DB 'html' field held the translation
+            contentToRead = entry.getTranslated();
+            lang = getLanguageForCurrentView(currentId, true, "en");
         } else {
-            isTranslatedView = sharedPreferencesRepository.getIsTranslatedView(currentId);
+            htmlToLoad = webViewViewModel.getOriginalHtmlById(currentId);
+            contentToRead = entry.getContent();
+            lang = getLanguageForCurrentView(currentId, false, "en");
         }
 
-        Log.d(TAG, "loadEntryContent: isTranslatedView = " + isTranslatedView);
-
-        if (!sharedPreferencesRepository.hasSummarizationToggle(currentId)) {
-            if (entry.getSummarized() != null && entry.getHtml() != null) {
-                isSummarizedView = true;
-            } else {
-                isSummarizedView = false;
-            }
-        } else {
-            isSummarizedView = sharedPreferencesRepository.getIsSummarizedView(currentId);
+        // Fallback if specific HTML is missing but original exists
+        if (htmlToLoad == null && entry.getOriginalHtml() != null) {
+            htmlToLoad = entry.getOriginalHtml();
         }
 
-        Log.d(TAG, "loadEntryContent: isSummarizedView = " + isSummarizedView);
+        Log.d(TAG, "loadEntryContent: Loading HTML length=" + (htmlToLoad != null ? htmlToLoad.length() : 0));
+        Log.d(TAG, "loadEntryContent: Preparing TTS for Lang=" + lang);
 
-        EntryInfo info = webViewViewModel.getEntryInfoById(currentId);
-        if (info == null) {
-            makeSnackbar("Feed language info not found.");
-            return;
-        }
-
-        Log.d("LoadEntry", "entry.getHtml() = " + (entry.getHtml() != null));
-        Log.d("LoadEntry", "entry.getTranslated() = " + (entry.getTranslated() != null));
-        Log.d("LoadEntry", "isTranslatedView = " + isTranslatedView);
-        Log.d("LoadEntry", "isSummarizedView = " + isSummarizedView);
-
-        String html = isTranslatedView || isSummarizedView
-                ? webViewViewModel.getHtmlById(currentId)
-                : webViewViewModel.getOriginalHtmlById(currentId);
-
-        Log.d("LoadEntry", "htmlToLoad (translated/summarized) = " + (html != null ? html.length() : "null"));
-
-        String contentToRead = isTranslatedView
-                ? entry.getTranslated()
-                : isSummarizedView
-                ? entry.getSummarized()
-                : entry.getContent();
-
-        String lang = getLanguageForCurrentView(currentId, isTranslatedView || isSummarizedView, "en");
-
-        Log.d(TAG, "loadEntryContent - About to speak " + (isTranslatedView ? "Translated" : "Original"));
-        Log.d(TAG, "Language to use: " + lang);
-        Log.d(TAG, "Text to read: " + contentToRead);
-
+        // 6. Execute Load
         ttsExtractor.setCurrentLanguage(lang, true);
 
-        if (html != null && !html.trim().isEmpty()) {
-            loadHtmlIntoWebView(html);
-            ttsPlayer.extract(entry.getId(), entry.getFeedId(), contentToRead, lang);
+        if (htmlToLoad != null && !htmlToLoad.trim().isEmpty()) {
+            loadHtmlIntoWebView(htmlToLoad);
+
+            if (contentToRead != null) {
+                ttsPlayer.extract(entry.getId(), entry.getFeedId(), contentToRead, lang);
+            }
         } else {
-            Log.w(TAG, "HTML missing, skipping load.");
+            Log.w(TAG, "HTML missing, skipping WebView load.");
         }
 
         sharedPreferencesRepository.setCurrentReadingEntryId(currentId);
 
+        // 7. Start Observers
         observeLiveEntry();
         observeAutoTranslation();
 
@@ -768,44 +778,87 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
             }
         });
 
+        // Observer for Original HTML changes
         webViewViewModel.getOriginalHtmlLiveData().observe(this, originalHtml -> {
-            updateToggleStateAndWebView(originalHtml, webViewViewModel.getTranslatedHtmlLiveData().getValue(), "original");
+            refreshButtonVisibility(); // Check all buttons whenever original changes
+            // Refresh webview content if we are currently viewing original
+            if (!isTranslatedView && !isSummarizedView) {
+                loadHtmlToWebView(originalHtml);
+            }
         });
 
+        // Observer for Translated HTML changes
         webViewViewModel.getTranslatedHtmlLiveData().observe(this, translatedHtml -> {
-            updateToggleStateAndWebView(webViewViewModel.getOriginalHtmlLiveData().getValue(), translatedHtml, "translation");
+            refreshButtonVisibility(); // Check all buttons
+            // Refresh webview if we are currently viewing translation
+            if (isTranslatedView) {
+                loadHtmlToWebView(translatedHtml);
+            }
         });
 
+        // Observer for Summarized HTML changes
         webViewViewModel.getSummarizedHtmlLiveData().observe(this, summarizedHtml -> {
-            updateToggleStateAndWebView(webViewViewModel.getOriginalHtmlLiveData().getValue(), summarizedHtml, "summarization");
+            refreshButtonVisibility(); // Check all buttons
+            // Refresh webview if we are currently viewing summary
+            if (isSummarizedView) {
+                loadHtmlToWebView(summarizedHtml);
+            }
         });
     }
 
-    private void updateToggleStateAndWebView(String originalHtml, String processedHtml, String processor) {
+    private void refreshButtonVisibility() {
+        String originalHtml = webViewViewModel.getOriginalHtmlById(currentId);
+        String translatedHtml = webViewViewModel.getTranslatedHtmlById(currentId);
+        String summarizedHtml = webViewViewModel.getSummarizedHtmlById(currentId);
+
         boolean hasOriginal = originalHtml != null && !originalHtml.trim().isEmpty();
-        boolean hasProcessed = processedHtml != null && !processedHtml.trim().isEmpty();
+        boolean hasTranslated = translatedHtml != null && !translatedHtml.trim().isEmpty();
+        boolean hasSummarized = summarizedHtml != null && !summarizedHtml.trim().isEmpty();
 
-        toggleTranslationButton.setVisible(hasOriginal && hasProcessed && processor.equals("translation"));
-        toggleTranslationButton.setTitle(isTranslatedView ? "Show Original" : "Show Translation");
-
-        toggleSummarizationButton.setVisible(hasOriginal && hasProcessed && processor.equals("summarization"));
-        toggleSummarizationButton.setTitle(isSummarizedView ? "Show Original" : "Show Summarization");
-
-        String htmlToLoad = isTranslatedView || isSummarizedView
-                ? processedHtml
-                : originalHtml;
-
-        Log.d(TAG, "LiveEntry - Current Mode: " + (isTranslatedView ? "Translated" : isSummarizedView ? "Summarized" : "Original"));
-        Log.d(TAG, "LiveEntry - Original HTML:\n" + originalHtml);
-        Log.d(TAG, "LiveEntry - Processed HTML:\n" + processedHtml);
-        Log.d(TAG, "LiveEntry - HTML to Load:\n" + htmlToLoad);
-
-        if (htmlToLoad != null && !htmlToLoad.trim().isEmpty()) {
-            loadHtmlToWebView(htmlToLoad);
+        // Update Translation Button
+        if (hasOriginal && hasTranslated) {
+            toggleTranslationButton.setVisible(true);
+            toggleTranslationButton.setTitle(isTranslatedView ? "Show Original" : "Show Translation");
+            toggleSummarizationButton.setTitle(isTranslatedView ? "Show Translation" : "Show Original");
         } else {
-            Log.w(TAG, "Skipped loading empty html in updateToggleStateAndWebView()");
+            toggleTranslationButton.setVisible(false);
+        }
+
+        // Update Summarization Button
+        if (hasOriginal && hasSummarized) {
+            toggleSummarizationButton.setVisible(true);
+            toggleSummarizationButton.setTitle(isSummarizedView ? "Show Original" : "Show Summarization");
+            toggleTranslationButton.setTitle(isTranslatedView ? "Show Translation" : "Show Original");
+        } else {
+            toggleSummarizationButton.setVisible(false);
         }
     }
+
+//    private void updateToggleStateAndWebView(String originalHtml, String processedHtml, String processor) {
+//        boolean hasOriginal = originalHtml != null && !originalHtml.trim().isEmpty();
+//        boolean hasProcessed = processedHtml != null && !processedHtml.trim().isEmpty();
+//
+//        toggleTranslationButton.setVisible(hasOriginal && hasProcessed && processor.equals("translation"));
+//        toggleTranslationButton.setTitle(isTranslatedView ? "Show Original" : "Show Translation");
+//
+//        toggleSummarizationButton.setVisible(hasOriginal && hasProcessed && processor.equals("summarization"));
+//        toggleSummarizationButton.setTitle(isSummarizedView ? "Show Original" : "Show Summarization");
+//
+//        String htmlToLoad = isTranslatedView || isSummarizedView
+//                ? processedHtml
+//                : originalHtml;
+//
+//        Log.d(TAG, "LiveEntry - Current Mode: " + (isTranslatedView ? "Translated" : isSummarizedView ? "Summarized" : "Original"));
+//        Log.d(TAG, "LiveEntry - Original HTML:\n" + originalHtml);
+//        Log.d(TAG, "LiveEntry - Processed HTML:\n" + processedHtml);
+//        Log.d(TAG, "LiveEntry - HTML to Load:\n" + htmlToLoad);
+//
+//        if (htmlToLoad != null && !htmlToLoad.trim().isEmpty()) {
+//            loadHtmlToWebView(htmlToLoad);
+//        } else {
+//            Log.w(TAG, "Skipped loading empty html in updateToggleStateAndWebView()");
+//        }
+//    }
 
     private void observeAutoTranslation() {
         LiveData<Entry> observer = webViewViewModel.getEntryEntityById(currentId);
@@ -1032,119 +1085,88 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
                 startActivity(new Intent("com.android.settings.TTS_SETTINGS"));
                 return true;}
 
-            case R.id.toggleTranslation:{
-                boolean currentMode = sharedPreferencesRepository.getIsTranslatedView(currentId);
-                isTranslatedView = !currentMode;
+            case R.id.toggleTranslation: {
+                // 1. Toggle the state
+                boolean targetState = !isTranslatedView;
+
+                // 2. Enforce Mutual Exclusivity
+                isTranslatedView = targetState;
+                if (targetState) {
+                    isSummarizedView = false; // Turn off summary if translation is on
+                    sharedPreferencesRepository.setIsSummarizedView(currentId, false);
+                }
                 sharedPreferencesRepository.setIsTranslatedView(currentId, isTranslatedView);
 
-                Entry entry = webViewViewModel.getEntryById(currentId);
-                if (entry == null) {
-                    makeSnackbar("Entry not found.");
-                    return true;
-                }
-
-                EntryInfo entryInfo = webViewViewModel.getEntryInfoById(currentId);
-                if (entryInfo == null) {
-                    makeSnackbar("Feed language info not found.");
-                    isTranslatedView = currentMode;
-                    sharedPreferencesRepository.setIsTranslatedView(currentId, currentMode);
-                    return true;
-                }
-
+                // 3. Get Data
                 String translatedHtml = webViewViewModel.getTranslatedHtmlById(currentId);
                 String originalHtml = webViewViewModel.getOriginalHtmlById(currentId);
+
+                // 4. Decide what to load
                 String htmlToLoad = isTranslatedView ? translatedHtml : originalHtml;
 
-                Log.d(TAG, "TOGGLE BUTTON PRESSED");
-                Log.d(TAG, "Original HTML:\n" + originalHtml);
-                Log.d(TAG, "Translated HTML:\n" + translatedHtml);
-                Log.d(TAG, "HTML loaded for toggle view:\n" + htmlToLoad);
-
                 if (htmlToLoad != null && !htmlToLoad.trim().isEmpty()) {
-                    toggleTranslationButton.setTitle(isTranslatedView ? "Show Original" : "Show Translation");
                     loadHtmlIntoWebView(htmlToLoad);
+                    // Refresh buttons to update titles ("Show Original" vs "Show Translation")
+                    refreshButtonVisibility();
 
+                    // Handle TTS
                     if (isTranslatedView) {
-                        String translated = entry.getTranslated();
-                        if (translated != null && !translated.trim().isEmpty()) {
-                            Log.d(TAG, "ToggleTranslation: Broadcasting translatedTextReady again");
-                            webViewViewModel.setTranslatedTextReady(currentId, translated);
-                            String lang = getLanguageForCurrentView(currentId, isTranslatedView, "en");
-                            ttsPlayer.extract(entry.getId(), entry.getFeedId(), translated, lang);
-                        } else {
-                            Log.w(TAG, "ToggleTranslation: translated content missing, skipping extract");
+                        String translated = webViewViewModel.getEntryById(currentId).getTranslated();
+                        if (translated != null) {
+                            String lang = getLanguageForCurrentView(currentId, true, "en");
+                            ttsPlayer.extract(currentId, feedId, translated, lang);
                         }
                     } else {
-                        String original = entry.getContent();
-                        String lang = getLanguageForCurrentView(currentId, isTranslatedView, "en");
-                        if (original != null && !original.trim().isEmpty()) {
-                            Log.d(TAG, "ToggleTranslation: Reading original content");
-                            ttsPlayer.extract(entry.getId(), entry.getFeedId(), original, lang);
-                        }
+                        // Revert to original TTS
+                        String original = webViewViewModel.getEntryById(currentId).getContent();
+                        String lang = getLanguageForCurrentView(currentId, false, "en");
+                        ttsPlayer.extract(currentId, feedId, original, lang);
                     }
-                } else {
-                    makeSnackbar("No alternate version available.");
-                    isTranslatedView = currentMode;
-                    sharedPreferencesRepository.setIsTranslatedView(currentId, currentMode);
                 }
-                return true;}
+                return true;
+            }
 
-            case R.id.toggleSummarization:{
-                boolean currentMode = sharedPreferencesRepository.getIsSummarizedView(currentId);
-                isSummarizedView = !currentMode;
+            case R.id.toggleSummarization: {
+                // 1. Toggle the state
+                boolean targetState = !isSummarizedView;
+
+                // 2. Enforce Mutual Exclusivity
+                isSummarizedView = targetState;
+                if (targetState) {
+                    isTranslatedView = false; // Turn off translation if summary is on
+                    sharedPreferencesRepository.setIsTranslatedView(currentId, false);
+                }
                 sharedPreferencesRepository.setIsSummarizedView(currentId, isSummarizedView);
 
-                Entry entry = webViewViewModel.getEntryById(currentId);
-                if (entry == null) {
-                    makeSnackbar("Entry not found.");
-                    return true;
-                }
-
-                EntryInfo entryInfo = webViewViewModel.getEntryInfoById(currentId);
-                if (entryInfo == null) {
-                    makeSnackbar("Feed language info not found.");
-                    isSummarizedView = currentMode;
-                    sharedPreferencesRepository.setIsSummarizedView(currentId, currentMode);
-                    return true;
-                }
-
+                // 3. Get Data
                 String summarizedHtml = webViewViewModel.getSummarizedHtmlById(currentId);
                 String originalHtml = webViewViewModel.getOriginalHtmlById(currentId);
+
+                // 4. Decide what to load
                 String htmlToLoad = isSummarizedView ? summarizedHtml : originalHtml;
 
-                Log.d(TAG, "TOGGLE BUTTON PRESSED");
-                Log.d(TAG, "Original HTML:\n" + originalHtml);
-                Log.d(TAG, "Summarized HTML:\n" + summarizedHtml);
-                Log.d(TAG, "HTML loaded for toggle view:\n" + htmlToLoad);
-
                 if (htmlToLoad != null && !htmlToLoad.trim().isEmpty()) {
-                    toggleSummarizationButton.setTitle(isSummarizedView ? "Show Original" : "Show Summarization");
                     loadHtmlIntoWebView(htmlToLoad);
+                    // Refresh buttons to update titles
+                    refreshButtonVisibility();
 
+                    // Handle TTS
                     if (isSummarizedView) {
-                        String summarized = entry.getSummarized();
-                        if (summarized != null && !summarized.trim().isEmpty()) {
-                            Log.d(TAG, "ToggleSummarization: Broadcasting summarizedTextReady again");
-                            webViewViewModel.setSummarizedTextReady(currentId, summarized);
-                            String lang = getLanguageForCurrentView(currentId, isSummarizedView, "en");
-                            ttsPlayer.extract(entry.getId(), entry.getFeedId(), summarized, lang);
-                        } else {
-                            Log.w(TAG, "ToggleSummarization: summarized content missing, skipping extract");
+                        String summarized = webViewViewModel.getEntryById(currentId).getSummarized();
+                        if (summarized != null) {
+                            // Summaries are usually in the target language (or user pref), usually same as translation
+                            String lang = getLanguageForCurrentView(currentId, true, "en");
+                            ttsPlayer.extract(currentId, feedId, summarized, lang);
                         }
                     } else {
-                        String original = entry.getContent();
-                        String lang = getLanguageForCurrentView(currentId, isSummarizedView, "en");
-                        if (original != null && !original.trim().isEmpty()) {
-                            Log.d(TAG, "ToggleSummarization: Reading original content");
-                            ttsPlayer.extract(entry.getId(), entry.getFeedId(), original, lang);
-                        }
+                        // Revert to original TTS
+                        String original = webViewViewModel.getEntryById(currentId).getContent();
+                        String lang = getLanguageForCurrentView(currentId, false, "en");
+                        ttsPlayer.extract(currentId, feedId, original, lang);
                     }
-                } else {
-                    makeSnackbar("No alternate version available.");
-                    isSummarizedView = currentMode;
-                    sharedPreferencesRepository.setIsSummarizedView(currentId, currentMode);
                 }
-                return true;}
+                return true;
+            }
 
             default:
                 return false;

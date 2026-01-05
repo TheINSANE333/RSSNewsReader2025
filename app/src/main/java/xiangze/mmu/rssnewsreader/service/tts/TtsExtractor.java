@@ -111,10 +111,14 @@ public class TtsExtractor {
 
                 // We fetch the preference again to ensure we use the latest user setting
                 boolean isTranslated = sharedPreferencesRepository.getIsTranslatedView(currentIdInProgress);
+                boolean isSummarized = sharedPreferencesRepository.getIsSummarizedView(currentIdInProgress);
 
                 if (isTranslated && entry != null && entry.getTranslated() != null && !entry.getTranslated().trim().isEmpty()) {
                     contentToRead = entry.getTranslated();
                     Log.d(TAG, "[TtsExtractor] Using translated content for TTS");
+                } else if (isSummarized && entry != null && entry.getSummarized() != null && !entry.getSummarized().trim().isEmpty()) {
+                    contentToRead = entry.getSummarized();
+                    Log.d(TAG, "[TtsExtractor] Using summarized content for TTS");
                 } else {
                     contentToRead = entry != null ? entry.getContent() : "";
                     Log.d(TAG, "[TtsExtractor] Using original content for TTS");
