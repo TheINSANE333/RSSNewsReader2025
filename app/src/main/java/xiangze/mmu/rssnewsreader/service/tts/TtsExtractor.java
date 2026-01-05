@@ -351,6 +351,15 @@ public class TtsExtractor {
                         entryRepository.updateContent(content.toString(), currentIdInProgress);
                         entryRepository.updateOriginalHtml(doc.html(), currentIdInProgress);
 
+                        boolean isSummarizedView = sharedPreferencesRepository.getIsSummarizedView(currentIdInProgress);
+                        String existingSummarized = entryRepository.getSummarizedTextById(currentIdInProgress);
+                        boolean hasSummarization = existingSummarized != null && !existingSummarized.trim().isEmpty();
+
+                        if (!isSummarizedView || !hasSummarization) {
+                            Log.d(TAG, "Updating main HTML to source language (No summarization active).");
+                            entryRepository.updateHtml(doc.html(), currentIdInProgress);
+                        }
+
                         boolean isTranslatedView = sharedPreferencesRepository.getIsTranslatedView(currentIdInProgress);
                         String existingTranslated = entryRepository.getTranslatedTextById(currentIdInProgress);
                         boolean hasTranslation = existingTranslated != null && !existingTranslated.trim().isEmpty();

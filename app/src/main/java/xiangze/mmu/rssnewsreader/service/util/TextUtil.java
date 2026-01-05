@@ -14,6 +14,7 @@ import com.google.mlkit.nl.translate.TranslatorOptions;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
+import org.jsoup.nodes.TextNode;
 import org.jsoup.parser.Tag;
 import org.jsoup.select.Elements;
 
@@ -48,25 +49,41 @@ public class TextUtil {
     }
 
     public String extractHtmlContent(String html, String delimiter) {
-        if (html == null) {
+        if (html == null || html.isEmpty()) {
             return "";
         }
 
         Document doc = Jsoup.parse(html);
         StringBuilder content = new StringBuilder();
 
-        // Using CSS selector to directly access the required elements
-        String cssQuery = "h2, h3, h4, h5, h6, p, td, pre, th, li, figcaption, blockquote, section";
-        Elements elements = doc.select(cssQuery);
+        // 1. Extract structured elements
+        Elements elements = doc.select(
+                "h2, h3, h4, h5, h6, p, td, pre, th, li, figcaption, blockquote"
+        );
 
-        // Iterate over the selected elements and append them to the StringBuilder
         for (Element element : elements) {
-            content.append(element.text());
-            content.append(delimiter);  // Append the delimiter after each element's text
+            String text = element.text().trim();
+            if (!text.isEmpty()) {
+                content.append(text).append(delimiter);
+            }
         }
 
-        return content.toString().trim();  // Return the trimmed result to remove the last delimiter
+        // 2. Extract orphan text nodes under <body>
+        for (TextNode node : doc.body().textNodes()) {
+            String text = node.text().trim();
+            if (!text.isEmpty()) {
+                content.append(text).append(delimiter);
+            }
+        }
+
+        // Remove trailing delimiter
+        if (content.length() >= delimiter.length()) {
+            content.setLength(content.length() - delimiter.length());
+        }
+
+        return content.toString();
     }
+
 
     // Translate text element by element
     // Pro: Preserves the HTML structure of the text (e.g. <h1> remains <h1>, <h2> remains <h2>, <p> remains <p>)

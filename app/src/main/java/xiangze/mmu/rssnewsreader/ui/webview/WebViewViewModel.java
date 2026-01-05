@@ -1,6 +1,7 @@
 package xiangze.mmu.rssnewsreader.ui.webview;
 
 import android.annotation.SuppressLint;
+import android.util.Log;
 
 import androidx.lifecycle.LiveData;
 import androidx.lifecycle.MutableLiveData;
@@ -55,6 +56,10 @@ public class WebViewViewModel extends ViewModel {
         entryRepository.updateOriginalHtml(null, id);
         entryRepository.updateTranslatedText(null, id);
         entryRepository.updateTranslated(null, id);
+        entryRepository.updateTranslatedHtml(null, id);
+        entryRepository.updateSummarized(null, id);
+        entryRepository.updateSummarizedText(null, id);
+        entryRepository.updateSummarizedHtml(null, id);
         entryRepository.updateContent(null, id);
         entryRepository.updateSentCountByLink(0, id);
         entryRepository.updatePriority(1, id);
@@ -64,6 +69,7 @@ public class WebViewViewModel extends ViewModel {
         Entry entry = entryRepository.getEntryById(id);
         if (entry != null) {
             entry.setTranslated(null);
+            entry.setSummarized(null);
             entry.setHtml(null);
             entry.setContent(null);
         }
@@ -76,12 +82,12 @@ public class WebViewViewModel extends ViewModel {
 
     public void updateTranslatedHtml(String html, long id) {
         entryRepository.updateTranslatedHtml(html, id);
-//        translatedHtmlLiveData.postValue(html);
+        translatedHtmlLiveData.postValue(html);
     }
 
     public void updateSummarizedHtml(String html, long id) {
         entryRepository.updateSummarizedHtml(html, id);
-//        translatedHtmlLiveData.postValue(html);
+        translatedHtmlLiveData.postValue(html);
     }
 
     public void updateContent(String content, long id) {
@@ -207,6 +213,7 @@ public class WebViewViewModel extends ViewModel {
     public void updateEntrySummarizedField(long entryId, String summarizedContent) {
         Entry entry = entryRepository.getEntryById(entryId);
         if (entry != null) {
+            Log.d("SET SUMMARIZED", summarizedContent);
             entry.setSummarized(summarizedContent);
         }
     }
