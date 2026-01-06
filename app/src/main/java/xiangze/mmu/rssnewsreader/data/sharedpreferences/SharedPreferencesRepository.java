@@ -52,15 +52,6 @@ public class SharedPreferencesRepository {
         editor.apply();
     }
 
-    public boolean getDisplaySummary() {
-        return sharedPreferences.getBoolean("displaySummary", true);
-    }
-
-    public void setDisplaySummary(boolean displaySummary) {
-        editor.putBoolean("displaySummary", displaySummary);
-        editor.apply();
-    }
-
     public boolean getHighlightText() {
         return sharedPreferences.getBoolean("highlightText", true);
     }

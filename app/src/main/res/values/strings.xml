@@ -42,10 +42,6 @@
     <string name="entries_limit_title">Article limit for each feed</string>
     <string name="entries_limit_summary">Delete oldest unbookmarked articles after refresh (limit excludes bookmarked)</string>
 
-    <string name="display_summary_title">Display summary</string>
-    <string name="display_summary_on">Summary page of the article will be shown when an article is clicked</string>
-    <string name="display_summary_off">Summary page of the article will not be shown when an article is clicked</string>
-
     <string name="highlight_text_title">Highlight text</string>
     <string name="highlight_text_on">Search and highlight the paragraph where text-to-speech is speaking</string>
     <string name="highlight_text_off">Does not highlight the text when text-to-speech is speaking</string>

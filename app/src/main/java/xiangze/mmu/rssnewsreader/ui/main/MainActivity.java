@@ -90,7 +90,6 @@ public class MainActivity extends AppCompatActivity {
                                     while (eventType != XmlPullParser.END_DOCUMENT) {
                                         if (eventType == XmlPullParser.START_TAG && parser.getName().equals("setting")) {
                                             String jobPeriodic = parser.getAttributeValue(null, "jobPeriodic");
-                                            String displaySummary = parser.getAttributeValue(null, "displaySummary");
                                             String highlightText = parser.getAttributeValue(null, "highlightText");
                                             String confidenceThreshold = parser.getAttributeValue(null, "confidenceThreshold");
                                             String textZoom = parser.getAttributeValue(null, "textZoom");
@@ -103,9 +102,6 @@ public class MainActivity extends AppCompatActivity {
                                             Log.d(TAG, "onActivityResult: set defaultTranslationLanguage" + defaultTranslationLanguage);
                                             if (jobPeriodic != null && !jobPeriodic.isEmpty()) {
                                                 sharedPreferencesRepository.setJobPeriodic(jobPeriodic);
-                                            }
-                                            if (displaySummary != null && !displaySummary.isEmpty()) {
-                                                sharedPreferencesRepository.setDisplaySummary(displaySummary.equals("true"));
                                             }
                                             if (highlightText != null && !highlightText.isEmpty()) {
                                                 sharedPreferencesRepository.setHighlightText(highlightText.equals("true"));
@@ -220,7 +216,6 @@ public class MainActivity extends AppCompatActivity {
                             serializer.startTag(null, "body");
                             serializer.startTag(null, "setting");
                             serializer.attribute(null, "jobPeriodic", Integer.toString(sharedPreferencesRepository.getJobPeriodic()));
-                            serializer.attribute(null, "displaySummary", sharedPreferencesRepository.getDisplaySummary() ? "true" : "false");
                             serializer.attribute(null, "highlightText", sharedPreferencesRepository.getHighlightText() ? "true" : "false");
                             serializer.attribute(null, "textZoom", Integer.toString(sharedPreferencesRepository.getTextZoom()));
                             serializer.attribute(null, "sortBy", sharedPreferencesRepository.getSortBy());

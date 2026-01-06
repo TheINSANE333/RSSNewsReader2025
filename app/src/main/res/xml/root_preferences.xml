@@ -39,14 +39,6 @@
             app:title="@string/theme_title" />
 
         <SwitchPreferenceCompat
-            app:defaultValue="false"
-            app:icon="@drawable/ic_summary"
-            app:key="displaySummary"
-            app:summaryOff="@string/display_summary_off"
-            app:summaryOn="@string/display_summary_on"
-            app:title="@string/display_summary_title" />
-
-        <SwitchPreferenceCompat
             app:defaultValue="true"
             app:icon="@drawable/ic_marker"
             app:key="highlightText"
