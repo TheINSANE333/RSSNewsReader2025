@@ -87,6 +87,7 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
     private MenuItem bookmarkButton;
     private MenuItem chatbotButton;
     private MenuItem translationButton;
+    private MenuItem summarizationButton;
     private MenuItem highlightTextButton;
     private MenuItem backgroundMusicButton;
     private String currentLink;
@@ -570,6 +571,7 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
         bookmarkButton = toolbar.getMenu().findItem(R.id.bookmark);
         chatbotButton = toolbar.getMenu().findItem(R.id.chatbot);
         translationButton = toolbar.getMenu().findItem(R.id.translate);
+        summarizationButton = toolbar.getMenu().findItem(R.id.summarize);
         toggleTranslationButton = toolbar.getMenu().findItem(R.id.toggleTranslation);
         toggleSummarizationButton = toolbar.getMenu().findItem(R.id.toggleSummarization);
         highlightTextButton = toolbar.getMenu().findItem(R.id.highlightText);
@@ -845,22 +847,34 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
         boolean hasTranslated = translatedHtml != null && !translatedHtml.trim().isEmpty();
         boolean hasSummarized = summarizedHtml != null && !summarizedHtml.trim().isEmpty();
 
-        // Update Translation Button
+        // 1. Update Translation Buttons
         if (hasOriginal && hasTranslated) {
+            // Show Toggle, make it priority
             toggleTranslationButton.setVisible(true);
+            toggleTranslationButton.setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS);
             toggleTranslationButton.setTitle(isTranslatedView ? "Show Original" : "Show Translation");
-            toggleSummarizationButton.setTitle(isTranslatedView ? "Show Original" : "Show Summarization");
+
+            // Downgrade the main Translate button to make room for Toggle
+            translationButton.setShowAsAction(MenuItem.SHOW_AS_ACTION_IF_ROOM);
         } else {
             toggleTranslationButton.setVisible(false);
+            // Reset Translate button to priority if no translation exists
+            translationButton.setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS);
         }
 
-        // Update Summarization Button
+        // 2. Update Summarization Buttons
         if (hasOriginal && hasSummarized) {
+            // Show Toggle, make it priority
             toggleSummarizationButton.setVisible(true);
+            toggleSummarizationButton.setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS);
             toggleSummarizationButton.setTitle(isSummarizedView ? "Show Original" : "Show Summarization");
-            toggleTranslationButton.setTitle(isSummarizedView ? "Show Original" : "Show Translation");
+
+            // Downgrade main Summarize button
+            summarizationButton.setShowAsAction(MenuItem.SHOW_AS_ACTION_IF_ROOM);
         } else {
             toggleSummarizationButton.setVisible(false);
+            // Reset Summarize button to priority
+            summarizationButton.setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS);
         }
     }
 
@@ -999,7 +1013,6 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
                     loading.setVisibility(View.GONE);
 
                     // Open ChatActivity to display the result
-//                    openChatWithSummary(summaryResult);
                     runOnUiThread(() -> {
                         doWhenSummarizationFinish(entryInfo, html, summaryResult);
                     });
@@ -1017,13 +1030,6 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
 
         }).start();
     }
-
-//    private void openChatWithSummary(String summary) {
-//        Intent intent = new Intent(this, ChatActivity.class);
-//        // Pass the summary so ChatActivity can display it as an incoming message
-//        intent.putExtra("initial_message", summary);
-//        startActivity(intent);
-//    }
 
     private boolean handleOtherToolbarItems(int itemId) {
         switch (itemId) {

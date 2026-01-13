@@ -11,12 +11,12 @@ if (localPropertiesFile.exists()) {
 }
 
 android {
-    compileSdk 35
+    compileSdk 36
 
     defaultConfig {
         applicationId "xiangze.mmu.rssnewsreader"
         minSdk 26
-        targetSdk 35
+        targetSdk 36
         versionCode 1
         versionName "0.0.6"
 

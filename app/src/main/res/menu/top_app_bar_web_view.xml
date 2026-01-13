@@ -36,7 +36,7 @@
         android:title="Show Original"
         android:contentDescription="Toggle Summarization"
         android:visible="false"
-        app:showAsAction="ifRoom" />
+        app:showAsAction="always" />
 
     <item
         android:id="@+id/zoomIn"
