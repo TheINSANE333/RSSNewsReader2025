@@ -129,6 +129,7 @@ public class TtsService extends MediaBrowserServiceCompat {
                 }
                 long currentReadingId = sharedPreferencesRepository.getCurrentReadingEntryId();
                 boolean isTranslatedView = sharedPreferencesRepository.getIsTranslatedView(currentReadingId);
+                boolean isSummarizedView = sharedPreferencesRepository.getIsSummarizedView(currentReadingId);
 
                 Entry entry = entryRepository.getEntryById(currentReadingId);
                 if (entry == null) {
@@ -138,12 +139,17 @@ public class TtsService extends MediaBrowserServiceCompat {
 
                 String original = entry.getContent();
                 String translated = entry.getTranslated();
+                String summarized = entry.getSummarized();
 
                 Log.d(TAG, "isTranslatedView = " + isTranslatedView);
+                Log.d(TAG, "isSummarizedView = " + isSummarizedView);
                 Log.d(TAG, "original length = " + (original == null ? "null" : original.length()));
                 Log.d(TAG, "translated length = " + (translated == null ? "null" : translated.length()));
+                Log.d(TAG, "summarized length = " + (summarized == null ? "null" : summarized.length()));
 
-                String content = (isTranslatedView && translated != null && !translated.trim().isEmpty())
+                String content = (isSummarizedView && summarized != null && !summarized.trim().isEmpty())
+                        ? summarized
+                        : (isTranslatedView && translated != null && !translated.trim().isEmpty())
                         ? translated
                         : original;
 
@@ -155,10 +161,10 @@ public class TtsService extends MediaBrowserServiceCompat {
 
                 String targetLanguage = sharedPreferencesRepository.getDefaultTranslationLanguage();
                 if (targetLanguage == null || targetLanguage.isEmpty()) {
-                    targetLanguage = "zh";
+                    targetLanguage = "en";
                 }
 
-                String languageToUse = isTranslatedView ? targetLanguage : feedLanguage;
+                String languageToUse = isTranslatedView || isSummarizedView ? targetLanguage : feedLanguage;
 
                 preparedData = ttsPlaylist.getCurrentMetadata();
                 if (!mediaSession.isActive()) {

@@ -6,6 +6,8 @@ import androidx.annotation.Nullable;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import javax.inject.Inject;
+
 import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers;
 import io.reactivex.rxjava3.core.Single;
 import io.reactivex.rxjava3.schedulers.Schedulers;
@@ -20,6 +22,9 @@ public class AutoTranslator {
     private final TextUtil textUtil;
     private final SharedPreferencesRepository prefs;
     private final String delimiter = "--####--";
+
+    @Inject
+    SharedPreferencesRepository sharedPreferencesRepository;
 
     public AutoTranslator(EntryRepository entryRepository, TextUtil textUtil, SharedPreferencesRepository prefs) {
         this.entryRepository = entryRepository;
@@ -55,7 +60,7 @@ public class AutoTranslator {
 
             try {
                 // 1. Check if already translated (Double check to save quota)
-                String currentHtml = entry.getHtml();
+                String currentHtml = entry.getTranslatedHtml();
                 if (currentHtml != null && currentHtml.contains("translated-title")) {
                     Log.d(TAG, "Skipping ID " + id + " - Already contains translated marker.");
                     continue;
@@ -115,8 +120,10 @@ public class AutoTranslator {
                 entryRepository.updateTranslatedHtml(translatedHtml, id);
 
                 // Update in-memory object just in case
-                entry.setHtml(translatedHtml);
+                entry.setTranslatedHtml(translatedHtml);
                 entry.setTranslated(translatedContent);
+
+                prefs.setIsTranslatedView(id, true);
 
                 Log.d(TAG, "SUCCESS: Translated ID " + id);
 

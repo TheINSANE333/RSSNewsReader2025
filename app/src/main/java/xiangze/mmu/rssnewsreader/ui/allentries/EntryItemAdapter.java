@@ -35,11 +35,14 @@ public class EntryItemAdapter extends ListAdapter<EntryInfo, EntryItemAdapter.En
     private boolean isSelectionMode = false;
     private static final String TAG = "EntryItemAdapter";
     private final boolean autoTranslateEnabled;
+    private final boolean autoSummarizeEnabled;
 
-    public EntryItemAdapter(EntryItemClickInterface entryItemClickInterface, boolean autoTranslateEnabled) {
+
+    public EntryItemAdapter(EntryItemClickInterface entryItemClickInterface, boolean autoTranslateEnabled, boolean autoSummarizeEnabled) {
         super(DIFF_CALLBACK);
         this.entryItemClickInterface = entryItemClickInterface;
         this.autoTranslateEnabled = autoTranslateEnabled;
+        this.autoSummarizeEnabled = autoSummarizeEnabled;
     }
 
     private static final DiffUtil.ItemCallback<EntryInfo> DIFF_CALLBACK = new DiffUtil.ItemCallback<EntryInfo>() {
@@ -66,8 +69,14 @@ public class EntryItemAdapter extends ListAdapter<EntryInfo, EntryItemAdapter.En
 
         private boolean hasTranslation(EntryInfo e) {
             String orig  = e.getOriginalHtml();
-            String trans = e.getHtml();
+            String trans = e.getTranslatedHtml();
             return trans != null && orig != null && !trans.equals(orig);
+        }
+
+        private boolean hasSummarization(EntryInfo e) {
+            String orig  = e.getOriginalHtml();
+            String sum = e.getSummarizedHtml();
+            return sum != null && orig != null && !sum.equals(orig);
         }
     };
 
@@ -202,14 +211,42 @@ public class EntryItemAdapter extends ListAdapter<EntryInfo, EntryItemAdapter.En
             String content = entryInfo.getContent();
             int priority = entryInfo.getPriority();
             boolean hasOriginalHtml   = !TextUtils.isEmpty(entryInfo.getOriginalHtml());
-            boolean hasTranslatedHtml = !TextUtils.isEmpty(entryInfo.getHtml())
+            boolean hasTranslatedHtml = !TextUtils.isEmpty(entryInfo.getTranslatedHtml())
                     && (entryInfo.getOriginalHtml() == null ||
-                    !entryInfo.getHtml().equals(entryInfo.getOriginalHtml()));
+                    !entryInfo.getTranslatedHtml().equals(entryInfo.getOriginalHtml()));
+            boolean hasSummarizedHtml = !TextUtils.isEmpty(entryInfo.getSummarizedHtml())
+                    && (entryInfo.getOriginalHtml() == null ||
+                    !entryInfo.getSummarizedHtml().equals(entryInfo.getOriginalHtml()));
 
             statusView.setText("");
 
-            if (autoTranslateEnabled) {
-                if (hasOriginalHtml && hasTranslatedHtml) {
+            if (autoTranslateEnabled && autoSummarizeEnabled) {
+                Log.d("CHECK STATS", "Have both");
+                if (hasOriginalHtml && hasTranslatedHtml && hasSummarizedHtml) {
+                    statusView.setBackgroundResource(R.drawable.status_dot_green);
+                    statusView.setVisibility(View.VISIBLE);
+                } else if ((!TextUtils.isEmpty(content)) || priority > 0) {
+                    statusView.setBackgroundResource(R.drawable.status_dot_yellow);
+                    statusView.setVisibility(View.VISIBLE);
+                }else {
+                    statusView.setBackgroundResource(R.drawable.status_dot_red);
+                    statusView.setVisibility(View.VISIBLE);
+                }
+            } else if (autoSummarizeEnabled) {
+                if (hasOriginalHtml && hasSummarizedHtml) {
+                    Log.d("CHECK STATS", "Have summarized");
+                    statusView.setBackgroundResource(R.drawable.status_dot_green);
+                    statusView.setVisibility(View.VISIBLE);
+                } else if ((!TextUtils.isEmpty(content)) || priority > 0) {
+                    statusView.setBackgroundResource(R.drawable.status_dot_yellow);
+                    statusView.setVisibility(View.VISIBLE);
+                }else {
+                    statusView.setBackgroundResource(R.drawable.status_dot_red);
+                    statusView.setVisibility(View.VISIBLE);
+                }
+            } else if (autoTranslateEnabled) {
+                if (hasOriginalHtml && hasSummarizedHtml && hasTranslatedHtml) {
+                    Log.d("CHECK STATS", "Have translated");
                     statusView.setBackgroundResource(R.drawable.status_dot_green);
                     statusView.setVisibility(View.VISIBLE);
                 } else if ((!TextUtils.isEmpty(content)) || priority > 0) {

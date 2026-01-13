@@ -615,31 +615,31 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
         syncLoadingWithTts();
     }
 
-    private void updateToggleTranslationVisibility() {
-        String originalHtml = webViewViewModel.getOriginalHtmlById(currentId);
-        String translatedHtml = webViewViewModel.getHtmlById(currentId);
-
-        if (originalHtml != null && translatedHtml != null && !originalHtml.equals(translatedHtml)) {
-            toggleTranslationButton.setVisible(true);
-        } else {
-            toggleTranslationButton.setVisible(false);
-        }
-
-        Log.d(TAG, "ToggleTranslationButton visibility set to: " + (originalHtml != null && translatedHtml != null && !originalHtml.equals(translatedHtml)));
-    }
-
-    private void updateToggleSummarizationVisibility() {
-        String originalHtml = webViewViewModel.getOriginalHtmlById(currentId);
-        String summarizedHtml = webViewViewModel.getHtmlById(currentId);
-
-        if (originalHtml != null && summarizedHtml != null && !originalHtml.equals(summarizedHtml)) {
-            toggleSummarizationButton.setVisible(true);
-        } else {
-            toggleSummarizationButton.setVisible(false);
-        }
-
-        Log.d(TAG, "ToggleSummarizationButton visibility set to: " + (originalHtml != null && summarizedHtml != null && !originalHtml.equals(summarizedHtml)));
-    }
+//    private void updateToggleTranslationVisibility() {
+//        String originalHtml = webViewViewModel.getOriginalHtmlById(currentId);
+//        String translatedHtml = webViewViewModel.getHtmlById(currentId);
+//
+//        if (originalHtml != null && translatedHtml != null && !originalHtml.equals(translatedHtml)) {
+//            toggleTranslationButton.setVisible(true);
+//        } else {
+//            toggleTranslationButton.setVisible(false);
+//        }
+//
+//        Log.d(TAG, "ToggleTranslationButton visibility set to: " + (originalHtml != null && translatedHtml != null && !originalHtml.equals(translatedHtml)));
+//    }
+//
+//    private void updateToggleSummarizationVisibility() {
+//        String originalHtml = webViewViewModel.getOriginalHtmlById(currentId);
+//        String summarizedHtml = webViewViewModel.getHtmlById(currentId);
+//
+//        if (originalHtml != null && summarizedHtml != null && !originalHtml.equals(summarizedHtml)) {
+//            toggleSummarizationButton.setVisible(true);
+//        } else {
+//            toggleSummarizationButton.setVisible(false);
+//        }
+//
+//        Log.d(TAG, "ToggleSummarizationButton visibility set to: " + (originalHtml != null && summarizedHtml != null && !originalHtml.equals(summarizedHtml)));
+//    }
 
     private void initializePlaybackModes() {
         if (isReadingMode) {
@@ -650,6 +650,7 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
     }
 
     private void loadEntryContent() {
+
         EntryInfo entryInfo = webViewViewModel.getLastVisitedEntry();
         if (entryInfo == null) {
             makeSnackbar("No article to load.");
@@ -664,105 +665,85 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
             return;
         }
 
-        // 1. Handle Browser Mode immediately
+        // 1. Browser mode has absolute priority
         if (sharedPreferencesRepository.getWebViewMode(currentId)) {
             loadFromBrowserMode(entryInfo);
             return;
         }
 
-        // 2. Populate ViewModel with data from the database
+        // 2. Determine data availability
+        boolean hasTranslation = entry.getTranslated() != null && !entry.getTranslated().trim().isEmpty();
+        boolean hasSummary = entry.getSummarized() != null && !entry.getSummarized().trim().isEmpty();
+
+        // 3. Populate / clear ViewModel (avoid stale state)
         if (entry.getOriginalHtml() != null) {
-            webViewViewModel.updateOriginalHtml(entry.getOriginalHtml(), entry.getId());
+            webViewViewModel.updateOriginalHtml(entry.getOriginalHtml(), currentId);
         }
 
-        if (entry.getTranslated() != null) {
+        if (hasTranslation) {
             webViewViewModel.updateTranslated(entry.getTranslated(), currentId);
-
-            if (sharedPreferencesRepository.getIsTranslatedView(currentId)) {
-                webViewViewModel.updateTranslatedHtml(entry.getHtml(), currentId);
-            }
+            webViewViewModel.updateTranslatedHtml(entry.getTranslatedHtml(), currentId);
         }
 
-        if (entry.getSummarized() != null) {
+        if (hasSummary) {
             webViewViewModel.updateSummarized(entry.getSummarized(), currentId);
-
-            if (sharedPreferencesRepository.getIsSummarizedView(currentId)) {
-                webViewViewModel.updateSummarizedHtml(entry.getHtml(), currentId);
-            }
+            webViewViewModel.updateSummarizedHtml(entry.getSummarizedHtml(), currentId);
         }
 
-        if (entry.getHtml() != null) {
-            webViewViewModel.updateHtml(entry.getHtml(), entry.getId());
-        }
-
-
-        // 3. Resolve View State (Mutual Exclusivity)
-        // Priority: Summarized > Translated > Original
+        // 4. Resolve view state safely
         boolean prefSum = sharedPreferencesRepository.getIsSummarizedView(currentId);
         boolean prefTrans = sharedPreferencesRepository.getIsTranslatedView(currentId);
 
-        // Sanitize state: prevent both being true
-        if (prefSum && entry.getSummarized() != null) {
+        if (prefSum && hasSummary) {
             isSummarizedView = true;
             isTranslatedView = false;
-            // Force prefs to match sanitized state
-            sharedPreferencesRepository.setIsTranslatedView(currentId, false);
-        } else if (prefTrans && entry.getTranslated() != null) {
+        } else if (prefTrans && hasTranslation) {
             isTranslatedView = true;
             isSummarizedView = false;
-            // Force prefs to match sanitized state
-            sharedPreferencesRepository.setIsSummarizedView(currentId, false);
         } else {
-            // Default to Original
-            isTranslatedView = false;
             isSummarizedView = false;
-            sharedPreferencesRepository.setIsTranslatedView(currentId, false);
-            sharedPreferencesRepository.setIsSummarizedView(currentId, false);
+            isTranslatedView = false;
         }
 
-        Log.d(TAG, "loadEntryContent: State Resolved -> Translated: " + isTranslatedView + ", Summarized: " + isSummarizedView);
+        sharedPreferencesRepository.setIsSummarizedView(currentId, isSummarizedView);
+        sharedPreferencesRepository.setIsTranslatedView(currentId, isTranslatedView);
 
-        // 4. Update Toolbar Buttons
+        Log.d(TAG, "State -> Translated=" + isTranslatedView + ", Summarized=" + isSummarizedView);
+
+        // 5. Update toolbar buttons (must depend on availability)
         refreshButtonVisibility();
 
-        // 5. Determine Content to Load
+        // 6. Select content to load
         String htmlToLoad;
         String contentToRead;
         String lang;
 
         if (isSummarizedView) {
-            htmlToLoad = webViewViewModel.getSummarizedHtmlById(currentId); // Assuming DB 'html' field held the summary
-            Log.d("CONTENT TO READ", "Read from summarized");
+            htmlToLoad = webViewViewModel.getSummarizedHtmlById(currentId);
             contentToRead = entry.getSummarized();
-            Log.d("CONTENT TO READ", "Summarized: " + contentToRead);
             lang = getLanguageForCurrentView(currentId, true, "en");
+
         } else if (isTranslatedView) {
-            htmlToLoad = webViewViewModel.getTranslatedHtmlById(currentId); // Assuming DB 'html' field held the translation
-            Log.d("CONTENT TO READ", "Read from translated");
+            htmlToLoad = webViewViewModel.getTranslatedHtmlById(currentId);
             contentToRead = entry.getTranslated();
-            Log.d("CONTENT TO READ", "Translated: " + contentToRead);
             lang = getLanguageForCurrentView(currentId, true, "en");
+
         } else {
             htmlToLoad = webViewViewModel.getOriginalHtmlById(currentId);
             contentToRead = entry.getContent();
             lang = getLanguageForCurrentView(currentId, false, "en");
         }
 
-        // Fallback if specific HTML is missing but original exists
-//        if (htmlToLoad == null && entry.getOriginalHtml() != null) {
-//            htmlToLoad = entry.getOriginalHtml();
-//        }
+        Log.d(TAG, "HTML length = " + (htmlToLoad != null ? htmlToLoad.length() : 0));
+        Log.d(TAG, "TTS language = " + lang);
 
-        Log.d(TAG, "loadEntryContent: Loading HTML length=" + (htmlToLoad != null ? htmlToLoad.length() : 0));
-        Log.d(TAG, "loadEntryContent: Preparing TTS for Lang=" + lang);
-
-        // 6. Execute Load
+        // 7. Load content
         ttsExtractor.setCurrentLanguage(lang, true);
 
         if (htmlToLoad != null && !htmlToLoad.trim().isEmpty()) {
             loadHtmlIntoWebView(htmlToLoad);
 
-            if (contentToRead != null) {
+            if (contentToRead != null && !contentToRead.trim().isEmpty()) {
                 ttsPlayer.extract(entry.getId(), entry.getFeedId(), contentToRead, lang);
             }
         } else {
@@ -771,12 +752,13 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
 
         sharedPreferencesRepository.setCurrentReadingEntryId(currentId);
 
-        // 7. Start Observers
+        // 8. Observers
         observeLiveEntry();
         observeAutoTranslation();
-
         syncLoadingWithTts();
+        refreshButtonVisibility();
     }
+
 
     private void loadFromBrowserMode(EntryInfo entryInfo) {
         browserButton.setVisible(false);
@@ -851,6 +833,7 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
         if (hasOriginal && hasTranslated) {
             // Show Toggle, make it priority
             toggleTranslationButton.setVisible(true);
+            Log.d("REFRESH BUTTON", "Set toggle translate button to visible");
             toggleTranslationButton.setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS);
             toggleTranslationButton.setTitle(isTranslatedView ? "Show Original" : "Show Translation");
 
@@ -858,6 +841,7 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
             translationButton.setShowAsAction(MenuItem.SHOW_AS_ACTION_IF_ROOM);
         } else {
             toggleTranslationButton.setVisible(false);
+            Log.d("REFRESH BUTTON", "Set toggle translate button to invisible");
             // Reset Translate button to priority if no translation exists
             translationButton.setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS);
         }
@@ -866,6 +850,7 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
         if (hasOriginal && hasSummarized) {
             // Show Toggle, make it priority
             toggleSummarizationButton.setVisible(true);
+            Log.d("REFRESH BUTTON", "Set toggle summarize button to visible");
             toggleSummarizationButton.setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS);
             toggleSummarizationButton.setTitle(isSummarizedView ? "Show Original" : "Show Summarization");
 
@@ -873,6 +858,7 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
             summarizationButton.setShowAsAction(MenuItem.SHOW_AS_ACTION_IF_ROOM);
         } else {
             toggleSummarizationButton.setVisible(false);
+            Log.d("REFRESH BUTTON", "Set toggle summarize button to invisible");
             // Reset Summarize button to priority
             summarizationButton.setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS);
         }
@@ -891,7 +877,7 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
                         Log.d(TAG, "Original HTML restored from DB.");
                     }
 
-                    String translatedHtmlFromDb = entry.getHtml();
+                    String translatedHtmlFromDb = entry.getTranslatedHtml();
                     if (translatedHtmlFromDb != null) {
                         webViewViewModel.updateHtml(translatedHtmlFromDb, currentId);
                         Log.d(TAG, "Translated HTML synced from auto translation.");
@@ -1454,6 +1440,7 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
         bookmarkButton.setVisible(false);
         loading.setProgress(0);
         translationButton.setVisible(false);
+        summarizationButton.setVisible(false);
         showOfflineButton = false;
 
         MediaMetadataCompat metadata = ttsPlaylist.getCurrentMetadata();
@@ -1462,8 +1449,7 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
         bookmark = metadata.getString("bookmark");
         currentLink = metadata.getString("link");
         currentId = Long.parseLong(metadata.getString(MediaMetadataCompat.METADATA_KEY_MEDIA_ID));
-        updateToggleTranslationVisibility();
-        updateToggleSummarizationVisibility();
+        refreshButtonVisibility();
         feedId = metadata.getLong("feedId");
 
         if (bookmark == null || bookmark.equals("N")) {
@@ -1507,6 +1493,7 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
             reloadButton.setVisible(true);
             bookmarkButton.setVisible(true);
             translationButton.setVisible(true);
+            summarizationButton.setVisible(true);
             browserButton.setVisible(true);
             highlightTextButton.setVisible(true);
         }
@@ -1808,8 +1795,7 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
             bookmark = metadata.getString("bookmark");
             currentLink = metadata.getString("link");
             currentId = Long.parseLong(metadata.getString(MediaMetadataCompat.METADATA_KEY_MEDIA_ID));
-            updateToggleTranslationVisibility();
-            updateToggleSummarizationVisibility();
+            refreshButtonVisibility();
             feedId = metadata.getLong("feedId");
 
             if (bookmark == null || bookmark.equals("N")) {

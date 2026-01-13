@@ -116,7 +116,7 @@ public class AllEntriesFragment extends Fragment implements EntryItemAdapter.Ent
         entriesRecycler.setHasFixedSize(true);
         boolean autoTranslate = sharedPreferencesRepository.getAutoTranslate();
         boolean autoSummarize = sharedPreferencesRepository.getAutoSummarize();
-        adapter = new EntryItemAdapter(this, autoTranslate);
+        adapter = new EntryItemAdapter(this, autoTranslate, autoSummarize);
         adapter.registerAdapterDataObserver(new RecyclerView.AdapterDataObserver() {
             @Override
             public void onItemRangeChanged(int positionStart, int itemCount) {

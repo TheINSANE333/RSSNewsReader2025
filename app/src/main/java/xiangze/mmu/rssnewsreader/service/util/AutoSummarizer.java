@@ -6,6 +6,8 @@ import androidx.annotation.Nullable;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import javax.inject.Inject;
+
 import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers;
 import io.reactivex.rxjava3.core.Single;
 import io.reactivex.rxjava3.schedulers.Schedulers;
@@ -20,6 +22,9 @@ public class AutoSummarizer {
     private final TextUtil textUtil;
     private final SharedPreferencesRepository prefs;
     private final String delimiter = "--####--";
+
+    @Inject
+    SharedPreferencesRepository sharedPreferencesRepository;
 
     public AutoSummarizer(EntryRepository entryRepository, TextUtil textUtil, SharedPreferencesRepository prefs) {
         this.entryRepository = entryRepository;
@@ -55,7 +60,7 @@ public class AutoSummarizer {
 
             try {
                 // 1. Check if already translated (Double check to save quota)
-                String currentHtml = entry.getHtml();
+                String currentHtml = entry.getSummarizedHtml();
                 if (currentHtml != null && currentHtml.contains("summarized-title")) {
                     Log.d(TAG, "Skipping ID " + id + " - Already contains summarized marker.");
                     continue;
@@ -97,8 +102,10 @@ public class AutoSummarizer {
                 entryRepository.updateSummarizedHtml(summarizedHtml, id);
 
                 // Update in-memory object just in case
-                entry.setHtml(summarizedHtml);
+                entry.setSummarizedHtml(summarizedHtml);
                 entry.setSummarized(summarizedContent);
+
+                prefs.setIsSummarizedView(id, true);
 
                 Log.d(TAG, "SUCCESS: Summarized ID " + id);
 

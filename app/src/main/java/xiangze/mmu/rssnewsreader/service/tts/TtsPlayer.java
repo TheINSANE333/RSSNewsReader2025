@@ -306,7 +306,7 @@ public class TtsPlayer extends PlayerAdapter implements TtsPlayerListener {
                 }
             }
 
-            if (sentences.size() < 2) {
+            if (sentences.size() < 1) {
                 if (webViewCallback != null) webViewCallback.askForReload(feedId);
                 sentences.clear();
                 actionNeeded = false;

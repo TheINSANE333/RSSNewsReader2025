@@ -21,7 +21,8 @@ public class EntryInfo {
     private String content;
     private int priority;
     private String originalHtml;
-    private String html;
+    private String translatedHtml;
+    private String summarizedHtml;
 
     // Feed
     private long feedId;
@@ -252,11 +253,19 @@ public class EntryInfo {
         this.originalHtml = originalHtml;
     }
 
-    public String getHtml() {
-        return html;
+    public String getTranslatedHtml() {
+        return translatedHtml;
     }
 
-    public void   setHtml(String html) {
-        this.html = html;
+    public void   setTranslatedHtml(String html) {
+        this.translatedHtml = html;
+    }
+
+    public String getSummarizedHtml() {
+        return summarizedHtml;
+    }
+
+    public void   setSummarizedHtml(String html) {
+        this.summarizedHtml = html;
     }
 }
