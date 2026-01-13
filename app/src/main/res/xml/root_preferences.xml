@@ -88,6 +88,14 @@
             app:summary="@string/confidence_threshold_summary"
             app:title="@string/confidence_threshold_title" />
 
+        <SwitchPreferenceCompat
+            app:defaultValue="false"
+            app:icon="@drawable/ic_summary"
+            app:key="autoSummarize"
+            app:summaryOff="@string/auto_summarize_off"
+            app:summaryOn="@string/auto_summarize_on"
+            app:title="@string/auto_summarize_title" />
+
         <SeekBarPreference
             android:max="300"
             app:defaultValue="200"

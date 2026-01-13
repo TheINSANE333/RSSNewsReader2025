@@ -44,6 +44,7 @@ import xiangze.mmu.rssnewsreader.service.tts.TtsPlaylist;
 import xiangze.mmu.rssnewsreader.databinding.FragmentAllEntriesBinding;
 
 import xiangze.mmu.rssnewsreader.model.EntryInfo;
+import xiangze.mmu.rssnewsreader.service.util.AutoSummarizer;
 import xiangze.mmu.rssnewsreader.service.util.AutoTranslator;
 import xiangze.mmu.rssnewsreader.service.util.TextUtil;
 import xiangze.mmu.rssnewsreader.ui.webview.WebViewActivity;
@@ -82,6 +83,7 @@ public class AllEntriesFragment extends Fragment implements EntryItemAdapter.Ent
     private TextView selectedCountTextView;
     private ActionBar actionBar;
     private AutoTranslator autoTranslator;
+    private AutoSummarizer autoSummarizer;
 
     @Inject
     TtsPlaylist ttsPlaylist;
@@ -113,6 +115,7 @@ public class AllEntriesFragment extends Fragment implements EntryItemAdapter.Ent
         entriesRecycler.setLayoutManager(new LinearLayoutManager(getContext()));
         entriesRecycler.setHasFixedSize(true);
         boolean autoTranslate = sharedPreferencesRepository.getAutoTranslate();
+        boolean autoSummarize = sharedPreferencesRepository.getAutoSummarize();
         adapter = new EntryItemAdapter(this, autoTranslate);
         adapter.registerAdapterDataObserver(new RecyclerView.AdapterDataObserver() {
             @Override
@@ -233,6 +236,14 @@ public class AllEntriesFragment extends Fragment implements EntryItemAdapter.Ent
                         });
                     } else {
                         Log.e("AutoTranslator", "autoTranslator is null when attempting to translate");
+                    }
+
+                    if (autoSummarizer != null) {
+                        autoSummarizer.runAutoSummarization(() -> {
+                            adapter.submitList(new ArrayList<>(entries));
+                        });
+                    } else {
+                        Log.e("AutoSummarizer", "autoSummarizer is null when attempting to summarize");
                     }
                 });
             }

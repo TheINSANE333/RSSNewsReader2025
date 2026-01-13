@@ -56,6 +56,9 @@
     <string name="auto_translate_title">Auto-translate articles</string>
     <string name="auto_translate_on">Automatically translate articles to the default language</string>
     <string name="auto_translate_off">Do not automatically translate articles</string>
+    <string name="auto_summarize_title">Auto-summarize articles</string>
+    <string name="auto_summarize_on">Automatically summarize articles to the default language</string>
+    <string name="auto_summarize_off">Do not automatically summarize articles</string>
 
     <string name="share">Share</string>
     <string name="mark_as_read">Mark as read</string>

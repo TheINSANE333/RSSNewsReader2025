@@ -39,6 +39,7 @@ import xiangze.mmu.rssnewsreader.model.ai.AiClient;
 public class TextUtil {
     public static final String TAG = TextUtil.class.getSimpleName();
     private static final Semaphore GLOBAL_TRANSLATION_LOCK = new Semaphore(1, true);
+    private static final Semaphore GLOBAL_SUMMARIZATION_LOCK = new Semaphore(1, true);
     private final CompositeDisposable compositeDisposable;
     private final SharedPreferencesRepository sharedPreferencesRepository;
 
@@ -194,13 +195,44 @@ public class TextUtil {
         });
     }
 
-    private String createTranslationPrompt(String source, String target, String content, String title) {
-        return "Translate the following HTML content from " + source + " to " + target + ".\n" +
-                "Title context: " + title + "\n\n" +
-                "HTML Content:\n" + content;
-    }
+//    private String createTranslationPrompt(String source, String target, String content, String title) {
+//        return "Translate the following HTML content from " + source + " to " + target + ".\n" +
+//                "Title context: " + title + "\n\n" +
+//                "HTML Content:\n" + content;
+//    }
 
     private String translateChunkWithRetry(AiClient aiClient, List<Message> messages) {
+
+        int maxRetries = 5;
+        int delayMs = 30000;
+
+        for (int attempt = 1; attempt <= maxRetries; attempt++) {
+            try {
+                return aiClient.getChatResponse(messages);
+
+            } catch (Exception e) {
+
+                boolean isRateLimit =
+                        e.getMessage() != null &&
+                                (e.getMessage().contains("429") ||
+                                        e.getMessage().toLowerCase().contains("rate"));
+
+                if (isRateLimit && attempt < maxRetries) {
+
+                    Log.e(TAG, "Rate limit hit, retry " + attempt);
+
+                    try { Thread.sleep(delayMs); } catch (InterruptedException ignored) {}
+
+                } else {
+                    throw new RuntimeException(e);
+                }
+            }
+        }
+
+        return null;
+    }
+
+    private String summarizeChunkWithRetry(AiClient aiClient, List<Message> messages) {
 
         int maxRetries = 5;
         int delayMs = 30000;
@@ -267,6 +299,33 @@ public class TextUtil {
                         // 3. RELEASE: This runs whether the translation Succeeds OR Fails.
                         // It is critical to ensure the next item in line can proceed.
                         GLOBAL_TRANSLATION_LOCK.release();
+                        Log.d(TAG, "Lock Released for ID: " + articleId);
+                    });
+        });
+    }
+
+    public Single<String> summarizeHtmlAllAtOnce(String sourceLanguage, String targetLanguage, String html, int length, long articleId, Consumer<Integer> progressCallback) {
+        return Single.defer(() -> {
+
+            Log.d(TAG, "Attempting to acquire Summarization Lock for ID: " + articleId);
+
+            // 1. BLOCK: This pauses the flow until the lock is free.
+            // If WebClient is translating, AutoTranslator waits here (and vice versa).
+            try {
+                GLOBAL_SUMMARIZATION_LOCK.acquire();
+            } catch (InterruptedException e) {
+                return Single.error(e);
+            }
+
+            Log.d(TAG, "Lock Acquired. Starting summarization for ID: " + articleId);
+
+            // 2. RUN: Your existing translation logic goes here.
+            // Ensure this returns a Single<String>.
+            return performActualSummarization(sourceLanguage, targetLanguage, html, length, articleId, progressCallback)
+                    .doFinally(() -> {
+                        // 3. RELEASE: This runs whether the translation Succeeds OR Fails.
+                        // It is critical to ensure the next item in line can proceed.
+                        GLOBAL_SUMMARIZATION_LOCK.release();
                         Log.d(TAG, "Lock Released for ID: " + articleId);
                     });
         });
@@ -347,6 +406,90 @@ public class TextUtil {
                     Log.e(TAG, "Progress callback failed on error reset", callbackException);
                 }
                 Log.e(TAG, "Translation error: " + e.getMessage(), e);
+                emitter.onError(e);
+            }
+        });
+    }
+
+    private Single<String> performActualSummarization(String sourceLanguage, String targetLanguage, String html, int length, long articleId, Consumer<Integer> progressCallback) {
+        Log.d(TAG, "summarizeHtmlAllAtOnce: AI Mode - in" + length);
+
+        return Single.create(emitter -> {
+
+            // 1. Keep the Simulated Progress Bar (Preserving original flow)
+            AtomicInteger progress = new AtomicInteger(0);
+            Thread progressThread = new Thread(() -> {
+                try {
+                    while (progress.get() < 90) {
+                        Thread.sleep(300); // Simulate progress while waiting for AI
+                        try {
+                            progressCallback.accept(progress.incrementAndGet());
+                        } catch (Throwable callbackException) {
+                            Log.e(TAG, "Progress callback failed", callbackException);
+                        }
+                    }
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
+            });
+            progressThread.start();
+
+            try {
+                // 2. Prepare the AI Client & Messages
+                AiClient aiClient = new AiClient();
+                List<Message> messages = new ArrayList<>();
+
+                messages.add(new Message(
+                        "system",
+                        "You are a helpful assistant designed to summarize web articles. " +
+                                "Provide a concise summary of the content provided. " +
+                                "Do not include unrelated HTML tags in the output."
+                ));
+
+                // Build the prompt
+                messages.add(new Message(
+                        "user",
+                        String.format(
+                                "Please summarize the following article \n" +
+                                        "Target Language: %s\n" +
+                                        "Length: %s\n" +
+                                        "Content:\n%s",
+                                targetLanguage,
+                                length,
+                                html
+                        )
+                ));
+
+                // 3. Execute Blocking Request (Safe inside Single.create)
+                // Note: Ensure summarizeChunkWithRetry is accessible here
+                String summarizedHtml = summarizeChunkWithRetry(aiClient, messages);
+
+                // 4. Stop Progress & Validate
+                progressThread.interrupt();
+
+                if (summarizedHtml == null || summarizedHtml.trim().isEmpty()) {
+                    throw new Exception("AI returned empty response.");
+                }
+
+                // 5. Finalize Success
+                try {
+                    progressCallback.accept(100);
+                } catch (Throwable e) {
+                    Log.e(TAG, "Progress callback failed on completion", e);
+                }
+
+                Log.d(TAG, "Summarization complete, size = " + summarizedHtml.length());
+                emitter.onSuccess(summarizedHtml);
+
+            } catch (Exception e) {
+                // 6. Handle Errors
+                progressThread.interrupt();
+                try {
+                    progressCallback.accept(0);
+                } catch (Throwable callbackException) {
+                    Log.e(TAG, "Progress callback failed on error reset", callbackException);
+                }
+                Log.e(TAG, "Summarization error: " + e.getMessage(), e);
                 emitter.onError(e);
             }
         });

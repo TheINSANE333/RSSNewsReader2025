@@ -163,6 +163,15 @@ public class SharedPreferencesRepository {
         editor.apply();
     }
 
+    public boolean getAutoSummarize() {
+        return sharedPreferences.getBoolean("autoSummarize", false);
+    }
+
+    public void setAutoSummarize(boolean autoSummarize) {
+        editor.putBoolean("autoSummarize", autoSummarize);
+        editor.apply();
+    }
+
     public void setIsTranslatedView(long entryId, boolean isTranslatedView) {
         sharedPreferences.edit()
                 .putBoolean(KEY_TOGGLE_STATE_PREFIX + entryId, isTranslatedView)

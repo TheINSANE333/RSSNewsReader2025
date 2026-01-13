@@ -244,6 +244,7 @@ public class TtsExtractor {
         private final Handler handler = new Handler(Looper.getMainLooper());
         private String currentLoadToken = ""; // Unique ID for every page load attempt
         private static final long TRANSLATION_COOLDOWN_MS = 3000;
+        private static final long SUMMARIZATION_COOLDOWN_MS = 5000;
         private boolean hasProcessedCurrentToken = false;
 
         @Override
@@ -385,6 +386,8 @@ public class TtsExtractor {
                         }
 
                         boolean shouldTranslate = sharedPreferencesRepository.getAutoTranslate();
+                        boolean shouldSummarize = sharedPreferencesRepository.getAutoSummarize();
+                        int length = sharedPreferencesRepository.getSummaryLength();
 
                         // 4. Determine Source Language (Detect if Unknown)
                         Single<String> sourceLangSingle;
@@ -452,8 +455,50 @@ public class TtsExtractor {
                                                     }
                                                 });
 
+                                    } else if (shouldSummarize){
+                                        Log.d(TAG, "Skipping translation. Running summarization. ");
+                                        Log.d(TAG, "Queue paused. Translating ID: " + processingId + " (" + detectedLang + " -> " + targetLang + ")");
+
+                                        textUtil.summarizeHtmlAllAtOnce(
+                                                        detectedLang,
+                                                        targetLang,
+                                                        doc.html(),
+                                                        length,
+                                                        processingId,
+                                                        progress -> {}
+                                                )
+                                                .subscribeOn(Schedulers.io())
+                                                .observeOn(AndroidSchedulers.mainThread())
+                                                .subscribe(summarizedHtml -> {
+                                                    Log.d(TAG, "Summarization finished for ID: " + processingId);
+
+                                                    entryRepository.updateHtml(summarizedHtml, processingId);
+                                                    entryRepository.updateSummarizedHtml(summarizedHtml, processingId);
+                                                    String summarizedContent = textUtil.extractHtmlContent(summarizedHtml, "--####--");
+                                                    entryRepository.updateSummarizedText(summarizedContent, processingId);
+                                                    entryRepository.updateSummarized(summarizedContent, processingId);
+
+                                                    if (processingId != currentIdInProgress) {
+                                                        Log.w(TAG, "ID changed during summarization. Ignoring.");
+                                                        return;
+                                                    }
+
+                                                    handler.postDelayed(() -> {
+                                                        if (extractionInProgress && processingId == currentIdInProgress) {
+                                                            finishAndMoveToNext();
+                                                        }
+                                                    }, WebClient.TRANSLATION_COOLDOWN_MS);
+                                                }, error -> {
+                                                    Log.e(TAG, "Translation Failed for ID: " + processingId, error);
+                                                    extractionInProgress = false;
+                                                    currentIdInProgress = -1;
+                                                    if (webViewCallback != null) {
+                                                        webViewCallback.makeSnackbar("Translation failed.");
+                                                        webViewCallback.finishedSetup();
+                                                    }
+                                                });
                                     } else {
-                                        Log.d(TAG, "Skipping translation. Same language (" + detectedLang + ") or disabled.");
+                                        Log.d(TAG, "Skipping translation and summarization.");
                                         finishAndMoveToNext();
                                     }
 

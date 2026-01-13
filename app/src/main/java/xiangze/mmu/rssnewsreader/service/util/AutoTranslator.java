@@ -112,6 +112,7 @@ public class AutoTranslator {
                 String translatedContent = textUtil.extractHtmlContent(translatedHtml, delimiter);
                 entryRepository.updateTranslatedText(translatedContent, id);
                 entryRepository.updateTranslated(translatedContent, id);
+                entryRepository.updateTranslatedHtml(translatedHtml, id);
 
                 // Update in-memory object just in case
                 entry.setHtml(translatedHtml);
