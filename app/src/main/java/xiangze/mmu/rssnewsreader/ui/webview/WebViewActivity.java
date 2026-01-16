@@ -195,6 +195,10 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
     private void doWhenTranslationFinish(EntryInfo entryInfo, String originalHtml, String translatedHtml) {
         loading.setVisibility(View.INVISIBLE);
 
+        translatedHtml = translatedHtml
+                .replaceAll("(?s)^\\s*```[a-zA-Z]*\\n?", "") // Removes the opening ```html
+                .replaceAll("(?s)\\n?```\\s*$", "");        // Removes the closing ```
+
         if (webViewViewModel.getOriginalHtmlById(currentId) == null && originalHtml != null) {
             webViewViewModel.updateOriginalHtml(originalHtml, currentId);
             entryRepository.updateOriginalHtml(originalHtml, currentId);
@@ -453,7 +457,7 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
                     loading.setProgress(100);
                     loading.setVisibility(View.GONE);
 
-                    Log.d(TAG, "Translation complete, size = " + finalHtml.length());
+                    Log.d(TAG, "Translation complete, " + finalHtml);
 
                     doWhenTranslationFinish(
                             webViewViewModel.getLastVisitedEntry(),
@@ -489,14 +493,7 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
         getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
             @Override
             public void handleOnBackPressed() {
-                if (webView.canGoBack()) {
-                    browserButton.setVisible(true);
-                    webView.goBack();
-                } else {
-                    // Disable this callback and call onBackPressed to finish the activity
-                    setEnabled(false);
-                    getOnBackPressedDispatcher().onBackPressed();
-                }
+                finish();
             }
         });
 

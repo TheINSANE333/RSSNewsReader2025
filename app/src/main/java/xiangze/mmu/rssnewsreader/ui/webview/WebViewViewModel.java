@@ -22,7 +22,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel;
 @HiltViewModel
 public class WebViewViewModel extends ViewModel {
 
-    private EntryRepository entryRepository;
+    private final EntryRepository entryRepository;
 
     private final MutableLiveData<String> originalHtmlLiveData = new MutableLiveData<>();
 
@@ -58,8 +58,8 @@ public class WebViewViewModel extends ViewModel {
         entryRepository.updateTranslated(null, id);
         entryRepository.updateTranslatedHtml(null, id);
         entryRepository.updateSummarized(null, id);
-        entryRepository.updateSummarizedText(null, id);
         entryRepository.updateSummarizedHtml(null, id);
+        entryRepository.updateSummarizedText(null, id);
         entryRepository.updateContent(null, id);
         entryRepository.updateSentCountByLink(0, id);
         entryRepository.updatePriority(1, id);

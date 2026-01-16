@@ -54,12 +54,14 @@ public class TextUtil {
             return "";
         }
 
+        Log.d("TEXT EXTRACT", "Original content: " + html);
+
         Document doc = Jsoup.parse(html);
         StringBuilder content = new StringBuilder();
 
         // 1. Extract structured elements
         Elements elements = doc.select(
-                "h2, h3, h4, h5, h6, p, td, pre, th, li, figcaption, blockquote"
+                "h2, h3, h4, h5, h6, p, td, th, li, figcaption, blockquote"
         );
 
         for (Element element : elements) {
@@ -81,6 +83,8 @@ public class TextUtil {
         if (content.length() >= delimiter.length()) {
             content.setLength(content.length() - delimiter.length());
         }
+
+        Log.d("TEXT EXTRACT", "Extracted content: " + content.toString());
 
         return content.toString();
     }

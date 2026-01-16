@@ -102,6 +102,9 @@ public class AutoTranslator {
                 // 5. Execute Translation (Synchronous / Blocking)
                 // If this fails (Network error, Rate limit), it throws an exception immediately.
                 String translatedHtml = translationSingle.blockingGet();
+                translatedHtml = translatedHtml
+                        .replaceAll("(?s)^\\s*```[a-zA-Z]*\\n?", "") // Removes the opening ```html
+                        .replaceAll("(?s)\\n?```\\s*$", "");        // Removes the closing ```
 
                 // 6. Save to Database (Only reached if step 5 succeeds)
                 String existingOriginal = entryRepository.getOriginalHtmlById(id);

@@ -316,6 +316,7 @@ public class TtsExtractor {
         }
     }
 
+    @SuppressLint("CheckResult")
     private void processHtmlExtraction(String value) {
         Log.d(TAG, "Processing extracted HTML value...");
         JsonReader reader = new JsonReader(new StringReader(value));
@@ -383,7 +384,7 @@ public class TtsExtractor {
 
                         if (!isSummarizedView || !hasSummarization) {
                             Log.d(TAG, "Updating main HTML to summarized (No summarization active).");
-                            entryRepository.updateSummarizedHtml(doc.html(), currentIdInProgress);
+                            entryRepository.updateHtml(doc.html(), currentIdInProgress);
                         }
 
                         boolean isTranslatedView = sharedPreferencesRepository.getIsTranslatedView(currentIdInProgress);
@@ -392,7 +393,7 @@ public class TtsExtractor {
 
                         if (!isTranslatedView || !hasTranslation) {
                             Log.d(TAG, "Updating main HTML to source language (No translation active).");
-                            entryRepository.updateTranslatedHtml(doc.html(), currentIdInProgress);
+                            entryRepository.updateHtml(doc.html(), currentIdInProgress);
                         }
 
                         // 3. Loop Guard
