@@ -24,6 +24,7 @@ import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.widget.LinearLayout;
 
+import androidx.activity.OnBackPressedCallback;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
@@ -145,21 +146,21 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
     @Inject
     EntryRepository entryRepository;
 
-    @Override
-    public boolean onKeyDown(int keyCode, KeyEvent event) {
-        if (event.getAction() == KeyEvent.ACTION_DOWN) {
-            if (keyCode == KeyEvent.KEYCODE_BACK) {
-                if (webView.canGoBack()) {
-                    browserButton.setVisible(true);
-                    webView.goBack();
-                } else {
-                    finish();
-                }
-                return true;
-            }
-        }
-        return super.onKeyDown(keyCode, event);
-    }
+//    @Override
+//    public boolean onKeyDown(int keyCode, KeyEvent event) {
+//        if (event.getAction() == KeyEvent.ACTION_DOWN) {
+//            if (keyCode == KeyEvent.KEYCODE_BACK) {
+//                if (webView.canGoBack()) {
+//                    browserButton.setVisible(true);
+//                    webView.goBack();
+//                } else {
+//                    finish();
+//                }
+//                return true;
+//            }
+//        }
+//        return super.onKeyDown(keyCode, event);
+//    }
 
     private final MediaControllerCompat.Callback mediaControllerCallback =
             new MediaControllerCompat.Callback() {
@@ -484,6 +485,20 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
         super.onCreate(savedInstanceState);
 
         webViewViewModel = new ViewModelProvider(this).get(WebViewViewModel.class);
+
+        getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
+            @Override
+            public void handleOnBackPressed() {
+                if (webView.canGoBack()) {
+                    browserButton.setVisible(true);
+                    webView.goBack();
+                } else {
+                    // Disable this callback and call onBackPressed to finish the activity
+                    setEnabled(false);
+                    getOnBackPressedDispatcher().onBackPressed();
+                }
+            }
+        });
 
         webViewViewModel.getTranslatedTextReady().observe(this, translatedText -> {
             if (!isReadingMode && isTranslatedView && translatedText != null && !translatedText.trim().isEmpty()) {

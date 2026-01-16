@@ -382,8 +382,8 @@ public class TtsExtractor {
                         boolean hasSummarization = existingSummarized != null && !existingSummarized.trim().isEmpty();
 
                         if (!isSummarizedView || !hasSummarization) {
-                            Log.d(TAG, "Updating main HTML to source language (No summarization active).");
-                            entryRepository.updateHtml(doc.html(), currentIdInProgress);
+                            Log.d(TAG, "Updating main HTML to summarized (No summarization active).");
+                            entryRepository.updateSummarizedHtml(doc.html(), currentIdInProgress);
                         }
 
                         boolean isTranslatedView = sharedPreferencesRepository.getIsTranslatedView(currentIdInProgress);
@@ -392,7 +392,7 @@ public class TtsExtractor {
 
                         if (!isTranslatedView || !hasTranslation) {
                             Log.d(TAG, "Updating main HTML to source language (No translation active).");
-                            entryRepository.updateHtml(doc.html(), currentIdInProgress);
+                            entryRepository.updateTranslatedHtml(doc.html(), currentIdInProgress);
                         }
 
                         // 3. Loop Guard
@@ -456,6 +456,7 @@ public class TtsExtractor {
                                                     Log.d(TAG, "Translation finished for ID: " + processingId);
 
                                                     entryRepository.updateHtml(translatedHtml, processingId);
+                                                    entryRepository.updateTranslatedHtml(translatedHtml, processingId);
                                                     String translatedContent = textUtil.extractHtmlContent(translatedHtml, "--####--");
                                                     entryRepository.updateTranslatedText(translatedContent, processingId);
                                                     entryRepository.updateTranslated(translatedContent, processingId);

@@ -218,10 +218,14 @@ public class EntryItemAdapter extends ListAdapter<EntryInfo, EntryItemAdapter.En
                     && (entryInfo.getOriginalHtml() == null ||
                     !entryInfo.getSummarizedHtml().equals(entryInfo.getOriginalHtml()));
 
+            Log.d("CHECK STATS", "Original: " + entryInfo.getOriginalHtml());
+            Log.d("CHECK STATS", "Translated: " + entryInfo.getTranslatedHtml());
+            Log.d("CHECK STATS", "Summarized: " + entryInfo.getSummarizedHtml());
+
             statusView.setText("");
 
             if (autoTranslateEnabled && autoSummarizeEnabled) {
-                Log.d("CHECK STATS", "Have both");
+                Log.d("CHECK STATS", "Both enabled");
                 if (hasOriginalHtml && hasTranslatedHtml && hasSummarizedHtml) {
                     statusView.setBackgroundResource(R.drawable.status_dot_green);
                     statusView.setVisibility(View.VISIBLE);
@@ -233,20 +237,23 @@ public class EntryItemAdapter extends ListAdapter<EntryInfo, EntryItemAdapter.En
                     statusView.setVisibility(View.VISIBLE);
                 }
             } else if (autoSummarizeEnabled) {
+                Log.d("CHECK STATS", "Summarize enabled");
                 if (hasOriginalHtml && hasSummarizedHtml) {
-                    Log.d("CHECK STATS", "Have summarized");
+                    Log.d("CHECK STATS", "Green");
                     statusView.setBackgroundResource(R.drawable.status_dot_green);
                     statusView.setVisibility(View.VISIBLE);
                 } else if ((!TextUtils.isEmpty(content)) || priority > 0) {
+                    Log.d("CHECK STATS", "Yellow");
                     statusView.setBackgroundResource(R.drawable.status_dot_yellow);
                     statusView.setVisibility(View.VISIBLE);
                 }else {
+                    Log.d("CHECK STATS", "Red");
                     statusView.setBackgroundResource(R.drawable.status_dot_red);
                     statusView.setVisibility(View.VISIBLE);
                 }
             } else if (autoTranslateEnabled) {
+                Log.d("CHECK STATS", "Translate enabled");
                 if (hasOriginalHtml && hasSummarizedHtml && hasTranslatedHtml) {
-                    Log.d("CHECK STATS", "Have translated");
                     statusView.setBackgroundResource(R.drawable.status_dot_green);
                     statusView.setVisibility(View.VISIBLE);
                 } else if ((!TextUtils.isEmpty(content)) || priority > 0) {
@@ -257,6 +264,7 @@ public class EntryItemAdapter extends ListAdapter<EntryInfo, EntryItemAdapter.En
                     statusView.setVisibility(View.VISIBLE);
                 }
             } else {
+                Log.d("CHECK STATS", "Both disabled");
                 if (content != null && !content.isEmpty()) {
                     statusView.setBackgroundResource(R.drawable.status_dot_green);
                     statusView.setVisibility(View.VISIBLE);
