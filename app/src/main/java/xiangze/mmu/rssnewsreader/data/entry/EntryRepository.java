@@ -333,7 +333,9 @@ public class EntryRepository {
             entry.setHtml(null);
             entry.setOriginalHtml(null);
             entry.setTranslated(null);
+            entry.setTranslatedHtml(null);
             entry.setSummarized(null);
+            entry.setSummarizedHtml(null);
             entry.setSentCountStopAt(0);
             entry.setCached(false);
             update(entry);

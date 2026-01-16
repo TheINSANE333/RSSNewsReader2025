@@ -179,30 +179,34 @@ public class Entry {
         this.originalHtml = originalHtml;
     }
 
+    @Nullable
     public String getTranslated() {
         return translated;
     }
 
-    public void setTranslated(String translated) {
+    public void setTranslated(@Nullable String translated) {
         this.translated = translated;
     }
 
+    @Nullable
     public String getSummarized() {
         return summarized;
     }
 
-    public void setSummarized(String summarized) {
+    public void setSummarized(@Nullable String summarized) {
         this.summarized = summarized;
     }
 
+    @Nullable
     public String getTranslatedHtml() {
         return translatedHtml;
     }
 
-    public void setTranslatedHtml(String translatedHtml) {
+    public void setTranslatedHtml(@Nullable String translatedHtml) {
         this.translatedHtml = translatedHtml;
     }
 
+    @Nullable
     public String getSummarizedHtml() {
         return summarizedHtml;
     }

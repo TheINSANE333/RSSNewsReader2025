@@ -844,6 +844,10 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
         boolean hasTranslated = translatedHtml != null && !translatedHtml.trim().isEmpty();
         boolean hasSummarized = summarizedHtml != null && !summarizedHtml.trim().isEmpty();
 
+        Log.d("REFRESH BUTTON", "original: " + originalHtml);
+        Log.d("REFRESH BUTTON", "translated: " + translatedHtml);
+        Log.d("REFRESH BUTTON", "summarized: " + summarizedHtml);
+
         // 1. Update Translation Buttons
         if (hasOriginal && hasTranslated) {
             // Show Toggle, make it priority

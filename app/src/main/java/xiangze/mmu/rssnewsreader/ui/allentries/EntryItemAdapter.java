@@ -1,5 +1,6 @@
 package xiangze.mmu.rssnewsreader.ui.allentries;
 
+import android.annotation.SuppressLint;
 import android.content.Context;
 import android.graphics.Color;
 import android.text.TextUtils;
@@ -183,7 +184,7 @@ public class EntryItemAdapter extends ListAdapter<EntryInfo, EntryItemAdapter.En
             selectedCheckbox.setChecked(entryInfo.isSelected());
             selectedCheckbox.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
                 @Override
-                public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
+                public void onCheckedChanged(@NonNull CompoundButton buttonView, boolean isChecked) {
                     if (isSelectionMode) {
                         entryInfo.setSelected(isChecked);
                         entryItemClickInterface.onItemSelected(entryInfo);
@@ -199,6 +200,7 @@ public class EntryItemAdapter extends ListAdapter<EntryInfo, EntryItemAdapter.En
             });
 
             view.setOnLongClickListener(new View.OnLongClickListener() {
+                @SuppressLint("NotifyDataSetChanged")
                 @Override
                 public boolean onLongClick(View view) {
                     isSelectionMode = true;
