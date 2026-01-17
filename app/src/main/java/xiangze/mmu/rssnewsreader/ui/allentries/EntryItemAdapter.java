@@ -255,7 +255,7 @@ public class EntryItemAdapter extends ListAdapter<EntryInfo, EntryItemAdapter.En
                 }
             } else if (autoTranslateEnabled) {
                 Log.d("CHECK STATS", "Translate enabled");
-                if (hasOriginalHtml && hasSummarizedHtml && hasTranslatedHtml) {
+                if (hasOriginalHtml && hasTranslatedHtml) {
                     statusView.setBackgroundResource(R.drawable.status_dot_green);
                     statusView.setVisibility(View.VISIBLE);
                 } else if ((!TextUtils.isEmpty(content)) || priority > 0) {

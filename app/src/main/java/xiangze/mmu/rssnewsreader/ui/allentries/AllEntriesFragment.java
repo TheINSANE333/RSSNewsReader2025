@@ -59,6 +59,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import javax.inject.Inject;
 
@@ -84,6 +85,8 @@ public class AllEntriesFragment extends Fragment implements EntryItemAdapter.Ent
     private ActionBar actionBar;
     private AutoTranslator autoTranslator;
     private AutoSummarizer autoSummarizer;
+    private static final AtomicBoolean autoTranslationStarted = new AtomicBoolean(false);
+    private static final AtomicBoolean autoSummarizationStarted = new AtomicBoolean(false);
 
     @Inject
     TtsPlaylist ttsPlaylist;
@@ -93,6 +96,8 @@ public class AllEntriesFragment extends Fragment implements EntryItemAdapter.Ent
     SharedPreferencesRepository sharedPreferencesRepository;
     @Inject
     EntryRepository entryRepository;
+    @Inject
+    TextUtil textUtil;
 
     private boolean isSelectionMode = false;
     private WebViewViewModel webViewViewModel;
@@ -214,9 +219,20 @@ public class AllEntriesFragment extends Fragment implements EntryItemAdapter.Ent
         return binding.getRoot();
     }
 
+    @Override
     public void onViewCreated(@NonNull View view, Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
 
+        // 1. Initialize workers FIRST
+        autoTranslator = new AutoTranslator(
+                entryRepository,
+                textUtil,
+                sharedPreferencesRepository
+        );
+
+        // (autoSummarizer assumed initialized elsewhere)
+
+        // 2. Read arguments
         if (getArguments() != null) {
             String newTitle = getArguments().getString("title");
             feedId = getArguments().getLong("id");
@@ -225,45 +241,64 @@ public class AllEntriesFragment extends Fragment implements EntryItemAdapter.Ent
                 title = newTitle;
                 binding.filterTitle.setText(title);
                 allEntriesViewModel.getEntriesByFeed(feedId, filterBy);
-
-                allEntriesViewModel.getAllEntries().observe(getViewLifecycleOwner(), entries -> {
-                    this.entries = entries;
-                    adapter.submitList(entries);
-
-                    if (autoTranslator != null) {
-                        autoTranslator.runAutoTranslation(() -> {
-                            adapter.submitList(new ArrayList<>(entries));
-                        });
-                    } else {
-                        Log.e("AutoTranslator", "autoTranslator is null when attempting to translate");
-                    }
-
-                    if (autoSummarizer != null) {
-                        autoSummarizer.runAutoSummarization(() -> {
-                            adapter.submitList(new ArrayList<>(entries));
-                        });
-                    } else {
-                        Log.e("AutoSummarizer", "autoSummarizer is null when attempting to summarize");
-                    }
-                });
             }
         } else {
             title = "All feeds";
         }
 
-        NavController navController = Navigation.findNavController(view);
+        // 3. Attach LiveData observer ONCE
+        observeEntries();
 
-        binding.goToAddFeedButton.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                NavOptions navOptions = new NavOptions.Builder()
-                        .setPopUpTo(R.id.feedFragment, false)
-                        .build();
-                navController.navigate(R.id.feedFragment, null, navOptions);
+        // 4. Navigation setup
+        setupNavigation(view);
+
+        // 5. Menu setup
+        setupMenu();
+
+        // 6. Loading state observer
+        observeLoadingState();
+    }
+
+    private void observeEntries() {
+        allEntriesViewModel.getAllEntries().observe(getViewLifecycleOwner(), entries -> {
+
+            this.entries = entries;
+            adapter.submitList(entries);
+
+            // Auto-translation (single run)
+            if (autoTranslator != null && autoTranslationStarted.compareAndSet(false, true)) {
+
+                autoTranslator.runAutoTranslation(() -> {
+                    adapter.submitList(new ArrayList<>(entries));
+                    Log.d("AutoTranslator", "Auto translation finished");
+                });
+            }
+
+            // Auto-summarization
+            if (autoSummarizer != null && autoSummarizationStarted.compareAndSet(false, true)) {
+
+                autoSummarizer.runAutoSummarization(() -> {
+                    adapter.submitList(new ArrayList<>(entries));
+                    Log.d("AutoSummarizer", "Auto summarization finished");
+                });
             }
         });
+    }
 
+    private void setupNavigation(View view) {
+        NavController navController = Navigation.findNavController(view);
+
+        binding.goToAddFeedButton.setOnClickListener(v -> {
+            NavOptions navOptions = new NavOptions.Builder()
+                    .setPopUpTo(R.id.feedFragment, false)
+                    .build();
+            navController.navigate(R.id.feedFragment, null, navOptions);
+        });
+    }
+
+    private void setupMenu() {
         requireActivity().addMenuProvider(new MenuProvider() {
+
             @Override
             public void onCreateMenu(@NonNull Menu menu, @NonNull MenuInflater menuInflater) {
                 if (isSelectionMode) {
@@ -286,10 +321,15 @@ public class AllEntriesFragment extends Fragment implements EntryItemAdapter.Ent
                         public boolean onQueryTextChange(String newText) {
                             final String query = newText.toLowerCase(Locale.ROOT);
                             final List<EntryInfo> filteredEntries = new ArrayList<>();
-                            for (EntryInfo entryInfo : entries) {
-                                final String entryTitle = entryInfo.getEntryTitle().toLowerCase(Locale.ROOT);
-                                if (entryTitle.contains(query)) filteredEntries.add(entryInfo);
+
+                            if (entries != null) {
+                                for (EntryInfo entryInfo : entries) {
+                                    if (entryInfo.getEntryTitle().toLowerCase(Locale.ROOT).contains(query)) {
+                                        filteredEntries.add(entryInfo);
+                                    }
+                                }
                             }
+
                             adapter.submitList(filteredEntries);
                             return true;
                         }
@@ -300,28 +340,31 @@ public class AllEntriesFragment extends Fragment implements EntryItemAdapter.Ent
             @Override
             public boolean onMenuItemSelected(@NonNull MenuItem menuItem) {
                 if (menuItem.getItemId() == R.id.filter) {
-                    FilterBottomSheet filterBottomSheet = new FilterBottomSheet(AllEntriesFragment.this, sortBy, filterBy);
+                    FilterBottomSheet filterBottomSheet =
+                            new FilterBottomSheet(AllEntriesFragment.this, sortBy, filterBy);
                     filterBottomSheet.show(requireActivity().getSupportFragmentManager(), "FilterBottomSheet");
                     return true;
                 }
                 return false;
             }
-        }, getViewLifecycleOwner(), Lifecycle.State.RESUMED);
 
+        }, getViewLifecycleOwner(), Lifecycle.State.RESUMED);
+    }
+
+    private void observeLoadingState() {
         webViewViewModel.getLoadingState().observe(getViewLifecycleOwner(), isLoading -> {
+
             Log.d(TAG, "Loading state observed in AllEntriesFragment: " + isLoading);
+
             if (entries != null) {
                 for (EntryInfo entry : entries) {
                     entry.setLoading(isLoading);
-                    Log.d(TAG, "Entry ID: " + entry.getEntryId() + " - isLoading set to: " + entry.isLoading());
                 }
                 adapter.notifyDataSetChanged();
             } else {
                 Log.d(TAG, "Entries list is null in AllEntriesFragment.");
             }
         });
-
-
     }
 
     private void doWhenTranslationFinish(EntryInfo entryInfo, String translatedHtml, String targetLanguage) {

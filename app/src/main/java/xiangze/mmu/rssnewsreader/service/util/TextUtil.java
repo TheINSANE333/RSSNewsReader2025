@@ -54,8 +54,6 @@ public class TextUtil {
             return "";
         }
 
-        Log.d("TEXT EXTRACT", "Original content: " + html);
-
         Document doc = Jsoup.parse(html);
         StringBuilder content = new StringBuilder();
 
@@ -83,8 +81,6 @@ public class TextUtil {
         if (content.length() >= delimiter.length()) {
             content.setLength(content.length() - delimiter.length());
         }
-
-        Log.d("TEXT EXTRACT", "Extracted content: " + content.toString());
 
         return content.toString();
     }
@@ -365,15 +361,16 @@ public class TextUtil {
 
                 messages.add(new Message(
                     "system",
-                    "Translate text inside HTML tags to the target language. " +
-                            "Preserve all HTML exactly. Output only translated HTML."
+                    "Translate title and html to the target language. " +
+                            "Preserve all HTML exactly." +
+                            "Format your response exactly like this: [TITLE] <translated_title> [CONTENT] <translated_html_content>. "
                 ));
 
                 // Build the prompt
                 messages.add(new Message(
                     "user",
                     String.format(
-                            "Translate to %s:\n%s\n%s",
+                            "Target Language: %s\nTitle: %s\nContent: %s",
                             targetLanguage,
                             title,
                             html
@@ -446,7 +443,7 @@ public class TextUtil {
                 messages.add(new Message(
                         "system",
                         "You are a helpful assistant designed to summarize web articles. " +
-                                "Provide a concise summary of the content provided. " +
+                                "Provide a concise summary of the content provided in targeted language. " +
                                 "Do not include unrelated HTML tags in the output."
                 ));
 

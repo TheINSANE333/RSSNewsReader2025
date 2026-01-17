@@ -204,8 +204,15 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
             entryRepository.updateOriginalHtml(originalHtml, currentId);
             Log.d(TAG, "Original HTML backed up from method parameter.");
         }
+        String translatedTitle = translatedHtml.substring(
+            translatedHtml.indexOf("[TITLE]") + 7,
+            translatedHtml.indexOf("[CONTENT]")
+        ).trim();
 
-        Document doc = Jsoup.parse(translatedHtml);
+        entryInfo.setEntryTitle(translatedTitle);
+        Document doc = Jsoup.parse(translatedHtml.substring(
+            translatedHtml.indexOf("[CONTENT]") + 9
+        ).trim());
         doc.head().append(webViewViewModel.getStyle());
         Objects.requireNonNull(doc.selectFirst("body"))
                 .prepend(webViewViewModel.getHtml(
@@ -409,14 +416,15 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
 
                 messages.add(new Message(
                     "system",
-                    "Translate text inside HTML tags to the target language. " +
-                            "Preserve all HTML exactly. Output only translated HTML."
+                    "Translate title and html to the target language. " +
+                            "Preserve all HTML exactly." +
+                            "Format your response exactly like this: [TITLE] <translated_title> [CONTENT] <translated_html_content>. "
                 ));
 
                 messages.add(new Message(
                     "user",
                     String.format(
-                            "Translate to %s:\n%s\n%s",
+                            "Target Language: %s\nTitle: %s\nContent: %s",
                             targetLanguage,
                             title,
                             content
@@ -980,7 +988,7 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
                 messages.add(new Message(
                         "system",
                         "You are a helpful assistant designed to summarize web articles. " +
-                                "Provide a concise summary of the content provided. " +
+                                "Provide a concise summary of the content provided in targeted language. " +
                                 "Do not include unrelated HTML tags in the output."
                 ));
 

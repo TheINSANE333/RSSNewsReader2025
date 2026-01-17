@@ -26,17 +26,14 @@ public class RssWorker extends Worker {
 
     public static final String TAG = "RssWorker";
 
-    private final FeedRepository feedRepository;
-    private final TtsExtractor ttsExtractor;
-    private final Context context;
+    private FeedRepository feedRepository;
+    private TtsExtractor ttsExtractor;
+    private Context context;
+
+    ExecutorService executor = Executors.newFixedThreadPool(2);
 
     @AssistedInject
-    public RssWorker(
-            @Assisted @NonNull Context context,
-            @Assisted @NonNull WorkerParameters workerParams,
-            FeedRepository feedRepository,
-            TtsExtractor ttsExtractor
-    ) {
+    public RssWorker(@Assisted @NonNull Context context, @Assisted @NonNull WorkerParameters workerParams, FeedRepository feedRepository, TtsExtractor ttsExtractor) {
         super(context, workerParams);
         this.context = context;
         this.feedRepository = feedRepository;
@@ -46,64 +43,51 @@ public class RssWorker extends Worker {
     @NonNull
     @Override
     public Result doWork() {
-        ExecutorService executor = Executors.newFixedThreadPool(2);
-
         try {
             Log.d(TAG, "Starting RSS refresh...");
-
-            // 1. Refresh feeds
             String text = feedRepository.refreshEntries();
-
-            // 2. Notify user
             RssNotification rssNotification = new RssNotification(context);
             rssNotification.sendNotification(text);
-
-            // 3. Requeue missing entries
             feedRepository.getEntryRepository().requeueMissingEntries();
-
-            // 4. TTS extraction (blocking)
             if (feedRepository.getEntryRepository().hasEmptyContentEntries()) {
                 ttsExtractor.extractAllEntries();
             } else {
                 Log.d(TAG, "No entries to extract in RssWorker.");
             }
 
-            // 5. Run translation + summarization in parallel
-            Future<?> translationFuture = executor.submit(() -> {
-                Log.d(TAG, "Starting auto translation...");
-                AutoTranslator autoTranslator = new AutoTranslator(
-                        feedRepository.getEntryRepository(),
-                        new TextUtil(feedRepository.getSharedPreferencesRepository()),
-                        feedRepository.getSharedPreferencesRepository()
-                );
-                autoTranslator.runAutoTranslation();
-                Log.d(TAG, "Auto translation completed.");
-            });
+            AutoSummarizer autoSummarizer = new AutoSummarizer(
+                    feedRepository.getEntryRepository(),
+                    new TextUtil(feedRepository.getSharedPreferencesRepository()),
+                    feedRepository.getSharedPreferencesRepository()
+            );
 
-            Future<?> summarizationFuture = executor.submit(() -> {
-                Log.d(TAG, "Starting auto summarization...");
-                AutoSummarizer autoSummarizer = new AutoSummarizer(
-                        feedRepository.getEntryRepository(),
-                        new TextUtil(feedRepository.getSharedPreferencesRepository()),
-                        feedRepository.getSharedPreferencesRepository()
-                );
+            AutoTranslator autoTranslator = new AutoTranslator(
+                    feedRepository.getEntryRepository(),
+                    new TextUtil(feedRepository.getSharedPreferencesRepository()),
+                    feedRepository.getSharedPreferencesRepository()
+            );
+
+            Future<?> summarizeFuture = executor.submit(() -> {
                 autoSummarizer.runAutoSummarization();
-                Log.d(TAG, "Auto summarization completed.");
             });
 
-            // 6. Wait for both tasks to complete
-            translationFuture.get();
-            summarizationFuture.get();
+            Future<?> translateFuture = executor.submit(() -> {
+                autoTranslator.runAutoTranslation();
+            });
 
-            Log.d(TAG, "RssWorker completed successfully.");
+            try {
+                summarizeFuture.get();   // wait for summarization
+                translateFuture.get();   // wait for translation
+            } catch (Exception e) {
+                throw new RuntimeException("Parallel processing failed", e);
+            } finally {
+                executor.shutdown();
+            }
+
             return Result.success();
-
         } catch (Exception e) {
-            Log.e(TAG, "Error in RSS refresh", e);
+            Log.e(TAG, "Error in RSS refresh: " + e.getMessage());
             return Result.retry();
-
-        } finally {
-            executor.shutdown();
         }
     }
 }

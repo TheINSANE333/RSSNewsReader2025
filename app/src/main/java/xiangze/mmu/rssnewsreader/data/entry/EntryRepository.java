@@ -108,6 +108,10 @@ public class EntryRepository {
         entryDao.updateHtml(html, id);
     }
 
+    public void updateTitle(String title, long id, String link) {
+        entryDao.updateTitle(id, title, link);
+    }
+
     public void updateTranslatedHtml(String html, long id) {
         entryDao.updateTranslatedHtml(html, id);
     }

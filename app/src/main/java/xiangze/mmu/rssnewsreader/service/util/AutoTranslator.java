@@ -38,113 +38,138 @@ public class AutoTranslator {
      * Do NOT call this directly from the Main/UI Thread.
      */
     public void runAutoTranslation(@Nullable Runnable onComplete) {
-        if (!prefs.getAutoTranslate()) {
-            Log.d(TAG, "Auto-translate disabled by user.");
-            if (onComplete != null) onComplete.run();
-            return;
-        }
 
-        // Fetch list of items that need translation
-        List<Entry> untranslatedEntries = entryRepository.getUntranslatedEntries();
-
-        if (untranslatedEntries.isEmpty()) {
-            Log.d(TAG, "No untranslated entries found.");
-            if (onComplete != null) onComplete.run();
-            return;
-        }
-
-        Log.d(TAG, "Starting batch translation for " + untranslatedEntries.size() + " entries.");
-
-        for (Entry entry : untranslatedEntries) {
-            long id = entry.getId();
+        // Always execute in background to avoid ANR / deadlocks
+        Schedulers.io().scheduleDirect(() -> {
 
             try {
-                // 1. Check if already translated (Double check to save quota)
-                String currentHtml = entry.getTranslatedHtml();
-                if (currentHtml != null && currentHtml.contains("translated-title")) {
-                    Log.d(TAG, "Skipping ID " + id + " - Already contains translated marker.");
-                    continue;
+
+                if (!prefs.getAutoTranslate()) {
+                    Log.d(TAG, "Auto-translate disabled by user.");
+                    if (onComplete != null) onComplete.run();
+                    return;
                 }
 
-                String content = entry.getContent();
-                String title = entry.getTitle();
+                List<Entry> untranslatedEntries = entryRepository.getUntranslatedEntries();
 
-                // 2. Identify Language (Synchronous / Blocking)
-                // blockingGet() waits until the network call finishes.
-                String sourceLang = textUtil.identifyLanguageRx(content)
-                        .subscribeOn(Schedulers.io())
-                        .blockingGet();
-
-                String targetLang = prefs.getDefaultTranslationLanguage();
-
-                // 3. Skip if languages match
-                if (sourceLang.equalsIgnoreCase(targetLang)) {
-                    Log.d(TAG, "Skipping ID " + id + " - Source is already " + targetLang);
-                    continue;
+                if (untranslatedEntries.isEmpty()) {
+                    Log.d(TAG, "No untranslated entries found.");
+                    if (onComplete != null) onComplete.run();
+                    return;
                 }
 
-                Log.d(TAG, "Translating ID " + id + " from " + sourceLang + " to " + targetLang);
+                Log.d(TAG, "Starting batch translation for " + untranslatedEntries.size() + " entries.");
 
-                // 4. Select Method
-                String method = prefs.getTranslationMethod();
-                Single<String> translationSingle;
+                for (Entry entry : untranslatedEntries) {
 
-                // Pass empty progress listener since we are in background
-                if ("lineByLine".equalsIgnoreCase(method)) {
-                    translationSingle = textUtil.translateHtmlLineByLine(sourceLang, targetLang, currentHtml, title, id);
-                } else if ("paragraphByParagraph".equalsIgnoreCase(method)) {
-                    translationSingle = textUtil.translateHtmlByParagraph(sourceLang, targetLang, currentHtml, title, id, progress -> {});
-                } else {
-                    // This calls your updated method with the Semaphore
-                    translationSingle = textUtil.translateHtmlAllAtOnce(sourceLang, targetLang, currentHtml, title, id, progress -> {});
+                    long id = entry.getId();
+
+                    try {
+
+                        // Always translate original content, not translated HTML
+                        String currentHtml = entry.getOriginalHtml();
+                        if (currentHtml == null || currentHtml.trim().isEmpty()) {
+                            Log.w(TAG, "Skipping ID " + id + " - Empty content.");
+                            continue;
+                        }
+
+                        String existingTranslated = entry.getTranslatedHtml();
+                        if (existingTranslated != null && existingTranslated.contains("translated-title")) {
+                            Log.d(TAG, "Skipping ID " + id + " - Already translated.");
+                            continue;
+                        }
+
+                        String title = entry.getTitle();
+
+                        // Detect language
+                        String sourceLang = textUtil.identifyLanguageRx(currentHtml)
+                                .subscribeOn(Schedulers.io())
+                                .blockingGet();
+
+                        String targetLang = prefs.getDefaultTranslationLanguage();
+
+                        if (sourceLang.equalsIgnoreCase(targetLang)) {
+                            Log.d(TAG, "Skipping ID " + id + " - Already in target language.");
+                            continue;
+                        }
+
+                        Log.d(TAG, "Translating ID " + id + " from " + sourceLang + " to " + targetLang);
+
+                        Single<String> translationSingle;
+                        String method = prefs.getTranslationMethod();
+
+                        if ("lineByLine".equalsIgnoreCase(method)) {
+                            translationSingle = textUtil.translateHtmlLineByLine(sourceLang, targetLang, currentHtml, title, id);
+                        } else if ("paragraphByParagraph".equalsIgnoreCase(method)) {
+                            translationSingle = textUtil.translateHtmlByParagraph(sourceLang, targetLang, currentHtml, title, id, p -> {});
+                        } else {
+                            translationSingle = textUtil.translateHtmlAllAtOnce(sourceLang, targetLang, currentHtml, title, id, p -> {});
+                        }
+
+                        Log.d("AUTO TRANSLATOR", "Before blockingGet for ID " + id);
+
+                        String translatedHtml = translationSingle
+                                .subscribeOn(Schedulers.io())
+                                .blockingGet();
+
+                        Log.d("AUTO TRANSLATOR", "TRANSLATED HTML for ID " + id + ": " + translatedHtml);
+
+                        if (translatedHtml == null || !translatedHtml.contains("[TITLE]") || !translatedHtml.contains("[CONTENT]")) {
+                            throw new IllegalStateException("Invalid translated format");
+                        }
+
+                        String translatedTitle = translatedHtml.substring(
+                                translatedHtml.indexOf("[TITLE]") + 7,
+                                translatedHtml.indexOf("[CONTENT]")
+                        ).trim();
+
+                        String cleanedTranslated = translatedHtml.substring(
+                                translatedHtml.indexOf("[CONTENT]") + 9
+                        ).trim();
+
+                        Log.d("AUTO TRANSLATOR", "CLEANED HTML for ID " + id + ": " + cleanedTranslated);
+                        Log.d("AUTO TRANSLATOR", "Translated title " + entry.getLink() + ": " + translatedTitle);
+
+                        String existingOriginal = entryRepository.getOriginalHtmlById(id);
+
+                        if ((existingOriginal == null || existingOriginal.trim().isEmpty())) {
+                            entryRepository.updateOriginalHtml(currentHtml, id);
+                        }
+
+                        entryRepository.updateHtml(cleanedTranslated, id);
+
+                        String translatedContent = textUtil.extractHtmlContent(cleanedTranslated, delimiter);
+
+                        entryRepository.updateTranslatedText(translatedContent, id);
+                        entryRepository.updateTranslated(translatedContent, id);
+                        entryRepository.updateTranslatedHtml(cleanedTranslated, id);
+                        entryRepository.updateTitle(translatedTitle, entry.getFeedId(), entry.getLink());
+
+                        entry.setTranslatedHtml(cleanedTranslated);
+                        entry.setTranslated(translatedContent);
+                        entry.setTitle(translatedTitle);
+
+                        prefs.setIsTranslatedView(id, true);
+
+                        Log.d(TAG, "SUCCESS: Translated ID " + id);
+
+                    } catch (Exception entryError) {
+
+                        Log.e(TAG, "ERROR translating ID " + id, entryError);
+                    }
                 }
 
-                // 5. Execute Translation (Synchronous / Blocking)
-                // If this fails (Network error, Rate limit), it throws an exception immediately.
-                String translatedHtml = translationSingle.blockingGet();
-                translatedHtml = translatedHtml
-                        .replaceAll("(?s)^\\s*```[a-zA-Z]*\\n?", "") // Removes the opening ```html
-                        .replaceAll("(?s)\\n?```\\s*$", "");        // Removes the closing ```
-
-                // 6. Save to Database (Only reached if step 5 succeeds)
-                String existingOriginal = entryRepository.getOriginalHtmlById(id);
-
-                // Backup original if needed
-                if ((existingOriginal == null || existingOriginal.trim().isEmpty()) && currentHtml != null && !currentHtml.trim().isEmpty()) {
-                    entryRepository.updateOriginalHtml(currentHtml, id);
+            } catch (Exception fatal) {
+                Log.e(TAG, "Fatal error in auto-translation worker", fatal);
+            } finally {
+                if (onComplete != null) {
+                    onComplete.run();
                 }
-
-                // Save new data
-                entryRepository.updateHtml(translatedHtml, id);
-
-                String translatedContent = textUtil.extractHtmlContent(translatedHtml, delimiter);
-                entryRepository.updateTranslatedText(translatedContent, id);
-                entryRepository.updateTranslated(translatedContent, id);
-                entryRepository.updateTranslatedHtml(translatedHtml, id);
-
-                // Update in-memory object just in case
-                entry.setTranslatedHtml(translatedHtml);
-                entry.setTranslated(translatedContent);
-
-                prefs.setIsTranslatedView(id, true);
-
-                Log.d(TAG, "SUCCESS: Translated ID " + id);
-
-            } catch (Exception e) {
-                Log.e(TAG, "CRITICAL ERROR translating ID " + id + ": " + e.getMessage());
-                Log.e(TAG, "Stopping entire batch translation due to error.");
-
-                // STOP EVERYTHING: Break the loop.
-                // Any remaining entries in 'untranslatedEntries' will wait for the next scheduled worker run.
-                break;
             }
-        }
 
-        // Batch finished (or stopped early)
-        if (onComplete != null) {
-            onComplete.run();
-        }
+        });
     }
+
 
     public void runAutoTranslation() {
         runAutoTranslation(null);
