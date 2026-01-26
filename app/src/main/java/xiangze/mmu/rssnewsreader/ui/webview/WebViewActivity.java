@@ -635,32 +635,6 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
         syncLoadingWithTts();
     }
 
-//    private void updateToggleTranslationVisibility() {
-//        String originalHtml = webViewViewModel.getOriginalHtmlById(currentId);
-//        String translatedHtml = webViewViewModel.getHtmlById(currentId);
-//
-//        if (originalHtml != null && translatedHtml != null && !originalHtml.equals(translatedHtml)) {
-//            toggleTranslationButton.setVisible(true);
-//        } else {
-//            toggleTranslationButton.setVisible(false);
-//        }
-//
-//        Log.d(TAG, "ToggleTranslationButton visibility set to: " + (originalHtml != null && translatedHtml != null && !originalHtml.equals(translatedHtml)));
-//    }
-//
-//    private void updateToggleSummarizationVisibility() {
-//        String originalHtml = webViewViewModel.getOriginalHtmlById(currentId);
-//        String summarizedHtml = webViewViewModel.getHtmlById(currentId);
-//
-//        if (originalHtml != null && summarizedHtml != null && !originalHtml.equals(summarizedHtml)) {
-//            toggleSummarizationButton.setVisible(true);
-//        } else {
-//            toggleSummarizationButton.setVisible(false);
-//        }
-//
-//        Log.d(TAG, "ToggleSummarizationButton visibility set to: " + (originalHtml != null && summarizedHtml != null && !originalHtml.equals(summarizedHtml)));
-//    }
-
     private void initializePlaybackModes() {
         if (isReadingMode) {
             switchReadMode();
@@ -696,8 +670,9 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
         boolean hasSummary = entry.getSummarized() != null && !entry.getSummarized().trim().isEmpty();
 
         // 3. Populate / clear ViewModel (avoid stale state)
-        if (entry.getOriginalHtml() != null) {
-            webViewViewModel.updateOriginalHtml(entry.getOriginalHtml(), currentId);
+        if (hasSummary) {
+            webViewViewModel.updateSummarized(entry.getSummarized(), currentId);
+            webViewViewModel.updateSummarizedHtml(entry.getSummarizedHtml(), currentId);
         }
 
         if (hasTranslation) {
@@ -705,19 +680,29 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
             webViewViewModel.updateTranslatedHtml(entry.getTranslatedHtml(), currentId);
         }
 
-        if (hasSummary) {
-            webViewViewModel.updateSummarized(entry.getSummarized(), currentId);
-            webViewViewModel.updateSummarizedHtml(entry.getSummarizedHtml(), currentId);
+        if (entry.getOriginalHtml() != null) {
+            webViewViewModel.updateOriginalHtml(entry.getOriginalHtml(), currentId);
         }
 
         // 4. Resolve view state safely
-        boolean prefSum = sharedPreferencesRepository.getIsSummarizedView(currentId);
-        boolean prefTrans = sharedPreferencesRepository.getIsTranslatedView(currentId);
+//        boolean prefSum = sharedPreferencesRepository.getIsSummarizedView(currentId);
+//        boolean prefTrans = sharedPreferencesRepository.getIsTranslatedView(currentId);
 
-        if (prefSum && hasSummary) {
+//        if (prefSum && hasSummary) {
+//            isSummarizedView = true;
+//            isTranslatedView = false;
+//        } else if (prefTrans && hasTranslation) {
+//            isTranslatedView = true;
+//            isSummarizedView = false;
+//        } else {
+//            isSummarizedView = false;
+//            isTranslatedView = false;
+//        }
+
+        if (hasSummary) {
             isSummarizedView = true;
             isTranslatedView = false;
-        } else if (prefTrans && hasTranslation) {
+        } else if (hasTranslation) {
             isTranslatedView = true;
             isSummarizedView = false;
         } else {

@@ -444,7 +444,7 @@ public class TextUtil {
                         "system",
                         "You are a helpful assistant designed to summarize web articles. " +
                                 "Provide a concise summary of the content provided in targeted language. " +
-                                "Do not include unrelated HTML tags in the output."
+                                "Do not include any unreadable characters or symbols or styling in the output."
                 ));
 
                 // Build the prompt

@@ -87,7 +87,7 @@ public class WebViewViewModel extends ViewModel {
 
     public void updateSummarizedHtml(String html, long id) {
         entryRepository.updateSummarizedHtml(html, id);
-        translatedHtmlLiveData.postValue(html);
+        summarizedHtmlLiveData.postValue(html);
     }
 
     public void updateContent(String content, long id) {
