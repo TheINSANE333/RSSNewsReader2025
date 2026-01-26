@@ -974,7 +974,9 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
                         "system",
                         "You are a helpful assistant designed to summarize web articles. " +
                                 "Provide a concise summary of the content provided in targeted language. " +
-                                "Do not include unrelated HTML tags in the output."
+                                "Respond in just plain text of the content. " +
+                                "If it's an opinion piece, tell the name and background of the writer. " +
+                                "If the content is short, do not make it longer. "
                 ));
 
                 // User Prompt

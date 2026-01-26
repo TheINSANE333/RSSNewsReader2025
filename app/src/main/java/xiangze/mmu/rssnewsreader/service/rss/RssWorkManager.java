@@ -37,21 +37,19 @@ public class RssWorkManager {
     }
 
     public void enqueueRssWorker() {
-        if (!isWorkScheduled()) {
-            Constraints constraints = new Constraints.Builder()
-                 .setRequiredNetworkType(NetworkType.CONNECTED)
-                   .build();
+        Constraints constraints = new Constraints.Builder()
+                .setRequiredNetworkType(NetworkType.CONNECTED)
+                .build();
 
-            int interval = sharedPreferencesRepository.getJobPeriodic();
+        int interval = sharedPreferencesRepository.getJobPeriodic();
 
-            PeriodicWorkRequest request = new PeriodicWorkRequest.Builder(RssWorker.class, 15, TimeUnit.MINUTES)
-                    .setConstraints(constraints)
-                    .build();
-            WorkManager.getInstance(context).enqueueUniquePeriodicWork("rssWork", ExistingPeriodicWorkPolicy.KEEP, request);
-            Log.d(TAG, "RssWorker scheduled.");
-        } else {
-            Log.d(TAG, "RssWorker is already scheduled.");
-        }
+        PeriodicWorkRequest request = new PeriodicWorkRequest.Builder(RssWorker.class, interval, TimeUnit.MINUTES)
+                .setConstraints(constraints)
+                .build();
+
+        // Using UPDATE or REPLACE ensures that if settings change, the worker is rescheduled with the new interval.
+        WorkManager.getInstance(context).enqueueUniquePeriodicWork(refreshWorkerName, ExistingPeriodicWorkPolicy.UPDATE, request);
+        Log.d(TAG, "RssWorker scheduled with interval: " + interval + " minutes.");
     }
 
     public void dequeueRssWorker() {

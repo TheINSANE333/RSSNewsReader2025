@@ -1,5 +1,6 @@
 package xiangze.mmu.rssnewsreader.service.util;
 
+import android.annotation.SuppressLint;
 import android.util.Log;
 
 import com.google.android.gms.tasks.Tasks;
@@ -92,6 +93,7 @@ public class TextUtil {
     //        In contrast, using the translateAllAtOnce method reduces this time to 2 minutes).
     // Note: Specifying maxConcurrency in x.flatMap (tried with 10 and 100) showed no noticeable difference in performance
     //        compared to leaving it unspecified.
+    @SuppressLint("CheckResult")
     public Single<String> translateHtmlLineByLine(String sourceLanguage, String targetLanguage, String html, String title, long articleId, Consumer<Integer> progressCallback) {
         Log.d(TAG, "translateHtmlLineByLine: from " + sourceLanguage + " to " + targetLanguage);
         return Single.create(emitter -> {
@@ -148,6 +150,7 @@ public class TextUtil {
         });
     }
 
+    @SuppressLint("CheckResult")
     public Single<String> translateHtmlLineByLine(String sourceLanguage, String targetLanguage, String html, String title, long articleId) {
         Log.d(TAG, "translateHtmlLineByLine: from " + sourceLanguage + " to " + targetLanguage);
         return Single.create(emitter -> {
@@ -444,7 +447,9 @@ public class TextUtil {
                         "system",
                         "You are a helpful assistant designed to summarize web articles. " +
                                 "Provide a concise summary of the content provided in targeted language. " +
-                                "Do not include any unreadable characters or symbols or styling in the output."
+                                "Respond in just plain text of the content. " +
+                                "If it's an opinion piece, tell the name and background of the writer. " +
+                                "If the content is short, do not make it longer. "
                 ));
 
                 // Build the prompt
@@ -496,6 +501,7 @@ public class TextUtil {
         });
     }
 
+    @SuppressLint("CheckResult")
     public Single<String> translateHtmlByParagraph(String sourceLanguage, String targetLanguage, String html, String title, long articleId, Consumer<Integer> progressCallback) {
         Log.d(TAG, "translateHtmlByParagraph: from " + sourceLanguage + " to " + targetLanguage);
         Log.d(TAG, "translateHtmlByParagraph CALLED");
