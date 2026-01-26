@@ -146,22 +146,6 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
     @Inject
     EntryRepository entryRepository;
 
-//    @Override
-//    public boolean onKeyDown(int keyCode, KeyEvent event) {
-//        if (event.getAction() == KeyEvent.ACTION_DOWN) {
-//            if (keyCode == KeyEvent.KEYCODE_BACK) {
-//                if (webView.canGoBack()) {
-//                    browserButton.setVisible(true);
-//                    webView.goBack();
-//                } else {
-//                    finish();
-//                }
-//                return true;
-//            }
-//        }
-//        return super.onKeyDown(keyCode, event);
-//    }
-
     private final MediaControllerCompat.Callback mediaControllerCallback =
             new MediaControllerCompat.Callback() {
                 @Override
@@ -974,7 +958,7 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
                         "system",
                         "You are a helpful assistant designed to summarize web articles. " +
                                 "Provide a concise summary of the content provided in targeted language. " +
-                                "Respond in just plain text of the content. " +
+                                "Respond in just plain text of the summary. " +
                                 "If it's an opinion piece, tell the name and background of the writer. " +
                                 "If the content is short, do not make it longer. "
                 ));
@@ -1028,6 +1012,7 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
         }).start();
     }
 
+    @SuppressLint("NonConstantResourceId")
     private boolean handleOtherToolbarItems(int itemId) {
         switch (itemId) {
             case R.id.summarize:{

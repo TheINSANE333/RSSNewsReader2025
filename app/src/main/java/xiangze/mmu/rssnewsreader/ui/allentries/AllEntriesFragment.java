@@ -230,7 +230,11 @@ public class AllEntriesFragment extends Fragment implements EntryItemAdapter.Ent
                 sharedPreferencesRepository
         );
 
-        // (autoSummarizer assumed initialized elsewhere)
+        autoSummarizer = new AutoSummarizer(
+                entryRepository,
+                textUtil,
+                sharedPreferencesRepository
+        );
 
         // 2. Read arguments
         if (getArguments() != null) {

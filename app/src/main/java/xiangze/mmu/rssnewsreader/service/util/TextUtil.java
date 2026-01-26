@@ -19,9 +19,11 @@ import org.jsoup.nodes.TextNode;
 import org.jsoup.parser.Tag;
 import org.jsoup.select.Elements;
 
+import java.text.BreakIterator;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Locale;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -55,8 +57,13 @@ public class TextUtil {
             return "";
         }
 
+        Log.d("TextUtil", "HTML: "+ html);
+
         Document doc = Jsoup.parse(html);
         StringBuilder content = new StringBuilder();
+
+        // Initialize the sentence iterator
+        BreakIterator iterator = BreakIterator.getSentenceInstance(Locale.ROOT);
 
         // 1. Extract structured elements
         Elements elements = doc.select(
@@ -66,7 +73,7 @@ public class TextUtil {
         for (Element element : elements) {
             String text = element.text().trim();
             if (!text.isEmpty()) {
-                content.append(text).append(delimiter);
+                appendSentences(content, text, delimiter, iterator);
             }
         }
 
@@ -74,7 +81,7 @@ public class TextUtil {
         for (TextNode node : doc.body().textNodes()) {
             String text = node.text().trim();
             if (!text.isEmpty()) {
-                content.append(text).append(delimiter);
+                appendSentences(content, text, delimiter, iterator);
             }
         }
 
@@ -86,6 +93,22 @@ public class TextUtil {
         return content.toString();
     }
 
+    private void appendSentences(StringBuilder sb, String text, String delimiter, BreakIterator iterator) {
+        iterator.setText(text);
+        int start = iterator.first();
+
+        // Iterate through the boundaries
+        for (int end = iterator.next(); end != BreakIterator.DONE; start = end, end = iterator.next()) {
+            String sentence = text.substring(start, end).trim();
+
+            // Only append if the sentence actually contains text
+            if (!sentence.isEmpty()) {
+                sb.append(sentence).append(delimiter);
+                // Optional: Log each sentence to verify
+                // Log.d("TextUtil", "Sentence: " + sentence);
+            }
+        }
+    }
 
     // Translate text element by element
     // Pro: Preserves the HTML structure of the text (e.g. <h1> remains <h1>, <h2> remains <h2>, <p> remains <p>)
@@ -447,7 +470,7 @@ public class TextUtil {
                         "system",
                         "You are a helpful assistant designed to summarize web articles. " +
                                 "Provide a concise summary of the content provided in targeted language. " +
-                                "Respond in just plain text of the content. " +
+                                "Respond in just plain text of the summary. " +
                                 "If it's an opinion piece, tell the name and background of the writer. " +
                                 "If the content is short, do not make it longer. "
                 ));

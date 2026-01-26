@@ -231,7 +231,7 @@ public class EntryItemAdapter extends ListAdapter<EntryInfo, EntryItemAdapter.En
                 if (hasOriginalHtml && hasTranslatedHtml && hasSummarizedHtml) {
                     statusView.setBackgroundResource(R.drawable.status_dot_green);
                     statusView.setVisibility(View.VISIBLE);
-                } else if ((!TextUtils.isEmpty(content)) || priority > 0) {
+                } else if (content != null && !content.isEmpty()) {
                     statusView.setBackgroundResource(R.drawable.status_dot_yellow);
                     statusView.setVisibility(View.VISIBLE);
                 }else {
@@ -244,7 +244,7 @@ public class EntryItemAdapter extends ListAdapter<EntryInfo, EntryItemAdapter.En
                     Log.d("CHECK STATS", "Green");
                     statusView.setBackgroundResource(R.drawable.status_dot_green);
                     statusView.setVisibility(View.VISIBLE);
-                } else if ((!TextUtils.isEmpty(content)) || priority > 0) {
+                } else if (content != null && !content.isEmpty()) {
                     Log.d("CHECK STATS", "Yellow");
                     statusView.setBackgroundResource(R.drawable.status_dot_yellow);
                     statusView.setVisibility(View.VISIBLE);
@@ -258,7 +258,7 @@ public class EntryItemAdapter extends ListAdapter<EntryInfo, EntryItemAdapter.En
                 if (hasOriginalHtml && hasTranslatedHtml) {
                     statusView.setBackgroundResource(R.drawable.status_dot_green);
                     statusView.setVisibility(View.VISIBLE);
-                } else if ((!TextUtils.isEmpty(content)) || priority > 0) {
+                } else if (content != null && !content.isEmpty()) {
                     statusView.setBackgroundResource(R.drawable.status_dot_yellow);
                     statusView.setVisibility(View.VISIBLE);
                 }else {

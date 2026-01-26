@@ -141,7 +141,42 @@ public class WebViewViewModel extends ViewModel {
     }
 
     public boolean endsWithBreak(String text) {
-        return text.endsWith(".") || text.endsWith("?") || text.endsWith("!") || text.endsWith("！") || text.endsWith("？") || text.endsWith("。");
+        if (text == null || text.isEmpty()) return false;
+
+        // 1. Handle non-period terminators first (always end a sentence)
+        if (text.endsWith("?") || text.endsWith("!") || text.endsWith("！") ||
+                text.endsWith("？") || text.endsWith("。")) {
+            return true;
+        }
+
+        // 2. Handle the period "."
+        if (text.endsWith(".")) {
+            // Define patterns that should NOT be treated as a sentence end
+            // This regex looks for:
+            // - Titles: Dr. Mr. Ms. Prof. etc.
+            // - Currency/Decimals: RM followed by digits and a dot, or just any digit before the dot
+            // - Single letters: Initials like A. B.
+            String lowerText = text.toLowerCase();
+
+            // Check for common abbreviations
+            if (lowerText.endsWith("dr.") ||
+                    lowerText.endsWith("mr.") ||
+                    lowerText.endsWith("ms.") ||
+                    lowerText.endsWith("mrs.") ||
+                    lowerText.endsWith("prof.") ||
+                    lowerText.endsWith("inc.") ||
+                    lowerText.endsWith("ltd.")) {
+                return false;
+            }
+
+            // Check for numbers (e.g., RM1.5 or 10.0)
+            // regex: .*\d\.$ matches any string ending in a digit then a period
+            return !text.matches(".*\\d\\.$");
+
+            // Otherwise, it's a standard sentence-ending period
+        }
+
+        return false;
     }
 
     public EntryInfo getEntryInfoById(long id) {

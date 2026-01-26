@@ -147,12 +147,6 @@ public class TtsService extends MediaBrowserServiceCompat {
                 Log.d(TAG, "translated length = " + (translated == null ? "null" : translated.length()));
                 Log.d(TAG, "summarized length = " + (summarized == null ? "null" : summarized.length()));
 
-//                String content = (isSummarizedView && summarized != null && !summarized.trim().isEmpty())
-//                        ? summarized
-//                        : (isTranslatedView && translated != null && !translated.trim().isEmpty())
-//                        ? translated
-//                        : original;
-
                 String content = (summarized != null && !summarized.trim().isEmpty())
                         ? summarized
                         : (translated != null && !translated.trim().isEmpty())
