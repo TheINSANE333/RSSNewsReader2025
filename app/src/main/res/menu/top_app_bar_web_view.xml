@@ -43,14 +43,14 @@
         android:icon="@drawable/ic_zoom_in"
         android:title="@string/zoom_in"
         android:contentDescription="@string/zoom_in"
-        app:showAsAction="always" />
+        app:showAsAction="ifRoom" />
 
     <item
         android:id="@+id/zoomOut"
         android:icon="@drawable/ic_zoom_out"
         android:title="@string/zoom_out"
         android:contentDescription="@string/zoom_out"
-        app:showAsAction="always" />
+        app:showAsAction="ifRoom" />
 
     <item
         android:id="@+id/bookmark"
@@ -64,7 +64,7 @@
         android:icon="@drawable/ic_baseline_share_24"
         android:title="@string/share"
         android:contentDescription="@string/share"
-        app:showAsAction="ifRoom" />
+        app:showAsAction="always" />
 
     <item
         android:id="@+id/openInBrowser"
