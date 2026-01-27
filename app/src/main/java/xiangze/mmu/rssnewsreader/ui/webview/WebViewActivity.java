@@ -1758,14 +1758,33 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
 
         @Override
         public void onMetadataChanged(MediaMetadataCompat metadata) {
+            // 1. Safety check: Exit if metadata is null
             if (metadata == null) {
                 return;
             }
+
+            // 2. Extract Media ID String and check before parsing
+            String mediaIdStr = metadata.getString(MediaMetadataCompat.METADATA_KEY_MEDIA_ID);
+            if (mediaIdStr == null || mediaIdStr.isEmpty()) {
+                Log.d(TAG, "onMetadataChanged: Received empty Media ID, skipping UI update.");
+                return;
+            }
+
+            // Now it is safe to parse
+            try {
+                currentId = Long.parseLong(mediaIdStr);
+            } catch (NumberFormatException e) {
+                Log.e(TAG, "onMetadataChanged: Error parsing Media ID: " + mediaIdStr, e);
+                return;
+            }
+
+            // 3. Update UI visibility and state
             clearHistory = true;
             runOnUiThread(() -> {
                 loading.setVisibility(View.VISIBLE);
                 loading.setProgress(10);
             });
+
             functionButtons.setVisibility(View.VISIBLE);
             functionButtons.setAlpha(0.5f);
             reloadButton.setVisible(false);
@@ -1773,31 +1792,37 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
             highlightTextButton.setVisible(false);
             showOfflineButton = false;
 
+            // 4. Extract other Metadata fields
             content = metadata.getString("content");
             bookmark = metadata.getString("bookmark");
             currentLink = metadata.getString("link");
-            currentId = Long.parseLong(metadata.getString(MediaMetadataCompat.METADATA_KEY_MEDIA_ID));
-            refreshButtonVisibility();
             feedId = metadata.getLong("feedId");
 
+            refreshButtonVisibility();
+
+            // 5. Update Bookmark Icon
             if (bookmark == null || bookmark.equals("N")) {
                 bookmarkButton.setIcon(R.drawable.ic_bookmark_outline);
             } else {
                 bookmarkButton.setIcon(R.drawable.ic_bookmark_filled);
             }
 
+            // 6. Logic for Content View (Summary / Translation / Original)
             isTranslatedView = sharedPreferencesRepository.getIsTranslatedView(currentId);
             isSummarizedView = sharedPreferencesRepository.getIsSummarizedView(currentId);
+
             String htmlToLoad = isSummarizedView
                     ? webViewViewModel.getSummarizedHtmlById(currentId)
                     : isTranslatedView
                     ? webViewViewModel.getTranslatedHtmlById(currentId)
                     : webViewViewModel.getOriginalHtmlById(currentId);
 
+            // Fallback to the HTML bundled in metadata if DB returns null
             if (htmlToLoad == null) {
                 htmlToLoad = metadata.getString("html");
             }
 
+            // 7. WebView Loading Logic
             boolean isWebViewMode = sharedPreferencesRepository.getWebViewMode(currentId);
 
             if (isWebViewMode) {
@@ -1818,11 +1843,10 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
                 showOfflineButton = true;
             }
 
-
+            // 8. TTS Bridge
             if (ttsPlayer.isWebViewConnected()) {
                 ttsPlayer.setUiControlPlayback(true);
             }
-
         }
 
         @Override

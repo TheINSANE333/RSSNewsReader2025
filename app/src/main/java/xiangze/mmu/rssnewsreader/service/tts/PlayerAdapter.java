@@ -4,7 +4,10 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.media.AudioAttributes;
+import android.media.AudioFocusRequest;
 import android.media.AudioManager;
+import android.os.Build;
 
 import androidx.annotation.NonNull;
 
@@ -48,6 +51,13 @@ public abstract class PlayerAdapter {
     public final void play() {
         if (mAudioFocusHelper.requestAudioFocus()) {
             registerAudioNoisyReceiver();
+
+            // CRITICAL: Reach back to TtsService to ensure the session is active
+            // and its playback state is set to PLAYING.
+            if (TtsService.getMediaSession() != null) {
+                TtsService.getMediaSession().setActive(true);
+            }
+
             onPlay();
         }
     }
@@ -90,45 +100,81 @@ public abstract class PlayerAdapter {
         }
     }
 
-    private final class AudioFocusHelper
-            implements AudioManager.OnAudioFocusChangeListener {
+    private final class AudioFocusHelper implements AudioManager.OnAudioFocusChangeListener {
+
+        private AudioFocusRequest mFocusRequest;
 
         private boolean requestAudioFocus() {
-            final int result = mAudioManager.requestAudioFocus(this,
-                    AudioManager.STREAM_MUSIC,
-                    AudioManager.AUDIOFOCUS_GAIN);
-            return result == AudioManager.AUDIOFOCUS_REQUEST_GRANTED;
+            // Modern API for API 26+ (Required to beat Spotify's priority)
+            AudioAttributes playbackAttributes = new AudioAttributes.Builder()
+                    .setUsage(AudioAttributes.USAGE_MEDIA)
+                    .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
+                    .build();
+
+            mFocusRequest = new AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN)
+                    .setAudioAttributes(playbackAttributes)
+                    .setAcceptsDelayedFocusGain(true)
+                    .setWillPauseWhenDucked(false) // We will handle volume lowering manually
+                    .setOnAudioFocusChangeListener(this)
+                    .build();
+
+            return mAudioManager.requestAudioFocus(mFocusRequest)
+                    == AudioManager.AUDIOFOCUS_REQUEST_GRANTED;
         }
 
         private void abandonAudioFocus() {
-            mAudioManager.abandonAudioFocus(this);
+            if (mFocusRequest != null) {
+                mAudioManager.abandonAudioFocusRequest(mFocusRequest);
+            } else {
+                mAudioManager.abandonAudioFocus(this);
+            }
         }
 
         @Override
         public void onAudioFocusChange(int focusChange) {
             switch (focusChange) {
                 case AudioManager.AUDIOFOCUS_GAIN:
+                    // Restore volume if we were ducked
+                    setVolume(1.0f);
                     if (mPlayOnAudioFocus && !isPlaying()) {
                         playMediaPlayer();
                         play();
                     }
                     mPlayOnAudioFocus = false;
                     break;
+
                 case AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK:
+                    // Lower the volume (Ducking) - Keep playing but be quiet
+                    setVolume(0.2f);
                     break;
+
                 case AudioManager.AUDIOFOCUS_LOSS_TRANSIENT:
+                    // Temporary loss (e.g. a phone call or Google Assistant)
                     pauseMediaPlayer();
                     if (isPlaying()) {
                         mPlayOnAudioFocus = true;
                         pause();
                     }
                     break;
+
                 case AudioManager.AUDIOFOCUS_LOSS:
-                    mPlayOnAudioFocus = true;
+                    // Permanent loss (Spotify started playing)
+                    mPlayOnAudioFocus = false; // Don't resume automatically
+                    setVolume(1.0f); // Reset volume for next time
                     pauseMediaPlayer();
                     pause();
                     break;
             }
+        }
+
+        /**
+         * Helper to set volume for both TTS and MediaPlayer.
+         * You should implement this in your TtsPlayer to actually adjust the audio.
+         */
+        private void setVolume(float volume) {
+            // Implementation depends on your TtsPlayer/MediaPlayer wrapper
+            // e.g., ttsPlayer.setVolume(volume);
+            // e.g., mediaPlayer.setVolume(volume, volume);
         }
     }
 }

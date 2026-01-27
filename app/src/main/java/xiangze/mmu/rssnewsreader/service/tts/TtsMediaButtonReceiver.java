@@ -21,6 +21,7 @@ import android.view.KeyEvent;
 
 import androidx.annotation.RestrictTo;
 import androidx.media.MediaBrowserServiceCompat;
+import androidx.media.session.MediaButtonReceiver;
 
 import java.util.List;
 
@@ -85,6 +86,7 @@ public class TtsMediaButtonReceiver extends BroadcastReceiver {
 
     @Override
     public void onReceive(Context context, Intent intent) {
+        MediaButtonReceiver.handleIntent(TtsService.getMediaSession(), intent);
         if (intent == null || !Intent.ACTION_MEDIA_BUTTON.equals(intent.getAction())) {
             Log.d(TAG, "Ignoring unsupported intent: " + intent);
             return;
@@ -153,6 +155,14 @@ public class TtsMediaButtonReceiver extends BroadcastReceiver {
             }
         }
     }
+//    @Override
+//    public void onReceive(Context context, Intent intent) {
+//        if (Intent.ACTION_MEDIA_BUTTON.equals(intent.getAction())) {
+//            // This helper handles everything: starting the service if needed
+//            // and forwarding the event to the session callback.
+//            MediaButtonReceiver.handleIntent(TtsService.getMediaSession(), intent);
+//        }
+//    }
 
 
     private static class MediaButtonConnectionCallback extends

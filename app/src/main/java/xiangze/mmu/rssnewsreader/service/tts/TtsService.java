@@ -2,6 +2,8 @@ package xiangze.mmu.rssnewsreader.service.tts;
 
 import android.annotation.SuppressLint;
 import android.app.Notification;
+import android.app.PendingIntent;
+import android.content.ComponentName;
 import android.content.Intent;
 import android.os.Build;
 import android.os.Bundle;
@@ -16,6 +18,7 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.core.content.ContextCompat;
 import androidx.media.MediaBrowserServiceCompat;
+import androidx.media.session.MediaButtonReceiver;
 
 import java.util.List;
 
@@ -50,44 +53,74 @@ public class TtsService extends MediaBrowserServiceCompat {
     private boolean serviceInStartedState;
     private static MediaSessionCompat mediaSessionInstance;
 
+//    @Override
+//    public int onStartCommand(Intent intent, int flags, int startId) {
+//        TtsMediaButtonReceiver.handleIntent(mediaSession, intent);
+//        return super.onStartCommand(intent, flags, startId);
+//    }
+
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
-        TtsMediaButtonReceiver.handleIntent(mediaSession, intent);
+        if (intent != null && Intent.ACTION_MEDIA_BUTTON.equals(intent.getAction())) {
+            // This helper is smart: it finds your mediaSession and
+            // manually triggers the correct Callback method (onPlay, onPause, etc.)
+            MediaButtonReceiver.handleIntent(mediaSession, intent);
+        }
         return super.onStartCommand(intent, flags, startId);
     }
 
     @Override
     public void onCreate() {
         super.onCreate();
-        Log.d(TAG, "created");
-        ttsPlayer.initTts(TtsService.this, new TtsPlayerListener(), callback);
+        Log.d(TAG, "onCreate: Initializing TtsService");
+
+        // 1. Notification First (Prevents NPE)
         ttsNotification = new TtsNotification(this);
 
-        mediaSession = new MediaSessionCompat(this, TAG);
+        // 2. Setup Media Button Receiver Component
+        ComponentName mbrComponent = new ComponentName(getPackageName(), TtsMediaButtonReceiver.class.getName());
+
+        // 3. Initialize MediaSession with Receiver Component
+        mediaSession = new MediaSessionCompat(this, TAG, mbrComponent, null);
+
+        // 4. Create the PendingIntent for Hardware Buttons
+        Intent mediaButtonIntent = new Intent(Intent.ACTION_MEDIA_BUTTON);
+        mediaButtonIntent.setComponent(mbrComponent);
+        int flags = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
+                ? PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_MUTABLE
+                : PendingIntent.FLAG_UPDATE_CURRENT;
+        PendingIntent mbrPendingIntent = PendingIntent.getBroadcast(this, 0, mediaButtonIntent, flags);
+
+        // 5. Configure Session Properties
+        mediaSession.setMediaButtonReceiver(mbrPendingIntent);
         mediaSession.setFlags(MediaSessionCompat.FLAG_HANDLES_MEDIA_BUTTONS |
                 MediaSessionCompat.FLAG_HANDLES_TRANSPORT_CONTROLS);
         mediaSession.setCallback(callback);
-        mediaSession.setMediaButtonReceiver(null);
-        mediaSession.setActive(true);
 
-        mediaSessionInstance = mediaSession;
-
+        // 6. Set Initial Playback State
         PlaybackStateCompat initialState = new PlaybackStateCompat.Builder()
-                .setActions(
-                        PlaybackStateCompat.ACTION_PLAY |
-                                PlaybackStateCompat.ACTION_PAUSE |
-                                PlaybackStateCompat.ACTION_SKIP_TO_NEXT |
-                                PlaybackStateCompat.ACTION_SKIP_TO_PREVIOUS |
-                                PlaybackStateCompat.ACTION_FAST_FORWARD |
-                                PlaybackStateCompat.ACTION_REWIND |
-                                PlaybackStateCompat.ACTION_STOP
-                )
+                .setActions(PlaybackStateCompat.ACTION_PLAY | PlaybackStateCompat.ACTION_PAUSE |
+                        PlaybackStateCompat.ACTION_SKIP_TO_NEXT | PlaybackStateCompat.ACTION_SKIP_TO_PREVIOUS |
+                        PlaybackStateCompat.ACTION_STOP)
                 .setState(PlaybackStateCompat.STATE_PAUSED, 0, 1.0f)
                 .build();
         mediaSession.setPlaybackState(initialState);
 
-        Log.d("TTS", "MediaSession active?" +mediaSession);
+        // 7. LOAD INITIAL METADATA (Prevents the "null" parse crash in UI)
+        preparedData = ttsPlaylist.getCurrentMetadata();
+        if (preparedData != null) {
+            mediaSession.setMetadata(preparedData);
+        }
+
+        // 8. Initialize Player
+        ttsPlayer.initTts(this, new TtsPlayerListener(), callback);
+
+        // 9. Activate
+        mediaSession.setActive(true);
+        mediaSessionInstance = mediaSession;
         setSessionToken(mediaSession.getSessionToken());
+
+        Log.d(TAG, "onCreate: Service ready. active=" + mediaSession.isActive());
     }
 
     @Override
@@ -184,7 +217,19 @@ public class TtsService extends MediaBrowserServiceCompat {
                 if (!mediaSession.isActive()) {
                     mediaSession.setActive(true);
                 }
-                mediaSession.setMetadata(preparedData);
+//                mediaSession.setMetadata(preparedData);
+
+//                mediaSession.setMetadata(new MediaMetadataCompat.Builder()
+//                        .putString(MediaMetadataCompat.METADATA_KEY_TITLE, "RSS News Reader")
+//                        .build());
+                // Map preparedData fields to the MediaMetadataCompat Builder
+                mediaSession.setMetadata(new MediaMetadataCompat.Builder()
+                        .putString(MediaMetadataCompat.METADATA_KEY_MEDIA_ID, preparedData.getString(MediaMetadataCompat.METADATA_KEY_MEDIA_ID))
+                        .putString(MediaMetadataCompat.METADATA_KEY_TITLE, preparedData.getString(MediaMetadataCompat.METADATA_KEY_TITLE))
+                        .putString(MediaMetadataCompat.METADATA_KEY_ARTIST, preparedData.getString(MediaMetadataCompat.METADATA_KEY_ARTIST))
+                        .putString(MediaMetadataCompat.METADATA_KEY_ALBUM, "RSS News Reader") // Static or from preparedData
+                        // Add more keys if needed, like durations or display icons
+                        .build());
 
                 // Apply speech rate settings
                 String rateStr = preparedData.getString("ttsSpeechRate");
@@ -376,7 +421,7 @@ public class TtsService extends MediaBrowserServiceCompat {
                             PlaybackStateCompat.ACTION_FAST_FORWARD |
                             PlaybackStateCompat.ACTION_REWIND
             );
-            stateBuilder.setState(state, PlaybackStateCompat.PLAYBACK_POSITION_UNKNOWN, 1.0f, SystemClock.elapsedRealtime());
+            stateBuilder.setState(state, 0, 1.0f, SystemClock.elapsedRealtime());
             mediaSession.setPlaybackState(stateBuilder.build());
 
             if (ttsPlayer != null) {
