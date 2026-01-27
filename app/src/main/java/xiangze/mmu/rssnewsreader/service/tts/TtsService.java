@@ -1,5 +1,6 @@
 package xiangze.mmu.rssnewsreader.service.tts;
 
+import android.annotation.SuppressLint;
 import android.app.Notification;
 import android.content.Intent;
 import android.os.Build;
@@ -117,78 +118,104 @@ public class TtsService extends MediaBrowserServiceCompat {
 
     private final MediaSessionCompat.Callback callback = new MediaSessionCompat.Callback() {
 
+        @SuppressLint("CheckResult")
         @Override
         public void onPrepare() {
-            Log.d(TAG, "onPrepare called");
+            Log.d(TAG, "onPrepare called - Resolving Waterfall Content");
+
             Completable.fromAction(() -> {
+                // 1. Initialize TTS Engine and Player
                 if (!ttsPlayer.isPausedManually()) {
                     ttsPlayer.setupMediaPlayer(false);
                 }
                 if (ttsPlayer.ttsIsNull()) {
                     ttsPlayer.initTts(TtsService.this, new TtsPlayerListener(), callback);
                 }
-                long currentReadingId = sharedPreferencesRepository.getCurrentReadingEntryId();
-                boolean isTranslatedView = sharedPreferencesRepository.getIsTranslatedView(currentReadingId);
-                boolean isSummarizedView = sharedPreferencesRepository.getIsSummarizedView(currentReadingId);
 
+                // 2. Fetch the current Entry from Database
+                long currentReadingId = sharedPreferencesRepository.getCurrentReadingEntryId();
                 Entry entry = entryRepository.getEntryById(currentReadingId);
+
                 if (entry == null) {
                     Log.w(TAG, "Entry not found for ID: " + currentReadingId);
                     return;
                 }
 
-                String original = entry.getContent();
-                String translated = entry.getTranslated();
-                String summarized = entry.getSummarized();
+                // 3. WATERFALL LOGIC: Content Selection
+                // Priority: Summarized > Translated > Original
+                String contentToSpeak;
+                boolean useSummarized = false;
+                boolean useTranslated = false;
 
-                Log.d(TAG, "isTranslatedView = " + isTranslatedView);
-                Log.d(TAG, "isSummarizedView = " + isSummarizedView);
-                Log.d(TAG, "original length = " + (original == null ? "null" : original.length()));
-                Log.d(TAG, "translated length = " + (translated == null ? "null" : translated.length()));
-                Log.d(TAG, "summarized length = " + (summarized == null ? "null" : summarized.length()));
+                if (entry.getSummarized() != null && !entry.getSummarized().trim().isEmpty()) {
+                    contentToSpeak = entry.getSummarized();
+                    useSummarized = true;
+                    Log.d(TAG, "Waterfall selection: Summarized Content");
+                } else if (entry.getTranslated() != null && !entry.getTranslated().trim().isEmpty()) {
+                    contentToSpeak = entry.getTranslated();
+                    useTranslated = true;
+                    Log.d(TAG, "Waterfall selection: Translated Content");
+                } else {
+                    contentToSpeak = entry.getContent(); // Original content
+                    Log.d(TAG, "Waterfall selection: Original Content");
+                }
 
-                String content = (summarized != null && !summarized.trim().isEmpty())
-                        ? summarized
-                        : (translated != null && !translated.trim().isEmpty())
-                        ? translated
-                        : original;
-
+                // 4. WATERFALL LOGIC: Language Selection
                 EntryInfo entryInfo = entryRepository.getEntryInfoById(currentReadingId);
-                String feedLanguage = entryInfo.getFeedLanguage();
-                if (feedLanguage == null || feedLanguage.isEmpty()) {
-                    feedLanguage = "en";
-                }
-
+                String feedLanguage = (entryInfo.getFeedLanguage() == null || entryInfo.getFeedLanguage().isEmpty())
+                        ? "en" : entryInfo.getFeedLanguage();
                 String targetLanguage = sharedPreferencesRepository.getDefaultTranslationLanguage();
-                if (targetLanguage == null || targetLanguage.isEmpty()) {
-                    targetLanguage = "en";
+                if (targetLanguage == null || targetLanguage.isEmpty()) targetLanguage = "en";
+
+                // Use target language if we are speaking a summary or a translation
+                String languageToUse = (useSummarized || useTranslated) ? targetLanguage : feedLanguage;
+
+                // 5. SYNC STATE: Update SharedPreferences so the UI matches what is being heard
+                sharedPreferencesRepository.setIsSummarizedView(currentReadingId, useSummarized);
+                sharedPreferencesRepository.setIsTranslatedView(currentReadingId, useTranslated);
+
+                // 6. Setup Media Session and Metadata
+                preparedData = ttsPlaylist.getCurrentMetadata();
+                if (preparedData == null) {
+                    Log.e(TAG, "Metadata is null, cannot proceed with onPrepare");
+                    return;
                 }
 
-                String languageToUse = isTranslatedView || isSummarizedView ? targetLanguage : feedLanguage;
-
-                preparedData = ttsPlaylist.getCurrentMetadata();
                 if (!mediaSession.isActive()) {
                     mediaSession.setActive(true);
                 }
                 mediaSession.setMetadata(preparedData);
-                ttsPlayer.setTtsSpeechRate(Float.parseFloat(preparedData.getString("ttsSpeechRate")));
 
+                // Apply speech rate settings
+                String rateStr = preparedData.getString("ttsSpeechRate");
+                float rate = (rateStr != null) ? Float.parseFloat(rateStr) : 1.0f;
+                ttsPlayer.setTtsSpeechRate(rate);
+
+                // 7. Extract and Play
                 long mediaId = Long.parseLong(preparedData.getString(MediaMetadataCompat.METADATA_KEY_MEDIA_ID));
                 long feedId = preparedData.getLong("feedId");
 
+                // Safety check to ensure we aren't loading content for a different article
                 if (mediaId != currentReadingId) {
-                    Log.d(TAG, "Skipping extract() — not the currently viewed entry");
+                    Log.d(TAG, "Skipping extract() — mediaId mismatch");
                     return;
                 }
 
                 ttsPlayer.stopTtsPlayback();
-
-                ttsPlayer.extract(mediaId, feedId, content, languageToUse);
+                ttsPlayer.extract(mediaId, feedId, contentToSpeak, languageToUse);
 
                 if (!ttsPlayer.isPausedManually()) {
                     ttsPlayer.speak();
                 }
-            }).subscribeOn(Schedulers.io()).observeOn(AndroidSchedulers.mainThread()).subscribe();
+
+                Log.d(TAG, "TTS Extraction complete for ID: " + mediaId + " Language: " + languageToUse);
+
+            }).subscribeOn(Schedulers.io())
+            .observeOn(AndroidSchedulers.mainThread())
+            .subscribe(
+                    () -> Log.d(TAG, "onPrepare execution successful"),
+                    throwable -> Log.e(TAG, "Error in onPrepare: ", throwable)
+            );
         }
 
         @Override

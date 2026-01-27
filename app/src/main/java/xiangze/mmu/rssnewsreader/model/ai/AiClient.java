@@ -58,13 +58,17 @@ public class AiClient {
 
     public String getChatResponse(List<Message> messages) throws IOException {
         // Use the free OpenAI model
-        ChatRequest request = new ChatRequest("google/gemma-3-27b-it:free", messages, 0.0, 100000);
+        ChatRequest request = new ChatRequest("mistralai/mistral-nemo", messages, 0.0, 100000);
 
         retrofit2.Response<ChatResponse> response = service.chatCompletion(request).execute();
 
         if (response.isSuccessful() && response.body() != null) {
-            if (!response.body().choices.isEmpty()) {
-                return response.body().choices.get(0).message.content;
+            ChatResponse chatResponse = response.body();
+            if (chatResponse.choices != null && !chatResponse.choices.isEmpty()) {
+                ChatResponse.Choice choice = chatResponse.choices.get(0);
+                if (choice != null && choice.message != null) {
+                    return choice.message.content;
+                }
             }
         } else {
             int errorCode = response.code();

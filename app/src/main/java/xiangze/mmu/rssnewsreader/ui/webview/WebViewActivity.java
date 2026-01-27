@@ -668,41 +668,28 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
             webViewViewModel.updateOriginalHtml(entry.getOriginalHtml(), currentId);
         }
 
-        // 4. Resolve view state safely
-//        boolean prefSum = sharedPreferencesRepository.getIsSummarizedView(currentId);
-//        boolean prefTrans = sharedPreferencesRepository.getIsTranslatedView(currentId);
-
-//        if (prefSum && hasSummary) {
-//            isSummarizedView = true;
-//            isTranslatedView = false;
-//        } else if (prefTrans && hasTranslation) {
-//            isTranslatedView = true;
-//            isSummarizedView = false;
-//        } else {
-//            isSummarizedView = false;
-//            isTranslatedView = false;
-//        }
-
+        // 4. Resolve view state safely (Priority: Summary > Translation > Original)
         if (hasSummary) {
             isSummarizedView = true;
             isTranslatedView = false;
         } else if (hasTranslation) {
-            isTranslatedView = true;
             isSummarizedView = false;
+            isTranslatedView = true;
         } else {
             isSummarizedView = false;
             isTranslatedView = false;
         }
 
+        // Save the resolved state back to preferences so the UI stays in sync
         sharedPreferencesRepository.setIsSummarizedView(currentId, isSummarizedView);
         sharedPreferencesRepository.setIsTranslatedView(currentId, isTranslatedView);
 
-        Log.d(TAG, "State -> Translated=" + isTranslatedView + ", Summarized=" + isSummarizedView);
+        Log.d(TAG, "Resolved View State -> Summarized: " + isSummarizedView + ", Translated: " + isTranslatedView);
 
-        // 5. Update toolbar buttons (must depend on availability)
+        // 5. Update toolbar buttons
         refreshButtonVisibility();
 
-        // 6. Select content to load
+        // 6. Select content to load based on the resolved state
         String htmlToLoad;
         String contentToRead;
         String lang;
@@ -710,13 +697,12 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
         if (isSummarizedView) {
             htmlToLoad = webViewViewModel.getSummarizedHtmlById(currentId);
             contentToRead = entry.getSummarized();
+            // Assuming your summaries are in a specific language or the default app language
             lang = getLanguageForCurrentView(currentId, true, "en");
-
         } else if (isTranslatedView) {
             htmlToLoad = webViewViewModel.getTranslatedHtmlById(currentId);
             contentToRead = entry.getTranslated();
             lang = getLanguageForCurrentView(currentId, true, "en");
-
         } else {
             htmlToLoad = webViewViewModel.getOriginalHtmlById(currentId);
             contentToRead = entry.getContent();
