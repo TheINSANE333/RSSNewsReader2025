@@ -223,15 +223,22 @@ public class TtsService extends MediaBrowserServiceCompat {
 //                        .putString(MediaMetadataCompat.METADATA_KEY_TITLE, "RSS News Reader")
 //                        .build());
                 // Map preparedData fields to the MediaMetadataCompat Builder
-                mediaSession.setMetadata(new MediaMetadataCompat.Builder()
-                        .putString(MediaMetadataCompat.METADATA_KEY_MEDIA_ID, preparedData.getString(MediaMetadataCompat.METADATA_KEY_MEDIA_ID))
-                        .putString(MediaMetadataCompat.METADATA_KEY_TITLE, preparedData.getString(MediaMetadataCompat.METADATA_KEY_TITLE))
-                        .putString(MediaMetadataCompat.METADATA_KEY_ARTIST, preparedData.getString(MediaMetadataCompat.METADATA_KEY_ARTIST))
-                        .putString(MediaMetadataCompat.METADATA_KEY_ALBUM, "RSS News Reader") // Static or from preparedData
-                        // Add more keys if needed, like durations or display icons
-                        .build());
+//                mediaSession.setMetadata(new MediaMetadataCompat.Builder()
+//                        .putString(MediaMetadataCompat.METADATA_KEY_MEDIA_ID, preparedData.getString(MediaMetadataCompat.METADATA_KEY_MEDIA_ID))
+//                        .putString(MediaMetadataCompat.METADATA_KEY_TITLE, preparedData.getString(MediaMetadataCompat.METADATA_KEY_TITLE))
+//                        .putString(MediaMetadataCompat.METADATA_KEY_ARTIST, preparedData.getString(MediaMetadataCompat.METADATA_KEY_ARTIST))
+//                        .putString(MediaMetadataCompat.METADATA_KEY_ALBUM, "RSS News Reader") // Static or from preparedData
+//                        // Add more keys if needed, like durations or display icons
+//                        .build());
 
-                // Apply speech rate settings
+                MediaMetadataCompat newMetadata =
+                        new MediaMetadataCompat.Builder(preparedData)   // clone EVERYTHING
+                                .putString(MediaMetadataCompat.METADATA_KEY_ALBUM, "RSS News Reader")
+                                .build();
+
+                mediaSession.setMetadata(newMetadata);
+
+                        // Apply speech rate settings
                 String rateStr = preparedData.getString("ttsSpeechRate");
                 float rate = (rateStr != null) ? Float.parseFloat(rateStr) : 1.0f;
                 ttsPlayer.setTtsSpeechRate(rate);

@@ -18,7 +18,7 @@ android {
         minSdk 26
         targetSdk 36
         versionCode 1
-        versionName "0.0.8"
+        versionName "0.0.81"
 
         def apiKey = localProperties.getProperty("API_KEY", "")
         buildConfigField "String", "API_KEY", "\"${apiKey}\""
