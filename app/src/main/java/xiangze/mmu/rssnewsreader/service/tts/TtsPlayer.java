@@ -307,9 +307,12 @@ public class TtsPlayer extends PlayerAdapter implements TtsPlayerListener {
             }
 
             if (sentences.size() < 1) {
+                Log.w(TAG, "Extraction failed: no sentences found. Resetting state.");
                 if (webViewCallback != null) webViewCallback.askForReload(feedId);
                 sentences.clear();
                 actionNeeded = false;
+                isPreparing = false;
+                countDownLatch.countDown();
                 return;
             } else {
                 int savedProgress = entryRepository.getSentCount(currentId);
