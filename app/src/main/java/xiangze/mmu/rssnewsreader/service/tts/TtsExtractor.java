@@ -353,8 +353,20 @@ public class TtsExtractor {
                                         // --- START SENTENCE SPLITTING LOGIC ---
                                         sentenceIterator.setText(elementText);
                                         int start = sentenceIterator.first();
-                                        for (int end = sentenceIterator.next(); end != BreakIterator.DONE; start = end, end = sentenceIterator.next()) {
-                                            String sentence = elementText.substring(start, end).trim();
+                                        int end = sentenceIterator.next();
+
+                                        while (end != BreakIterator.DONE) {
+                                            String candidate = elementText.substring(start, end);
+                                            String sentence = candidate.trim();
+
+                                            // Check if the sentence ends with a common abbreviation
+                                            if (TextUtil.endsWithAbbreviation(sentence)) {
+                                                int nextEnd = sentenceIterator.next();
+                                                if (nextEnd != BreakIterator.DONE) {
+                                                    end = nextEnd;
+                                                    continue;
+                                                }
+                                            }
 
                                             if (!sentence.isEmpty()) {
                                                 if (content.length() > 0) {
@@ -364,6 +376,8 @@ public class TtsExtractor {
                                                     content.append(sentence);
                                                 }
                                             }
+                                            start = end;
+                                            end = sentenceIterator.next();
                                         }
                                         // --- END SENTENCE SPLITTING LOGIC ---
 

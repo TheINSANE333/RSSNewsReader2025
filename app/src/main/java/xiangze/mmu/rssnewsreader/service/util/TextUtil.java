@@ -96,18 +96,42 @@ public class TextUtil {
     private void appendSentences(StringBuilder sb, String text, String delimiter, BreakIterator iterator) {
         iterator.setText(text);
         int start = iterator.first();
+        int end = iterator.next();
 
-        // Iterate through the boundaries
-        for (int end = iterator.next(); end != BreakIterator.DONE; start = end, end = iterator.next()) {
-            String sentence = text.substring(start, end).trim();
+        while (end != BreakIterator.DONE) {
+            String candidate = text.substring(start, end);
+            String trimmed = candidate.trim();
 
-            // Only append if the sentence actually contains text
-            if (!sentence.isEmpty()) {
-                sb.append(sentence).append(delimiter);
-                // Optional: Log each sentence to verify
-                // Log.d("TextUtil", "Sentence: " + sentence);
+            // Check if the sentence ends with a common abbreviation
+            if (endsWithAbbreviation(trimmed)) {
+                int nextEnd = iterator.next();
+                if (nextEnd != BreakIterator.DONE) {
+                    end = nextEnd;
+                    continue;
+                }
+            }
+
+            if (!trimmed.isEmpty()) {
+                sb.append(trimmed).append(delimiter);
+            }
+            start = end;
+            end = iterator.next();
+        }
+    }
+
+    public static boolean endsWithAbbreviation(String text) {
+        if (text.isEmpty() || !text.endsWith(".")) {
+            return false;
+        }
+        String[] abbreviations = {
+            "Mr.", "Mrs.", "Ms.", "Dr.", "Prof.", "Sr.", "Jr.", "St.", "vs.", "etc.", "e.g.", "i.e.", "Fig.", "No.", "Rev."
+        };
+        for (String abbr : abbreviations) {
+            if (text.endsWith(abbr)) {
+                return true;
             }
         }
+        return false;
     }
 
     // Translate text element by element
