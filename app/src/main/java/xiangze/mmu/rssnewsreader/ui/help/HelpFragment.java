@@ -25,7 +25,7 @@ import dagger.hilt.android.AndroidEntryPoint;
 @AndroidEntryPoint
 public class HelpFragment extends Fragment {
     private FragmentHelpBinding binding;
-    private boolean[] isExpanded = new boolean[11];
+    private boolean[] isExpanded = new boolean[12];
 
     @Nullable
     @Override
@@ -35,17 +35,17 @@ public class HelpFragment extends Fragment {
         CardView[] cardViews = {
                 binding.cardView1, binding.cardView2, binding.cardView3, binding.cardView4,
                 binding.cardView5, binding.cardView6, binding.cardView7, binding.cardView8,
-                binding.cardView9, binding.cardView10, binding.cardView11
+                binding.cardView9, binding.cardView10, binding.cardView11, binding.cardView12
         };
         ImageView[] arrowImageViews = {
                 binding.arrowImageView1, binding.arrowImageView2, binding.arrowImageView3, binding.arrowImageView4,
                 binding.arrowImageView5, binding.arrowImageView6, binding.arrowImageView7, binding.arrowImageView8,
-                binding.arrowImageView9, binding.arrowImageView10, binding.arrowImageView11
+                binding.arrowImageView9, binding.arrowImageView10, binding.arrowImageView11, binding.arrowImageView12
         };
         LinearLayoutCompat[] descTextViews = {
                 binding.description1, binding.description2, binding.description3, binding.description4,
                 binding.description5, binding.description6, binding.description7, binding.description8,
-                binding.description9, binding.description10, binding.description11
+                binding.description9, binding.description10, binding.description11, binding.description12
         };
 
         for (int i = 0; i < cardViews.length; i++) {
@@ -93,7 +93,7 @@ public class HelpFragment extends Fragment {
         }
 
         MaterialButton[] toSettingsButtons = {
-                binding.toSettingsButton, binding.toSettingsButton2, binding.toSettingsButton3
+                binding.toSettingsButton, binding.toSettingsButton2, binding.toSettingsButton3, binding.toSettingsButton4
         };
 
         for (MaterialButton toSettingsButton : toSettingsButtons) {

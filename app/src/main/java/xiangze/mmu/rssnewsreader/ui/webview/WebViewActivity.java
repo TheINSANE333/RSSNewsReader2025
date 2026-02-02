@@ -390,7 +390,7 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
 
         new Thread(() -> {
 
-            AiClient aiClient = new AiClient();
+            AiClient aiClient = new AiClient(this);
 
             try {
                 /* Stage 1: Initialization */
@@ -933,7 +933,7 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
 
         // 4. Background Execution
         new Thread(() -> {
-            AiClient aiClient = new AiClient();
+            AiClient aiClient = new AiClient(this);
 
             try {
                 List<Message> messages = new ArrayList<>();

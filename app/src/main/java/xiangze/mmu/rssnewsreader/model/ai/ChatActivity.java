@@ -62,7 +62,7 @@ public class ChatActivity extends AppCompatActivity {
         setupRecyclerView();
         setupClickListeners();
 
-        aiClient = new AiClient();
+        aiClient = new AiClient(this);
 
         if (getIntent().hasExtra("initial_message")) {
             String summary = getIntent().getStringExtra("initial_message");

@@ -134,6 +134,15 @@ public class SettingsFragment extends PreferenceFragmentCompat {
                 }
             });
         }
+
+        Preference getOpenRouterKeyPreference = findPreference("get_openrouter_key");
+        if (getOpenRouterKeyPreference != null) {
+            getOpenRouterKeyPreference.setOnPreferenceClickListener(preference -> {
+                Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse("https://openrouter.ai/keys"));
+                startActivity(intent);
+                return true;
+            });
+        }
     }
 
     @Override

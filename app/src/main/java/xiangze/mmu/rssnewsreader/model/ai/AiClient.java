@@ -1,5 +1,8 @@
 package xiangze.mmu.rssnewsreader.model.ai;
 
+import android.content.Context;
+import androidx.preference.PreferenceManager;
+
 import java.io.IOException;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
@@ -17,15 +20,18 @@ import retrofit2.converter.gson.GsonConverterFactory;
 
 public class AiClient {
     private static final String BASE_URL = "https://openrouter.ai/api/v1/";
-    private static final String API_KEY = BuildConfig.API_KEY;
+    private final String apiKey;
     private static final String SITE_URL = "https://github.com/TheINSANE333/RSSNewsReader2025"; // Replace with your app/site URL
     private static final String SITE_NAME = "RSS News Reader 2025"; // Replace with your app name
 
     private AiService service;
 
-    public AiClient() {
+    public AiClient(Context context) {
+        String userKey = PreferenceManager.getDefaultSharedPreferences(context).getString("openrouter_api_key", "");
+        this.apiKey = (userKey != null && !userKey.isEmpty()) ? userKey : BuildConfig.API_KEY;
+
         // Validate API key
-        if (API_KEY.equals("your_openrouter_api_key_here") || API_KEY.isEmpty()) {
+        if (this.apiKey.equals("your_openrouter_api_key_here") || this.apiKey.isEmpty()) {
             throw new IllegalStateException("OpenRouter API key not configured!");
         }
 
@@ -36,7 +42,7 @@ public class AiClient {
                 .addInterceptor(chain -> {
                     Request original = chain.request();
                     Request request = original.newBuilder()
-                            .header("Authorization", "Bearer " + API_KEY)
+                            .header("Authorization", "Bearer " + this.apiKey)
                             .header("HTTP-Referer", SITE_URL)
                             .header("X-Title", SITE_NAME)
                             .header("Content-Type", "application/json")
@@ -58,7 +64,7 @@ public class AiClient {
 
     public String getChatResponse(List<Message> messages) throws IOException {
         // Use the free OpenAI model
-        ChatRequest request = new ChatRequest("mistralai/mistral-nemo", messages, 0.0, 100000);
+        ChatRequest request = new ChatRequest("meta-llama/llama-3.3-70b-instruct:free", messages, 0.0, 100000);
 
         retrofit2.Response<ChatResponse> response = service.chatCompletion(request).execute();
 

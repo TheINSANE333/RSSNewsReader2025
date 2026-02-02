@@ -231,4 +231,12 @@ public class SharedPreferencesRepository {
     public long getCurrentReadingEntryId() {
         return sharedPreferences.getLong(KEY_CURRENT_READING_ENTRY_ID, -1);
     }
+
+    public String getOpenRouterApiKey() {
+        return sharedPreferences.getString("openrouter_api_key", "");
+    }
+
+    public Context getContext() {
+        return context;
+    }
 }

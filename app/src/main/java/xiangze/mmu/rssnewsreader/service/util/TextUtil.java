@@ -382,7 +382,7 @@ public class TextUtil {
 
             try {
                 // 2. Prepare the AI Client & Messages
-                AiClient aiClient = new AiClient();
+                AiClient aiClient = new AiClient(sharedPreferencesRepository.getContext());
                 List<Message> messages = new ArrayList<>();
 
                 messages.add(new Message(
@@ -463,7 +463,7 @@ public class TextUtil {
 
             try {
                 // 2. Prepare the AI Client & Messages
-                AiClient aiClient = new AiClient();
+                AiClient aiClient = new AiClient(sharedPreferencesRepository.getContext());
                 List<Message> messages = new ArrayList<>();
 
                 messages.add(new Message(
