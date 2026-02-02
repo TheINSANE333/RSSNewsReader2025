@@ -63,8 +63,16 @@ public class RssReader {
             return feed;
 
         } catch (Exception e) {
-            Log.e("RssReader", "Error while fetching or parsing RSS feed: " + e.getMessage(), e);
-            throw e;
+            Log.e("RssReader", "Error while fetching or parsing RSS feed: " + e.getMessage() + ". Trying Web Scraper fallback.");
+            try {
+                // Fallback to Web Scraper
+                WebFeedReader webFeedReader = new WebFeedReader(rssUrl);
+                return webFeedReader.getFeed();
+            } catch (Exception webEx) {
+                Log.e("RssReader", "Web Scraper also failed: " + webEx.getMessage());
+                // Throw the ORIGINAL exception to show why RSS failed, or maybe a combined one
+                throw e;
+            }
         } finally {
             if (connection != null) {
                 connection.disconnect();
