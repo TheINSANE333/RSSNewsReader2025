@@ -110,28 +110,29 @@ public class TtsPlayer extends PlayerAdapter implements TtsPlayerListener {
         });
         tts.setOnUtteranceProgressListener(new UtteranceProgressListener() {
             @Override
-            public void onStart(String s) {
-
+            public void onStart(String utteranceId) {
+                if (utteranceId != null && webViewCallback != null && !sentences.isEmpty()) {
+                    try {
+                        int index = Integer.parseInt(utteranceId);
+                        if (index >= 0 && index < sentences.size()) {
+                            String sentenceToHighlight = sentences.get(index);
+                            // Ensure highlightText runs on the main thread
+                            ContextCompat.getMainExecutor(context).execute(() -> {
+                                if (webViewCallback != null) {
+                                    webViewCallback.highlightText(sentenceToHighlight);
+                                }
+                            });
+                        }
+                    } catch (NumberFormatException e) {
+                        Log.e(TAG, "Invalid utterance ID format: " + utteranceId);
+                    }
+                }
             }
 
             @Override
-            public void onDone(String s) {
-                if (isManualSkip) {
-                    Log.d(TAG, "Manual skip — skipping sentenceCounter++ in onDone");
-                    isManualSkip = false;
-
-                    if (sentenceCounter < sentences.size() - 1) {
-                        sentenceCounter++;
-                        speak();
-                        entryRepository.updateSentCount(sentenceCounter, currentId);
-                        Log.d(TAG, "Manual skip done. Continuing at [#" + sentenceCounter + "]");
-                    } else {
-                        Log.d(TAG, "Manual skip finished last sentence. Moving to next article.");
-                        entryRepository.updateSentCount(0, currentId);
-                        sentenceCounter = 0;
-                        isArticleFinished = true;
-                        callback.onSkipToNext();
-                    }
+            public void onDone(String utteranceId) {
+                if (currentUtteranceID != null && !currentUtteranceID.equals(utteranceId)) {
+                    Log.d(TAG, "Ignoring stale onDone for utteranceId: " + utteranceId + " (Current: " + currentUtteranceID + ")");
                     return;
                 }
 
@@ -477,14 +478,22 @@ public class TtsPlayer extends PlayerAdapter implements TtsPlayerListener {
     private void doSpeak(String sentence) {
         Log.d(TAG, "TTS Speaking [#" + sentenceCounter + "]: " + sentence);
         int queueMode = isManualSkip ? TextToSpeech.QUEUE_FLUSH : TextToSpeech.QUEUE_ADD;
-        tts.speak(sentence, queueMode, null, TextToSpeech.ACTION_TTS_QUEUE_PROCESSING_COMPLETED);
+        
+        // Reset manual skip flag immediately after use so subsequent automatic plays use QUEUE_ADD
+        if (isManualSkip) {
+            isManualSkip = false;
+        }
+
+        // Pass sentenceCounter as utteranceId to track progress in onStart
+        String utteranceId = String.valueOf(sentenceCounter);
+        currentUtteranceID = utteranceId;
+        
+        tts.speak(sentence, queueMode, null, utteranceId);
+        
         setUiControlPlayback(true);
         setNewState(PlaybackStateCompat.STATE_PLAYING);
         if (playbackUiListener != null) {
             playbackUiListener.onPlaybackStarted();
-        }
-        if (webViewCallback != null) {
-            webViewCallback.highlightText(sentence);
         }
     }
 
