@@ -217,7 +217,11 @@ public class TtsPlayer extends PlayerAdapter implements TtsPlayerListener {
         sentences = new ArrayList<>();
         isArticleFinished = false;
 
-        this.language = language;
+        if (language != null && language.equals("Use Language Identifier")) {
+            this.language = null;
+        } else {
+            this.language = language;
+        }
         this.currentId = currentId;
         this.feedId = feedId;
         hasSpokenAfterSetup = false;
@@ -350,18 +354,17 @@ public class TtsPlayer extends PlayerAdapter implements TtsPlayerListener {
                 ((WebViewActivity) webViewCallback).syncLoadingWithTts();
             }
 
-            if (language == null || language.isEmpty()) {
-                Log.w(TAG, "Warning: Language is null or empty, defaulting to English.");
-                language = "en";
-            }
-
-            try {
-                Log.d(TAG, "Setting TTS language to: " + language);
-                Log.d(TAG, "setupTts() using language: " + language);
-                setLanguage(new Locale(language), true);
-            } catch (Exception e) {
-                Log.d(TAG, "Invalid locale " + e.getMessage());
-                setLanguage(Locale.ENGLISH, true);
+            if (language != null && !language.isEmpty()) {
+                try {
+                    Log.d(TAG, "Setting TTS language to: " + language);
+                    Log.d(TAG, "setupTts() using language: " + language);
+                    setLanguage(new Locale(language), true);
+                } catch (Exception e) {
+                    Log.d(TAG, "Invalid locale " + e.getMessage());
+                    setLanguage(Locale.ENGLISH, true);
+                }
+            } else {
+                Log.d(TAG, "Language is null (auto-detect), skipping initial setLanguage.");
             }
 
             new Handler(Looper.getMainLooper()).postDelayed(() -> {
@@ -398,6 +401,9 @@ public class TtsPlayer extends PlayerAdapter implements TtsPlayerListener {
                     } else {
                         Log.i(TAG, "Language: " + languageCode);
                         setLanguage(new Locale(languageCode), fromService);
+                    }
+                    if (!fromService) {
+                        doSpeak(sentence);
                     }
                 })
                 .addOnFailureListener(Throwable::printStackTrace);
@@ -457,24 +463,28 @@ public class TtsPlayer extends PlayerAdapter implements TtsPlayerListener {
         }
 
         if (sentences.size() != 0) {
-            Log.d(TAG, "speak() with language = " + language + ", sentence = " + sentences.get(sentenceCounter));
+            String sentence = sentences.get(sentenceCounter);
+            Log.d(TAG, "speak() with language = " + language + ", sentence = " + sentence);
 
             if (language == null) {
-                identifyLanguage(sentences.get(sentenceCounter), false);
+                identifyLanguage(sentence, false);
             } else {
-                String sentence = sentences.get(sentenceCounter);
-                Log.d(TAG, "TTS Speaking [#" + sentenceCounter + "]: " + sentence);
-                int queueMode = isManualSkip ? TextToSpeech.QUEUE_FLUSH : TextToSpeech.QUEUE_ADD;
-                tts.speak(sentence, queueMode, null, TextToSpeech.ACTION_TTS_QUEUE_PROCESSING_COMPLETED);
-                setUiControlPlayback(true);
-                setNewState(PlaybackStateCompat.STATE_PLAYING);
-                if (playbackUiListener != null) {
-                    playbackUiListener.onPlaybackStarted();
-                }
-                if (webViewCallback != null) {
-                    webViewCallback.highlightText(sentence);
-                }
+                doSpeak(sentence);
             }
+        }
+    }
+
+    private void doSpeak(String sentence) {
+        Log.d(TAG, "TTS Speaking [#" + sentenceCounter + "]: " + sentence);
+        int queueMode = isManualSkip ? TextToSpeech.QUEUE_FLUSH : TextToSpeech.QUEUE_ADD;
+        tts.speak(sentence, queueMode, null, TextToSpeech.ACTION_TTS_QUEUE_PROCESSING_COMPLETED);
+        setUiControlPlayback(true);
+        setNewState(PlaybackStateCompat.STATE_PLAYING);
+        if (playbackUiListener != null) {
+            playbackUiListener.onPlaybackStarted();
+        }
+        if (webViewCallback != null) {
+            webViewCallback.highlightText(sentence);
         }
     }
 
