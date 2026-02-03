@@ -51,9 +51,10 @@ Once saved, OpenRouter will route requests to Mistral models using your personal
 
 After adding the key:
 
-1. Go to **Models** in the OpenRouter dashboard.
-2. Confirm that **Mistral models** (e.g. `mistral-small`, `mistral-medium`, `mistral-large`) are available.
-3. If models do not appear immediately, refresh the page or log out and back in.
+1. Press the Mistral which is just added.
+2. Press test and select model "Mistral Nemo". 
+3. Run test.
+4. It will return successful if the configuration is successful. 
 
 ---
 
