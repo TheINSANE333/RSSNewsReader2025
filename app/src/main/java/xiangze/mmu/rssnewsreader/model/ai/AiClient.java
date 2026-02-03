@@ -7,7 +7,6 @@ import java.io.IOException;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
-import xiangze.mmu.rssnewsreader.BuildConfig;
 import xiangze.mmu.rssnewsreader.data.ai.ChatRequest;
 import xiangze.mmu.rssnewsreader.data.ai.ChatResponse;
 import xiangze.mmu.rssnewsreader.data.ai.Message;
@@ -20,18 +19,17 @@ import retrofit2.converter.gson.GsonConverterFactory;
 
 public class AiClient {
     private static final String BASE_URL = "https://openrouter.ai/api/v1/";
-    private final String apiKey;
+    private final String userKey;
     private static final String SITE_URL = "https://github.com/TheINSANE333/RSSNewsReader2025"; // Replace with your app/site URL
     private static final String SITE_NAME = "RSS News Reader 2025"; // Replace with your app name
 
     private AiService service;
 
     public AiClient(Context context) {
-        String userKey = PreferenceManager.getDefaultSharedPreferences(context).getString("openrouter_api_key", "");
-        this.apiKey = (userKey != null && !userKey.isEmpty()) ? userKey : BuildConfig.API_KEY;
+        this.userKey = PreferenceManager.getDefaultSharedPreferences(context).getString("openrouter_api_key", "");
 
         // Validate API key
-        if (this.apiKey.equals("your_openrouter_api_key_here") || this.apiKey.isEmpty()) {
+        if (this.userKey.isEmpty()) {
             throw new IllegalStateException("OpenRouter API key not configured!");
         }
 
@@ -42,7 +40,7 @@ public class AiClient {
                 .addInterceptor(chain -> {
                     Request original = chain.request();
                     Request request = original.newBuilder()
-                            .header("Authorization", "Bearer " + this.apiKey)
+                            .header("Authorization", "Bearer " + this.userKey)
                             .header("HTTP-Referer", SITE_URL)
                             .header("X-Title", SITE_NAME)
                             .header("Content-Type", "application/json")

@@ -112,6 +112,14 @@ public class AutoSummarizer {
 
                         Log.d(TAG, "SUCCESS: Summarized ID " + id);
 
+                        // Add a small delay to avoid hitting rate limits (3 seconds)
+                        try {
+                            Thread.sleep(5000);
+                        } catch (InterruptedException e) {
+                            Thread.currentThread().interrupt();
+                            Log.w(TAG, "Auto-summarization sleep interrupted");
+                        }
+
                     } catch (Exception e) {
                         Log.e(TAG, "CRITICAL ERROR summarizing ID " + id + ": " + e.getMessage());
                         Log.e(TAG, "Stopping entire batch summarization due to error.");
