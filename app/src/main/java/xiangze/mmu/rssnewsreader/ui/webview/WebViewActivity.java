@@ -281,6 +281,11 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
 
     @SuppressLint("CheckResult")
     private void translate() {
+        if (!new AiClient(this).hasKey()) {
+            showMissingKeyDialog();
+            return;
+        }
+
         Log.d(TAG, "translate: html\n" + webViewViewModel.getHtmlById(currentId));
         makeSnackbar("Translation in progress");
         loading.setVisibility(View.VISIBLE);
@@ -905,7 +910,20 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
         startActivity(intent);
     }
 
+    private void showMissingKeyDialog() {
+        new AlertDialog.Builder(this)
+                .setTitle("API Key Missing")
+                .setMessage("Please configure the OpenRouter API Key in Settings to use AI features.")
+                .setPositiveButton("OK", (dialog, which) -> dialog.dismiss())
+                .show();
+    }
+
     private void summarize() {
+        if (!new AiClient(this).hasKey()) {
+            showMissingKeyDialog();
+            return;
+        }
+
         // 1. Data Retrieval
         String html = webViewViewModel.getOriginalHtmlById(currentId);
         EntryInfo entryInfo = webViewViewModel.getEntryInfoById(currentId);

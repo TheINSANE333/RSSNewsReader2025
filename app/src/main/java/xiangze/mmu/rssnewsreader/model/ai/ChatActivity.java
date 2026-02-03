@@ -64,6 +64,14 @@ public class ChatActivity extends AppCompatActivity {
 
         aiClient = new AiClient(this);
 
+        if (!aiClient.hasKey()) {
+            new AlertDialog.Builder(this)
+                    .setTitle("API Key Missing")
+                    .setMessage("Please configure the OpenRouter API Key in Settings to use the Chatbot.")
+                    .setPositiveButton("OK", (dialog, which) -> dialog.dismiss())
+                    .show();
+        }
+
         if (getIntent().hasExtra("initial_message")) {
             String summary = getIntent().getStringExtra("initial_message");
             messages.add(new Message("assistant", summary));

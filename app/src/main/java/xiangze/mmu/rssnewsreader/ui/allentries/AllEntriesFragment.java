@@ -633,6 +633,17 @@ public class AllEntriesFragment extends Fragment implements EntryItemAdapter.Ent
                 exitSelectionMode();
             });
             actionBar.getCustomView().findViewById(R.id.menu_translate).setOnClickListener(v -> {
+                String translationMethod = sharedPreferencesRepository.getTranslationMethod();
+                if (!translationMethod.equals("lineByLine") && !translationMethod.equals("paragraphByParagraph")) {
+                    if (!new xiangze.mmu.rssnewsreader.model.ai.AiClient(requireContext()).hasKey()) {
+                        new androidx.appcompat.app.AlertDialog.Builder(requireContext())
+                                .setTitle("API Key Missing")
+                                .setMessage("Bulk AI Translation requires OpenRouter API Key. Please configure it in Settings.")
+                                .setPositiveButton("OK", null)
+                                .show();
+                        return;
+                    }
+                }
                 for (EntryInfo item : selectedEntries) {
                     translate(item);
                 }

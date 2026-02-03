@@ -30,25 +30,23 @@ public class AiClient {
         this.context = context;
         this.userKey = PreferenceManager.getDefaultSharedPreferences(context).getString("openrouter_api_key", "");
 
-        // Validate API key
-        if (this.userKey.isEmpty()) {
-            throw new IllegalStateException("OpenRouter API key not configured!");
-        }
-
         OkHttpClient okHttpClient = new OkHttpClient.Builder()
                 .connectTimeout(300, TimeUnit.SECONDS)
                 .readTimeout(300, TimeUnit.SECONDS)
                 .writeTimeout(300, TimeUnit.SECONDS)
                 .addInterceptor(chain -> {
                     Request original = chain.request();
-                    Request request = original.newBuilder()
-                            .header("Authorization", "Bearer " + this.userKey)
+                    Request.Builder requestBuilder = original.newBuilder()
                             .header("HTTP-Referer", SITE_URL)
                             .header("X-Title", SITE_NAME)
                             .header("Content-Type", "application/json")
-                            .method(original.method(), original.body())
-                            .build();
-                    return chain.proceed(request);
+                            .method(original.method(), original.body());
+                    
+                    if (!this.userKey.isEmpty()) {
+                        requestBuilder.header("Authorization", "Bearer " + this.userKey);
+                    }
+                    
+                    return chain.proceed(requestBuilder.build());
                 })
                 .addInterceptor(new HttpLoggingInterceptor().setLevel(HttpLoggingInterceptor.Level.BODY))
                 .build();
@@ -62,7 +60,15 @@ public class AiClient {
         service = retrofit.create(AiService.class);
     }
 
+    public boolean hasKey() {
+        return userKey != null && !userKey.isEmpty();
+    }
+
     public String getChatResponse(List<Message> messages) throws IOException {
+        if (!hasKey()) {
+            throw new IOException("OpenRouter API key not configured! Please set it in Settings.");
+        }
+
         String model = PreferenceManager.getDefaultSharedPreferences(context).getString("ai_model", "meta-llama/llama-3.3-70b-instruct:free");
         ChatRequest request = new ChatRequest(model, messages, 0.0, 100000);
 
