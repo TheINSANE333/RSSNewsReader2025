@@ -286,15 +286,21 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
             return;
         }
 
+        String content = webViewViewModel.getOriginalHtmlById(currentId);
+        if (content == null || content.trim().isEmpty()) {
+            makeSnackbar("Content is being extracted, please wait...");
+            return;
+        }
+
         Log.d(TAG, "translate: html\n" + webViewViewModel.getHtmlById(currentId));
         makeSnackbar("Translation in progress");
         loading.setVisibility(View.VISIBLE);
         loading.setProgress(10);
 
-        String content = webViewViewModel.getOriginalHtmlById(currentId);
         EntryInfo entryInfo = webViewViewModel.getEntryInfoById(currentId);
         if (entryInfo == null) {
             makeSnackbar("Entry info could not be loaded.");
+            loading.setVisibility(View.INVISIBLE);
             return;
         }
 
@@ -926,6 +932,11 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
 
         // 1. Data Retrieval
         String html = webViewViewModel.getOriginalHtmlById(currentId);
+        if (html == null || html.trim().isEmpty()) {
+            makeSnackbar("Content is being extracted, please wait...");
+            return;
+        }
+
         EntryInfo entryInfo = webViewViewModel.getEntryInfoById(currentId);
 
         if (entryInfo == null) {
