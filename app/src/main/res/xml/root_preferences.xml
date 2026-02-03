@@ -147,6 +147,16 @@
             app:summary="@string/background_music_volume_summary"
             app:title="@string/background_music_volume" />
 
+        <ListPreference
+            app:defaultValue="meta-llama/llama-3.3-70b-instruct:free"
+            app:entries="@array/ai_model"
+            app:entryValues="@array/ai_model_values"
+            app:icon="@drawable/ic_chatbot"
+            app:key="ai_model"
+            app:title="@string/ai_model_title"
+            app:summary="@string/ai_model_summary"
+            app:useSimpleSummaryProvider="true" />
+
         <EditTextPreference
             app:icon="@drawable/ic_chatbot"
             app:key="openrouter_api_key"

@@ -236,6 +236,10 @@ public class SharedPreferencesRepository {
         return sharedPreferences.getString("openrouter_api_key", "");
     }
 
+    public String getAiModel() {
+        return sharedPreferences.getString("ai_model", "meta-llama/llama-3.3-70b-instruct:free");
+    }
+
     public Context getContext() {
         return context;
     }

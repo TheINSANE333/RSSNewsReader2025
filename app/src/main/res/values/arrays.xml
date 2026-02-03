@@ -32,6 +32,16 @@
         <item>userFile</item>
     </string-array>
 
+    <string-array name="ai_model">
+        <item>Llama 3.3 70B Instruct (Free)</item>
+        <item>Mistral Nemo</item>
+    </string-array>
+
+    <string-array name="ai_model_values">
+        <item>meta-llama/llama-3.3-70b-instruct:free</item>
+        <item>mistralai/mistral-nemo</item>
+    </string-array>
+
     <string-array name="translationMethod">
         <item>All at once</item>
         <item>Paragraph by Paragraph</item>

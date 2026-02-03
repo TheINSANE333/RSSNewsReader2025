@@ -24,8 +24,10 @@ public class AiClient {
     private static final String SITE_NAME = "RSS News Reader 2025"; // Replace with your app name
 
     private AiService service;
+    private final Context context;
 
     public AiClient(Context context) {
+        this.context = context;
         this.userKey = PreferenceManager.getDefaultSharedPreferences(context).getString("openrouter_api_key", "");
 
         // Validate API key
@@ -61,8 +63,8 @@ public class AiClient {
     }
 
     public String getChatResponse(List<Message> messages) throws IOException {
-        // Use the free OpenAI model
-        ChatRequest request = new ChatRequest("meta-llama/llama-3.3-70b-instruct:free", messages, 0.0, 100000);
+        String model = PreferenceManager.getDefaultSharedPreferences(context).getString("ai_model", "meta-llama/llama-3.3-70b-instruct:free");
+        ChatRequest request = new ChatRequest(model, messages, 0.0, 100000);
 
         retrofit2.Response<ChatResponse> response = service.chatCompletion(request).execute();
 
