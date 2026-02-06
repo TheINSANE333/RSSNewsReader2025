@@ -100,31 +100,22 @@ public class SpeechRateSelectionDialog extends AppCompatDialogFragment {
                     public void onClick(DialogInterface dialogInterface, int i) {
                         int radioId = radioGroup.getCheckedRadioButtonId();
                         float speechRate = 0;
-                        switch (radioId) {
-                            case R.id.speechRateRadioButton1:
-                                speechRate = 0.25f;
-                                break;
-                            case R.id.speechRateRadioButton2:
-                                speechRate = 0.5f;
-                                break;
-                            case R.id.speechRateRadioButton3:
-                                speechRate = 1.0f;
-                                break;
-                            case R.id.speechRateRadioButton4:
-                                speechRate = 1.25f;
-                                break;
-                            case R.id.speechRateRadioButton5:
-                                speechRate = 1.5f;
-                                break;
-                            case R.id.speechRateRadioButton6:
-                                speechRate = 1.75f;
-                                break;
-                            case R.id.speechRateRadioButton7:
-                                speechRate = 2.0f;
-                                break;
-                            case R.id.speechRateRadioButton8:
-                                speechRate = 3.0f;
-                                break;
+                        if (radioId == R.id.speechRateRadioButton1) {
+                            speechRate = 0.25f;
+                        } else if (radioId == R.id.speechRateRadioButton2) {
+                            speechRate = 0.5f;
+                        } else if (radioId == R.id.speechRateRadioButton3) {
+                            speechRate = 1.0f;
+                        } else if (radioId == R.id.speechRateRadioButton4) {
+                            speechRate = 1.25f;
+                        } else if (radioId == R.id.speechRateRadioButton5) {
+                            speechRate = 1.5f;
+                        } else if (radioId == R.id.speechRateRadioButton6) {
+                            speechRate = 1.75f;
+                        } else if (radioId == R.id.speechRateRadioButton7) {
+                            speechRate = 2.0f;
+                        } else if (radioId == R.id.speechRateRadioButton8) {
+                            speechRate = 3.0f;
                         }
                         feedRepository.updateTtsSpeechRateById(feedId, speechRate);
                         listener.modifySpeechRate(speechRate);

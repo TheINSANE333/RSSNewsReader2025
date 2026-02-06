@@ -12,6 +12,7 @@ import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 
+import androidx.activity.OnBackPressedCallback;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 
@@ -38,25 +39,6 @@ public class LoginWebViewActivity extends AppCompatActivity {
     @Inject
     SharedPreferencesRepository sharedPreferencesRepository;
 
-    @Override
-    public void onBackPressed() {
-        if (webView.canGoBack()) {
-            webView.goBack();
-        } else {
-            MaterialAlertDialogBuilder builder = new MaterialAlertDialogBuilder(LoginWebViewActivity.this);
-            builder.setTitle(R.string.login_complete_confirmation)
-                    .setIcon(R.drawable.ic_alert)
-                    .setMessage(R.string.login_complete_message)
-                    .setNeutralButton(R.string.no, (dialogInterface, i) -> {
-                    })
-                    .setPositiveButton(R.string.yes, (dialogInterface, i) -> {
-                        setResult(Activity.RESULT_OK, new Intent());
-                        finish();
-                    })
-                    .show();
-        }
-    }
-
     @SuppressLint("SetJavaScriptEnabled")
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
@@ -68,8 +50,34 @@ public class LoginWebViewActivity extends AppCompatActivity {
 
         loading = binding.loginWebViewLoading;
 
+        webView= binding.loginWebView;
+        webView.setWebViewClient(new WebClient());
+        webView.getSettings().setJavaScriptEnabled(true);
+        webView.getSettings().setDomStorageEnabled(true);
+
+        getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
+            @Override
+            public void handleOnBackPressed() {
+                if (webView.canGoBack()) {
+                    webView.goBack();
+                } else {
+                    MaterialAlertDialogBuilder builder = new MaterialAlertDialogBuilder(LoginWebViewActivity.this);
+                    builder.setTitle(R.string.login_complete_confirmation)
+                            .setIcon(R.drawable.ic_alert)
+                            .setMessage(R.string.login_complete_message)
+                            .setNeutralButton(R.string.no, (dialogInterface, i) -> {
+                            })
+                            .setPositiveButton(R.string.yes, (dialogInterface, i) -> {
+                                setResult(Activity.RESULT_OK, new Intent());
+                                finish();
+                            })
+                            .show();
+                }
+            }
+        });
+
         MaterialToolbar toolbar = binding.loginWebViewToolbar;
-        toolbar.setNavigationOnClickListener(view -> onBackPressed());
+        toolbar.setNavigationOnClickListener(view -> getOnBackPressedDispatcher().onBackPressed());
         toolbar.setOnMenuItemClickListener(item -> {
             int itemId = item.getItemId();
             if (itemId == R.id.loginWebViewZoomIn) {
@@ -85,11 +93,6 @@ public class LoginWebViewActivity extends AppCompatActivity {
             }
             return false;
         });
-
-        webView= binding.loginWebView;
-        webView.setWebViewClient(new WebClient());
-        webView.getSettings().setJavaScriptEnabled(true);
-        webView.getSettings().setDomStorageEnabled(true);
 
         int textZoom = sharedPreferencesRepository.getTextZoom();
         if (textZoom != 0) {

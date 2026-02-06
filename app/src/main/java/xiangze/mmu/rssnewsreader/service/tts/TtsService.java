@@ -100,6 +100,7 @@ public class TtsService extends MediaBrowserServiceCompat {
         // 6. Set Initial Playback State
         PlaybackStateCompat initialState = new PlaybackStateCompat.Builder()
                 .setActions(PlaybackStateCompat.ACTION_PLAY | PlaybackStateCompat.ACTION_PAUSE |
+                        PlaybackStateCompat.ACTION_PLAY_PAUSE |
                         PlaybackStateCompat.ACTION_SKIP_TO_NEXT | PlaybackStateCompat.ACTION_SKIP_TO_PREVIOUS |
                         PlaybackStateCompat.ACTION_STOP)
                 .setState(PlaybackStateCompat.STATE_PAUSED, 0, 1.0f)

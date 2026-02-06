@@ -622,7 +622,8 @@ public class TtsPlayer extends PlayerAdapter implements TtsPlayerListener {
         long actions = PlaybackStateCompat.ACTION_SKIP_TO_NEXT
                 | PlaybackStateCompat.ACTION_SKIP_TO_PREVIOUS
                 | PlaybackStateCompat.ACTION_REWIND
-                | PlaybackStateCompat.ACTION_FAST_FORWARD;
+                | PlaybackStateCompat.ACTION_FAST_FORWARD
+                | PlaybackStateCompat.ACTION_PLAY_PAUSE;
         switch (currentState) {
             case PlaybackStateCompat.STATE_STOPPED:
                 actions |= PlaybackStateCompat.ACTION_PLAY

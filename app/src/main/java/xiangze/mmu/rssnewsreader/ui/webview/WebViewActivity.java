@@ -1029,154 +1029,137 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
 
     @SuppressLint("NonConstantResourceId")
     private boolean handleOtherToolbarItems(int itemId) {
-        switch (itemId) {
-            case R.id.summarize:{
-                summarize();
-                return true;}
-
-            case R.id.chatbot:{
-                startChat();
-                return true;}
-
-            case R.id.translate:{
-                if (targetLanguage == null || targetLanguage.isEmpty()) {
-                    showTranslationLanguageDialog(this);
-                }
-                translate();
-                return true;}
-
-            case R.id.zoomIn:{
-                adjustTextZoom(true);
-                return true;}
-
-            case R.id.zoomOut:{
-                adjustTextZoom(false);
-                return true;}
-
-            case R.id.bookmark:{
-                toggleBookmark();
-                return true;}
-
-            case R.id.share:{
-                shareCurrentLink();
-                return true;}
-
-            case R.id.openInBrowser:{
-                browserButton.setVisible(false);
-                offlineButton.setVisible(true);
-                sharedPreferencesRepository.setWebViewMode(currentId, true);
-                webView.loadUrl(currentLink);
-                hideFakeLoading();
-                return true;}
-
-            case R.id.exitBrowser:{
-                sharedPreferencesRepository.setWebViewMode(currentId, false);
-                EntryInfo entryInfo = webViewViewModel.getLastVisitedEntry();
-                String rebuiltHtml = rebuildHtml(entryInfo);
-                loadEntryContent();
-                offlineButton.setVisible(false);
-                browserButton.setVisible(true);
-                hideFakeLoading();
-                return true;}
-
-            case R.id.reload:{
-                ReloadDialog dialog = new ReloadDialog(this, feedId, R.string.reload_confirmation, R.string.reload_message);
-                dialog.show(getSupportFragmentManager(), ReloadDialog.TAG);
-                return true;}
-
-            case R.id.toggleBackgroundMusic:{
-                toggleBackgroundMusic();
-                return true;}
-
-            case R.id.openTtsSetting:{
-                startActivity(new Intent("com.android.settings.TTS_SETTINGS"));
-                return true;}
-
-            case R.id.toggleTranslation: {
-                // 1. Toggle the state
-                boolean targetState = !isTranslatedView;
-
-                // 2. Enforce Mutual Exclusivity
-                isTranslatedView = targetState;
-                if (targetState) {
-                    isSummarizedView = false; // Turn off summary if translation is on
-                    sharedPreferencesRepository.setIsSummarizedView(currentId, false);
-                }
-                sharedPreferencesRepository.setIsTranslatedView(currentId, isTranslatedView);
-
-                // 3. Get Data
-                String translatedHtml = webViewViewModel.getTranslatedHtmlById(currentId);
-                String originalHtml = webViewViewModel.getOriginalHtmlById(currentId);
-
-                // 4. Decide what to load
-                String htmlToLoad = isTranslatedView ? translatedHtml : originalHtml;
-
-                if (htmlToLoad != null && !htmlToLoad.trim().isEmpty()) {
-                    loadHtmlIntoWebView(htmlToLoad);
-                    // Refresh buttons to update titles ("Show Original" vs "Show Translation")
-                    refreshButtonVisibility();
-
-                    // Handle TTS
-                    if (isTranslatedView) {
-                        String translated = webViewViewModel.getEntryById(currentId).getTranslated();
-                        if (translated != null) {
-                            String lang = getLanguageForCurrentView(currentId, true, "en");
-                            ttsPlayer.extract(currentId, feedId, translated, lang);
-                        }
-                    } else {
-                        // Revert to original TTS
-                        String original = webViewViewModel.getEntryById(currentId).getContent();
-                        String lang = getLanguageForCurrentView(currentId, false, "en");
-                        ttsPlayer.extract(currentId, feedId, original, lang);
-                    }
-                }
-                return true;
+        if (itemId == R.id.summarize) {
+            summarize();
+            return true;
+        } else if (itemId == R.id.chatbot) {
+            startChat();
+            return true;
+        } else if (itemId == R.id.translate) {
+            if (targetLanguage == null || targetLanguage.isEmpty()) {
+                showTranslationLanguageDialog(this);
             }
+            translate();
+            return true;
+        } else if (itemId == R.id.zoomIn) {
+            adjustTextZoom(true);
+            return true;
+        } else if (itemId == R.id.zoomOut) {
+            adjustTextZoom(false);
+            return true;
+        } else if (itemId == R.id.bookmark) {
+            toggleBookmark();
+            return true;
+        } else if (itemId == R.id.share) {
+            shareCurrentLink();
+            return true;
+        } else if (itemId == R.id.openInBrowser) {
+            browserButton.setVisible(false);
+            offlineButton.setVisible(true);
+            sharedPreferencesRepository.setWebViewMode(currentId, true);
+            webView.loadUrl(currentLink);
+            hideFakeLoading();
+            return true;
+        } else if (itemId == R.id.exitBrowser) {
+            sharedPreferencesRepository.setWebViewMode(currentId, false);
+            EntryInfo entryInfo = webViewViewModel.getLastVisitedEntry();
+            String rebuiltHtml = rebuildHtml(entryInfo);
+            loadEntryContent();
+            offlineButton.setVisible(false);
+            browserButton.setVisible(true);
+            hideFakeLoading();
+            return true;
+        } else if (itemId == R.id.reload) {
+            ReloadDialog dialog = new ReloadDialog(this, feedId, R.string.reload_confirmation, R.string.reload_message);
+            dialog.show(getSupportFragmentManager(), ReloadDialog.TAG);
+            return true;
+        } else if (itemId == R.id.toggleBackgroundMusic) {
+            toggleBackgroundMusic();
+            return true;
+        } else if (itemId == R.id.openTtsSetting) {
+            startActivity(new Intent("com.android.settings.TTS_SETTINGS"));
+            return true;
+        } else if (itemId == R.id.toggleTranslation) {
+            // 1. Toggle the state
+            boolean targetState = !isTranslatedView;
 
-            case R.id.toggleSummarization: {
-                // 1. Toggle the state
-                boolean targetState = !isSummarizedView;
-
-                // 2. Enforce Mutual Exclusivity
-                isSummarizedView = targetState;
-                if (targetState) {
-                    isTranslatedView = false; // Turn off translation if summary is on
-                    sharedPreferencesRepository.setIsTranslatedView(currentId, false);
-                }
-                sharedPreferencesRepository.setIsSummarizedView(currentId, isSummarizedView);
-
-                // 3. Get Data
-                String summarizedHtml = webViewViewModel.getSummarizedHtmlById(currentId);
-                String originalHtml = webViewViewModel.getOriginalHtmlById(currentId);
-
-                // 4. Decide what to load
-                String htmlToLoad = isSummarizedView ? summarizedHtml : originalHtml;
-
-                if (htmlToLoad != null && !htmlToLoad.trim().isEmpty()) {
-                    loadHtmlIntoWebView(htmlToLoad);
-                    // Refresh buttons to update titles
-                    refreshButtonVisibility();
-
-                    // Handle TTS
-                    if (isSummarizedView) {
-                        String summarized = webViewViewModel.getEntryById(currentId).getSummarized();
-                        if (summarized != null) {
-                            // Summaries are usually in the target language (or user pref)
-                            String lang = getLanguageForCurrentView(currentId, true, "en");
-                            ttsPlayer.extract(currentId, feedId, summarized, lang);
-                        }
-                    } else {
-                        // Revert to original TTS
-                        String original = webViewViewModel.getEntryById(currentId).getContent();
-                        String lang = getLanguageForCurrentView(currentId, false, "en");
-                        ttsPlayer.extract(currentId, feedId, original, lang);
-                    }
-                }
-                return true;
+            // 2. Enforce Mutual Exclusivity
+            isTranslatedView = targetState;
+            if (targetState) {
+                isSummarizedView = false; // Turn off summary if translation is on
+                sharedPreferencesRepository.setIsSummarizedView(currentId, false);
             }
+            sharedPreferencesRepository.setIsTranslatedView(currentId, isTranslatedView);
 
-            default:
-                return false;
+            // 3. Get Data
+            String translatedHtml = webViewViewModel.getTranslatedHtmlById(currentId);
+            String originalHtml = webViewViewModel.getOriginalHtmlById(currentId);
+
+            // 4. Decide what to load
+            String htmlToLoad = isTranslatedView ? translatedHtml : originalHtml;
+
+            if (htmlToLoad != null && !htmlToLoad.trim().isEmpty()) {
+                loadHtmlIntoWebView(htmlToLoad);
+                // Refresh buttons to update titles ("Show Original" vs "Show Translation")
+                refreshButtonVisibility();
+
+                // Handle TTS
+                if (isTranslatedView) {
+                    String translated = webViewViewModel.getEntryById(currentId).getTranslated();
+                    if (translated != null) {
+                        String lang = getLanguageForCurrentView(currentId, true, "en");
+                        ttsPlayer.extract(currentId, feedId, translated, lang);
+                    }
+                } else {
+                    // Revert to original TTS
+                    String original = webViewViewModel.getEntryById(currentId).getContent();
+                    String lang = getLanguageForCurrentView(currentId, false, "en");
+                    ttsPlayer.extract(currentId, feedId, original, lang);
+                }
+            }
+            return true;
+        } else if (itemId == R.id.toggleSummarization) {
+            // 1. Toggle the state
+            boolean targetState = !isSummarizedView;
+
+            // 2. Enforce Mutual Exclusivity
+            isSummarizedView = targetState;
+            if (targetState) {
+                isTranslatedView = false; // Turn off translation if summary is on
+                sharedPreferencesRepository.setIsTranslatedView(currentId, false);
+            }
+            sharedPreferencesRepository.setIsSummarizedView(currentId, isSummarizedView);
+
+            // 3. Get Data
+            String summarizedHtml = webViewViewModel.getSummarizedHtmlById(currentId);
+            String originalHtml = webViewViewModel.getOriginalHtmlById(currentId);
+
+            // 4. Decide what to load
+            String htmlToLoad = isSummarizedView ? summarizedHtml : originalHtml;
+
+            if (htmlToLoad != null && !htmlToLoad.trim().isEmpty()) {
+                loadHtmlIntoWebView(htmlToLoad);
+                // Refresh buttons to update titles
+                refreshButtonVisibility();
+
+                // Handle TTS
+                if (isSummarizedView) {
+                    String summarized = webViewViewModel.getEntryById(currentId).getSummarized();
+                    if (summarized != null) {
+                        // Summaries are usually in the target language (or user pref)
+                        String lang = getLanguageForCurrentView(currentId, true, "en");
+                        ttsPlayer.extract(currentId, feedId, summarized, lang);
+                    }
+                } else {
+                    // Revert to original TTS
+                    String original = webViewViewModel.getEntryById(currentId).getContent();
+                    String lang = getLanguageForCurrentView(currentId, false, "en");
+                    ttsPlayer.extract(currentId, feedId, original, lang);
+                }
+            }
+            return true;
+        } else {
+            return false;
         }
     }
 

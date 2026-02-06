@@ -100,29 +100,29 @@ public class TtsMediaButtonReceiver extends BroadcastReceiver {
 
         Log.d(TAG, "Media Button Received: " + keyEvent.toString());
 
+        ComponentName mediaButtonServiceComponentName =
+                getServiceComponentByAction(context, Intent.ACTION_MEDIA_BUTTON);
+        if (mediaButtonServiceComponentName != null) {
+            intent.setComponent(mediaButtonServiceComponentName);
+            ContextCompat.startForegroundService(context, intent);
+            return;
+        }
+
+        ComponentName mediaBrowserServiceComponentName =
+                getServiceComponentByAction(context, MediaBrowserServiceCompat.SERVICE_INTERFACE);
+        if (mediaBrowserServiceComponentName != null) {
+            PendingResult pendingResult = goAsync();
+            Context applicationContext = context.getApplicationContext();
+            MediaButtonConnectionCallback connectionCallback =
+                    new MediaButtonConnectionCallback(applicationContext, intent, pendingResult);
+            MediaBrowserCompat mediaBrowser = new MediaBrowserCompat(applicationContext,
+                    mediaBrowserServiceComponentName, connectionCallback, null);
+            connectionCallback.setMediaBrowser(mediaBrowser);
+            mediaBrowser.connect();
+            return;
+        }
+
         if (keyEvent.getAction() == KeyEvent.ACTION_DOWN) {
-            ComponentName mediaButtonServiceComponentName =
-                    getServiceComponentByAction(context, Intent.ACTION_MEDIA_BUTTON);
-            if (mediaButtonServiceComponentName != null) {
-                intent.setComponent(mediaButtonServiceComponentName);
-                ContextCompat.startForegroundService(context, intent);
-                return;
-            }
-
-            ComponentName mediaBrowserServiceComponentName =
-                    getServiceComponentByAction(context, MediaBrowserServiceCompat.SERVICE_INTERFACE);
-            if (mediaBrowserServiceComponentName != null) {
-                PendingResult pendingResult = goAsync();
-                Context applicationContext = context.getApplicationContext();
-                MediaButtonConnectionCallback connectionCallback =
-                        new MediaButtonConnectionCallback(applicationContext, intent, pendingResult);
-                MediaBrowserCompat mediaBrowser = new MediaBrowserCompat(applicationContext,
-                        mediaBrowserServiceComponentName, connectionCallback, null);
-                connectionCallback.setMediaBrowser(mediaBrowser);
-                mediaBrowser.connect();
-                return;
-            }
-
             try {
                 MediaSessionCompat mediaSession = TtsService.getMediaSession();
                 MediaControllerCompat mediaController = new MediaControllerCompat(context, mediaSession.getSessionToken());

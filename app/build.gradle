@@ -11,16 +11,16 @@ if (localPropertiesFile.exists()) {
 }
 
 android {
-    compileSdk 36
+    compileSdk = 36
 
     defaultConfig {
-        applicationId "xiangze.mmu.rssnewsreader"
-        minSdk 26
-        targetSdk 36
-        versionCode 1
-        versionName "0.0.93"
+        applicationId = "xiangze.mmu.rssnewsreader"
+        minSdk = 26
+        targetSdk = 36
+        versionCode = 1
+        versionName = "0.0.93"
 
-        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
         javaCompileOptions {
             annotationProcessorOptions {
@@ -34,20 +34,20 @@ android {
 
     buildTypes {
         release {
-            minifyEnabled false
+            minifyEnabled = false
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
-            signingConfig signingConfigs.debug
+            signingConfig = signingConfigs.debug
         }
     }
     compileOptions {
-        sourceCompatibility JavaVersion.VERSION_17
-        targetCompatibility JavaVersion.VERSION_17
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
     }
     buildFeatures {
         buildConfig = true
-        viewBinding true
+        viewBinding = true
     }
-    namespace 'xiangze.mmu.rssnewsreader'
+    namespace = 'xiangze.mmu.rssnewsreader'
 }
 
 dependencies {
@@ -104,7 +104,7 @@ dependencies {
     implementation 'com.squareup.retrofit2:converter-gson:3.0.0'
     implementation 'com.squareup.okhttp3:logging-interceptor:5.3.2'
 
-    implementation platform('com.google.firebase:firebase-bom:34.8.0')
+    implementation platform('com.google.firebase:firebase-bom:34.9.0')
     implementation 'com.google.firebase:firebase-analytics'
 
 }

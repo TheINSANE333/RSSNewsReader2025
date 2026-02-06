@@ -33,7 +33,7 @@
     <string name="help_openrouter_key_desc">1. Visit https://openrouter.ai/\n2. Sign up for an account (Google or GitHub)\n3. Go to \'Keys\' section\n4. Create a new key\n5. Copy the key and paste it into the \'OpenRouter API Key\' field in Settings.</string>
 
     <string name="jobPeriodic_title">Update interval</string>
-    <string name="confidence_threshold_title">Confidence threshold (%)</string>
+    <string name="confidence_threshold_title" formatted="false">Confidence threshold (%)</string>
 
     <string name="text_to_speech_settings">Text-to-Speech settings</string>
     <string name="text_to_speech_settings_summary">Modify speech rate, pitch, and languages of text-to-speech</string>
@@ -60,7 +60,7 @@
     <string name="translationLanguage_title">Desired language</string>
     <string name="translationMethod_title">Translation method</string>
     <string name="translationMethod_summary">Choose how the app translates text.\'Line by Line\' is slower but more accurate, \'All at Once\' is faster but may be less accurate, and \'Paragraph by Paragraph\' offers a balance between the two.</string>
-    <string name="confidence_threshold_summary">Higher % will result in better accuracy but will be less likely to change languages</string>
+    <string name="confidence_threshold_summary" formatted="false">Higher % will result in better accuracy but will be less likely to change languages</string>
     <string name="summarize_title">"Summary length"</string>
     <string name="summarize_summary">"Set the amount of words for summarization"</string>
     <string name="languageIdentifier">Use Language Identifier</string>
@@ -144,7 +144,7 @@
     <string name="help_change_feed_language">How to change the language of a feed?</string>
     <string name="help_change_feed_language_desc">To change the language of a feed, you can go to the \'Manage\' tab on the feed page and click on the edit button. Select the desired language for the feed.\n\nNote: If you choose a language other than \'Use Language Identifier\', text-to-speech will use that language regardless of other settings.</string>
     <string name="help_wrong_language">Why is the text-to-speech speaking in the wrong language?</string>
-    <string name="help_wrong_language_desc">There are a few possibilities that could have led to this issue:\n\n1. The language of the feed is incorrect. You can change the language by accessing at the \'Manage\' tab on the feed page.\n\n2. If you are using the language identifier (you can check this on the \'Manage\' tab under the feed page), the identifier may not be able to accurately detect the language of the content based on the confidence threshold you have set in the Setting page. Setting a higher confidence threshold will make it less likely for the language to be changed. For example, if the confidence threshold is set to 80% and the identifier has only 50% certainty about the language, it will result in a failure and the language will be set to English</string>
+    <string name="help_wrong_language_desc" formatted="false">There are a few possibilities that could have led to this issue:\n\n1. The language of the feed is incorrect. You can change the language by accessing at the \'Manage\' tab on the feed page.\n\n2. If you are using the language identifier (you can check this on the \'Manage\' tab under the feed page), the identifier may not be able to accurately detect the language of the content based on the confidence threshold you have set in the Setting page. Setting a higher confidence threshold will make it less likely for the language to be changed. For example, if the confidence threshold is set to 80% and the identifier has only 50% certainty about the language, it will result in a failure and the language will be set to English</string>
     <string name="help_offline_reading">Does the app support offline reading?</string>
     <string name="help_offline_reading_desc">Yes, the app does support offline reading. However, the articles need to be extracted in advance. You can check if an article has been extracted by clicking on it and observing whether it is in browser mode or extracted mode. Usually, subsequent articles will be automatically extracted once an article is clicked, but this process might be halted by the device to save resources.</string>
     <string name="help_reading_playing_mode">What are the \'Reading Mode\' and \'Playing Mode?\'</string>
