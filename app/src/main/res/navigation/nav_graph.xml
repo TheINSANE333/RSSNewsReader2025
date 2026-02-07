@@ -14,12 +14,20 @@
             android:id="@+id/action_feedFragment_to_allEntriesFragment"
             app:destination="@id/allEntriesFragment"
             app:popUpTo="@id/allEntriesFragment"
-            app:popUpToInclusive="true"/>
+            app:popUpToInclusive="true"
+            app:enterAnim="@anim/feed_open_enter"
+            app:exitAnim="@anim/feed_open_exit"
+            app:popEnterAnim="@anim/feed_pop_enter"
+            app:popExitAnim="@anim/feed_pop_exit"/>
         <action
             android:id="@+id/action_feedFragment_to_settingsFragment"
             app:destination="@id/settingsFragment"
             app:popUpTo="@id/settingsFragment"
-            app:popUpToInclusive="true"/>
+            app:popUpToInclusive="true"
+            app:enterAnim="@anim/slide_in_right"
+            app:exitAnim="@anim/slide_out_left_fade"
+            app:popEnterAnim="@anim/slide_in_left_fade"
+            app:popExitAnim="@anim/slide_out_right_fade"/>
     </fragment>
     <fragment
         android:id="@+id/allEntriesFragment"
@@ -30,18 +38,36 @@
             android:id="@+id/action_allEntriesFragment_to_feedFragment"
             app:destination="@id/feedFragment"
             app:popUpTo="@id/feedFragment"
-            app:popUpToInclusive="true"/>
+            app:popUpToInclusive="true"
+            app:enterAnim="@anim/fade_in"
+            app:exitAnim="@anim/fade_out"
+            app:popEnterAnim="@anim/fade_in"
+            app:popExitAnim="@anim/fade_out"/>
         <action
             android:id="@+id/action_allEntriesFragment_to_settingsFragment"
             app:destination="@id/settingsFragment"
             app:popUpTo="@id/settingsFragment"
-            app:popUpToInclusive="true"/>
+            app:popUpToInclusive="true"
+            app:enterAnim="@anim/slide_in_right"
+            app:exitAnim="@anim/slide_out_left_fade"
+            app:popEnterAnim="@anim/slide_in_left_fade"
+            app:popExitAnim="@anim/slide_out_right_fade"/>
     </fragment>
     <fragment
         android:id="@+id/helpFragment"
         android:name="xiangze.mmu.rssnewsreader.ui.help.HelpFragment"
         android:label="Help"
-        tools:layout="@layout/fragment_help" />
+        tools:layout="@layout/fragment_help" >
+        <action
+            android:id="@+id/action_helpFragment_to_allEntriesFragment"
+            app:destination="@id/allEntriesFragment"
+            app:popUpTo="@id/allEntriesFragment"
+            app:popUpToInclusive="true"
+            app:enterAnim="@anim/slide_in_left_fade"
+            app:exitAnim="@anim/slide_out_right_fade"
+            app:popEnterAnim="@anim/slide_in_right"
+            app:popExitAnim="@anim/slide_out_left_fade"/>
+    </fragment>
     <fragment
         android:id="@+id/settingsFragment"
         android:name="xiangze.mmu.rssnewsreader.ui.setting.SettingsFragment"
@@ -50,11 +76,19 @@
             android:id="@+id/action_settingsFragment_to_allEntriesFragment"
             app:destination="@id/allEntriesFragment"
             app:popUpTo="@id/allEntriesFragment"
-            app:popUpToInclusive="true"/>
+            app:popUpToInclusive="true"
+            app:enterAnim="@anim/feed_open_enter"
+            app:exitAnim="@anim/feed_open_exit"
+            app:popEnterAnim="@anim/feed_pop_enter"
+            app:popExitAnim="@anim/feed_pop_exit"/>
         <action
             android:id="@+id/action_settingsFragment_to_feedFragment"
             app:destination="@id/feedFragment"
             app:popUpTo="@id/feedFragment"
-            app:popUpToInclusive="true"/>
+            app:popUpToInclusive="true"
+            app:enterAnim="@anim/slide_in_left_fade"
+            app:exitAnim="@anim/slide_out_right_fade"
+            app:popEnterAnim="@anim/slide_in_right"
+            app:popExitAnim="@anim/slide_out_left_fade"/>
     </fragment>
 </navigation>

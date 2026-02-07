@@ -348,6 +348,10 @@ public class MainActivity extends AppCompatActivity {
                 args.putString("title", feedTitle);
                 NavOptions navOptions = new NavOptions.Builder()
                         .setPopUpTo(R.id.allEntriesFragment, false)
+                        .setEnterAnim(R.anim.feed_open_enter)
+                        .setExitAnim(R.anim.feed_open_exit)
+                        .setPopEnterAnim(R.anim.feed_pop_enter)
+                        .setPopExitAnim(R.anim.feed_pop_exit)
                         .build();
                 navController.navigate(R.id.allEntriesFragment, args, navOptions);
             }
@@ -376,6 +380,10 @@ public class MainActivity extends AppCompatActivity {
                 args.putString("title", "All feeds");
                 NavOptions navOptions = new NavOptions.Builder()
                         .setPopUpTo(R.id.allEntriesFragment, false)
+                        .setEnterAnim(R.anim.feed_open_enter)
+                        .setExitAnim(R.anim.feed_open_exit)
+                        .setPopEnterAnim(R.anim.feed_pop_enter)
+                        .setPopExitAnim(R.anim.feed_pop_exit)
                         .build();
                 navController.navigate(R.id.allEntriesFragment, args, navOptions);
             }
@@ -386,6 +394,10 @@ public class MainActivity extends AppCompatActivity {
             public void onClick(View view) {
                 NavOptions navOptions = new NavOptions.Builder()
                         .setPopUpTo(R.id.allEntriesFragment, false)
+                        .setEnterAnim(R.anim.fade_in)
+                        .setExitAnim(R.anim.fade_out)
+                        .setPopEnterAnim(R.anim.fade_in)
+                        .setPopExitAnim(R.anim.fade_out)
                         .build();
                 navController.navigate(R.id.feedFragment, null, navOptions);
                 drawerLayout.closeDrawer(GravityCompat.START);
@@ -424,6 +436,10 @@ public class MainActivity extends AppCompatActivity {
             public void onClick(View view) {
                 NavOptions navOptions = new NavOptions.Builder()
                         .setPopUpTo(R.id.allEntriesFragment, false)
+                        .setEnterAnim(R.anim.slide_in_right)
+                        .setExitAnim(R.anim.slide_out_left_fade)
+                        .setPopEnterAnim(R.anim.slide_in_left_fade)
+                        .setPopExitAnim(R.anim.slide_out_right_fade)
                         .build();
                 navController.navigate(R.id.settingsFragment, null, navOptions);
                 drawerLayout.closeDrawer(GravityCompat.START);
@@ -435,6 +451,10 @@ public class MainActivity extends AppCompatActivity {
             public void onClick(View view) {
                 NavOptions navOptions = new NavOptions.Builder()
                         .setPopUpTo(R.id.allEntriesFragment, false)
+                        .setEnterAnim(R.anim.slide_in_right)
+                        .setExitAnim(R.anim.slide_out_left_fade)
+                        .setPopEnterAnim(R.anim.slide_in_left_fade)
+                        .setPopExitAnim(R.anim.slide_out_right_fade)
                         .build();
                 navController.navigate(R.id.helpFragment, null, navOptions);
                 drawerLayout.closeDrawer(GravityCompat.START);

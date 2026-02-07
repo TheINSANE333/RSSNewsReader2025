@@ -122,6 +122,7 @@
                     tools:layout_editor_absoluteX="0dp"
                     tools:layout_editor_absoluteY="0dp"
                     tools:listitem="@layout/entry_item"
+                    android:layoutAnimation="@anim/layout_fall_down"
                     android:visibility="gone"/>
 
             </androidx.appcompat.widget.LinearLayoutCompat>
