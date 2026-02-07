@@ -6,6 +6,8 @@ import android.net.Uri;
 import android.os.Bundle;
 import android.util.Log;
 import android.util.Xml;
+import android.view.GestureDetector;
+import android.view.MotionEvent;
 import android.view.View;
 import android.widget.Toast;
 
@@ -66,6 +68,7 @@ public class MainActivity extends AppCompatActivity {
     private MaterialSwitch themeSwitch;
     private NavigationFeedItemAdapter adapter;
     private MainActivityViewModel mainActivityViewModel;
+    private GestureDetector gestureDetector;
     @Inject
     SharedPreferencesRepository sharedPreferencesRepository;
 
@@ -286,6 +289,22 @@ public class MainActivity extends AppCompatActivity {
 
         drawerLayout = binding.drawerLayout;
 
+        gestureDetector = new GestureDetector(this, new GestureDetector.SimpleOnGestureListener() {
+            @Override
+            public boolean onFling(MotionEvent e1, MotionEvent e2, float velocityX, float velocityY) {
+                if (e1 == null || e2 == null) return false;
+                float diffX = e2.getX() - e1.getX();
+                float diffY = e2.getY() - e1.getY();
+                if (Math.abs(diffX) > Math.abs(diffY) && Math.abs(diffX) > 100 && Math.abs(velocityX) > 100) {
+                    if (diffX > 0 && !drawerLayout.isDrawerOpen(GravityCompat.START)) {
+                        drawerLayout.openDrawer(GravityCompat.START);
+                        return true;
+                    }
+                }
+                return false;
+            }
+        });
+
         getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
             @Override
             public void handleOnBackPressed() {
@@ -445,6 +464,17 @@ public class MainActivity extends AppCompatActivity {
                 adapter.submitList(feeds);
             }
         });
+    }
+
+    @Override
+    public boolean dispatchTouchEvent(MotionEvent ev) {
+        NavController navController = Navigation.findNavController(this, R.id.nav_host_fragment_content_main);
+        if (navController.getCurrentDestination() != null && navController.getCurrentDestination().getId() == R.id.allEntriesFragment) {
+            if (gestureDetector != null && gestureDetector.onTouchEvent(ev)) {
+                return true;
+            }
+        }
+        return super.dispatchTouchEvent(ev);
     }
 
     private void switchTheme() {

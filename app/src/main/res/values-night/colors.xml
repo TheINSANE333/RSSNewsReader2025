@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <!-- Material 3 Core Roles - Purple Accent #340098 -->
-    <color name="primary">#4b21bd</color>
+    <color name="primary">#9f86ff</color>
     <color name="onPrimary">#FFFFFF</color>
     <color name="primaryContainer">#4B21BD</color>
     <color name="onPrimaryContainer">#E5DEFF</color>
