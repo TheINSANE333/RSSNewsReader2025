@@ -430,6 +430,12 @@ public class AllEntriesFragment extends Fragment implements EntryItemAdapter.Ent
         String targetLanguage = sharedPreferencesRepository.getDefaultTranslationLanguage();
 
         Disposable disposable = textUtil.identifyLanguageRx(content).subscribe(languageCode -> {
+            if (languageCode != null && languageCode.equalsIgnoreCase(targetLanguage)) {
+                requireActivity().runOnUiThread(() ->
+                        Toast.makeText(requireContext(), entryInfo.getEntryTitle() + " is already in " + Locale.forLanguageTag(targetLanguage).getDisplayLanguage(), Toast.LENGTH_SHORT).show()
+                );
+                return;
+            }
             Disposable translateDisposable;
             Log.d(TAG, "translate: translation method: " + translationMethod);
             if (translationMethod.equals("lineByLine")) {
@@ -563,9 +569,10 @@ public class AllEntriesFragment extends Fragment implements EntryItemAdapter.Ent
         allEntriesViewModel.insertPlaylist(allLinks, entryId);
         allEntriesViewModel.updateVisitedDate(entryId);
 
-//        Bundle b = ActivityOptions.makeSceneTransitionAnimation(getActivity()).toBundle();
         if (context != null) {
-            context.startActivity(intent);
+            androidx.core.app.ActivityOptionsCompat options = androidx.core.app.ActivityOptionsCompat.makeCustomAnimation(
+                    context, R.anim.article_open_enter, R.anim.article_open_exit);
+            context.startActivity(intent, options.toBundle());
         }
     }
 
@@ -583,9 +590,10 @@ public class AllEntriesFragment extends Fragment implements EntryItemAdapter.Ent
         allEntriesViewModel.insertPlaylist(allLinks, entryId);
         allEntriesViewModel.updateVisitedDate(entryId);
 
-//        Bundle b = ActivityOptions.makeSceneTransitionAnimation(getActivity()).toBundle();
         if (context != null) {
-            context.startActivity(intent);
+            androidx.core.app.ActivityOptionsCompat options = androidx.core.app.ActivityOptionsCompat.makeCustomAnimation(
+                    context, R.anim.article_open_enter, R.anim.article_open_exit);
+            context.startActivity(intent, options.toBundle());
         }
     }
 

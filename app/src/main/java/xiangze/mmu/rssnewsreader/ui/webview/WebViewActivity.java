@@ -63,6 +63,7 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Objects;
 import java.util.Set;
 
@@ -177,7 +178,9 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
     }
 
     private void doWhenTranslationFinish(EntryInfo entryInfo, String originalHtml, String translatedHtml) {
+        loading.clearAnimation();
         loading.setVisibility(View.INVISIBLE);
+        webView.animate().alpha(1.0f).setDuration(500).start();
 
         translatedHtml = translatedHtml
                 .replaceAll("(?s)^\\s*```[a-zA-Z]*\\n?", "") // Removes the opening ```html
@@ -234,7 +237,9 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
     }
 
     private void doWhenSummarizationFinish(EntryInfo entryInfo, String originalHtml, String summarizedHtml) {
+        loading.clearAnimation();
         loading.setVisibility(View.INVISIBLE);
+        webView.animate().alpha(1.0f).setDuration(500).start();
 
         if (webViewViewModel.getOriginalHtmlById(currentId) == null && originalHtml != null) {
             webViewViewModel.updateOriginalHtml(originalHtml, currentId);
@@ -292,6 +297,10 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
             return;
         }
 
+        animateToolbarIcon(R.id.translate);
+        loading.startAnimation(android.view.animation.AnimationUtils.loadAnimation(this, R.anim.pulse));
+        webView.animate().alpha(0.5f).setDuration(300).start();
+
         Log.d(TAG, "translate: html\n" + webViewViewModel.getHtmlById(currentId));
         makeSnackbar("Translation in progress");
         loading.setVisibility(View.VISIBLE);
@@ -317,6 +326,16 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
             identifiedLanguage -> {
                 String sourceLanguage = (userConfiguredLang != null && !userConfiguredLang.isEmpty())
                         ? feedLanguage : identifiedLanguage;
+
+                if (sourceLanguage != null && sourceLanguage.equalsIgnoreCase(targetLanguage)) {
+                    runOnUiThread(() -> {
+                        loading.clearAnimation();
+                        loading.setVisibility(View.INVISIBLE);
+                        webView.animate().alpha(1.0f).setDuration(300).start();
+                        makeSnackbar("Article is already in " + Locale.forLanguageTag(targetLanguage).getDisplayLanguage());
+                    });
+                    return;
+                }
 
                 Log.d(TAG, "Translating from " + sourceLanguage + " to " + targetLanguage);
                 Log.d("ORIGINAL CONTENT FOR TRANSLATION", content);
@@ -497,6 +516,7 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
             @Override
             public void handleOnBackPressed() {
                 finish();
+                overridePendingTransition(R.anim.article_pop_enter, R.anim.article_pop_exit);
             }
         });
 
@@ -937,6 +957,10 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
             return;
         }
 
+        animateToolbarIcon(R.id.summarize);
+        loading.startAnimation(android.view.animation.AnimationUtils.loadAnimation(this, R.anim.pulse));
+        webView.animate().alpha(0.5f).setDuration(300).start();
+
         EntryInfo entryInfo = webViewViewModel.getEntryInfoById(currentId);
 
         if (entryInfo == null) {
@@ -1099,7 +1123,12 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
             String htmlToLoad = isTranslatedView ? translatedHtml : originalHtml;
 
             if (htmlToLoad != null && !htmlToLoad.trim().isEmpty()) {
-                loadHtmlIntoWebView(htmlToLoad);
+                String finalHtmlToLoad = htmlToLoad;
+                webView.animate().alpha(0f).setDuration(150).withEndAction(() -> {
+                    loadHtmlIntoWebView(finalHtmlToLoad);
+                    webView.animate().alpha(1f).setDuration(150).start();
+                }).start();
+
                 // Refresh buttons to update titles ("Show Original" vs "Show Translation")
                 refreshButtonVisibility();
 
@@ -1138,7 +1167,12 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
             String htmlToLoad = isSummarizedView ? summarizedHtml : originalHtml;
 
             if (htmlToLoad != null && !htmlToLoad.trim().isEmpty()) {
-                loadHtmlIntoWebView(htmlToLoad);
+                String finalHtmlToLoad = htmlToLoad;
+                webView.animate().alpha(0f).setDuration(150).withEndAction(() -> {
+                    loadHtmlIntoWebView(finalHtmlToLoad);
+                    webView.animate().alpha(1f).setDuration(150).start();
+                }).start();
+
                 // Refresh buttons to update titles
                 refreshButtonVisibility();
 
@@ -1870,5 +1904,13 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
     private void updatePlayPauseButtonIcon(boolean playing) {
         int iconRes = playing ? R.drawable.ic_pause : R.drawable.ic_play;
         playPauseButton.setIcon(ContextCompat.getDrawable(this, iconRes));
+    }
+
+    private void animateToolbarIcon(int itemId) {
+        View view = toolbar.findViewById(itemId);
+        if (view != null) {
+            android.view.animation.Animation bounce = android.view.animation.AnimationUtils.loadAnimation(this, R.anim.button_bounce);
+            view.startAnimation(bounce);
+        }
     }
 }
