@@ -139,7 +139,7 @@ public class EntryItemAdapter extends ListAdapter<EntryInfo, EntryItemAdapter.En
             textViewEntryPubDate.setText(pubDate);
 
             if (entryInfo.getVisitedDate() != null) {
-                textViewEntryTitle.setTextColor(Color.parseColor("#CD5C5C"));
+                textViewEntryTitle.setTextColor(ContextCompat.getColor(context, R.color.unreadText));
             }
 
             if (entryInfo.getBookmark() == null || entryInfo.getBookmark().equals("N")) {

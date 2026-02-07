@@ -318,7 +318,7 @@ public class MainActivity extends AppCompatActivity {
         NavigationUI.setupActionBarWithNavController(this, navController, appBarConfiguration);
         NavigationUI.setupWithNavController(binding.bottomNavigation, navController);
 
-        RecyclerView recyclerView = binding.navigationFeedsRecycler;
+        RecyclerView recyclerView = binding.navigationView.findViewById(R.id.navigationFeedsRecycler);
         recyclerView.setLayoutManager(new LinearLayoutManager(getBaseContext()));
         adapter = new NavigationFeedItemAdapter(new NavigationFeedItemAdapter.FeedItemClickInterface() {
             @Override
@@ -348,7 +348,7 @@ public class MainActivity extends AppCompatActivity {
             return handled;
         });
 
-        binding.allFeedsButton.setOnClickListener(new View.OnClickListener() {
+        binding.navigationView.findViewById(R.id.allFeedsButton).setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
                 drawerLayout.closeDrawer(GravityCompat.START);
@@ -362,7 +362,7 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
-        binding.addFeedButton.setOnClickListener(new View.OnClickListener() {
+        binding.navigationView.findViewById(R.id.addFeedButton).setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
                 NavOptions navOptions = new NavOptions.Builder()
@@ -373,7 +373,7 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
-        binding.navigationImportOpmlButton.setOnClickListener(new View.OnClickListener() {
+        binding.navigationView.findViewById(R.id.navigationImportOpmlButton).setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
                 // Create an intent for selecting multiple documents of OPML MIME type
@@ -386,7 +386,7 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
-        binding.navigationExportOpmlButton.setOnClickListener(new View.OnClickListener() {
+        binding.navigationView.findViewById(R.id.navigationExportOpmlButton).setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
                 // Create an intent for exporting the OPML file
@@ -400,7 +400,7 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
-        binding.settingsButton.setOnClickListener(new View.OnClickListener() {
+        binding.navigationView.findViewById(R.id.settingsButton).setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
                 NavOptions navOptions = new NavOptions.Builder()
@@ -411,7 +411,7 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
-        binding.helpButton.setOnClickListener(new View.OnClickListener() {
+        binding.navigationView.findViewById(R.id.helpButton).setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
                 NavOptions navOptions = new NavOptions.Builder()
@@ -422,7 +422,9 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
-        binding.themeButton.setOnClickListener(new View.OnClickListener() {
+        themeSwitch = binding.navigationView.findViewById(R.id.themeSwitch);
+
+        binding.navigationView.findViewById(R.id.themeButton).setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
                 themeSwitch.setChecked(!themeSwitch.isChecked());

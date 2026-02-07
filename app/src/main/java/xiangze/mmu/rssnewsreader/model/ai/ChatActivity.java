@@ -6,7 +6,7 @@ import android.view.KeyEvent;
 import android.view.MenuItem;
 import android.view.View;
 import android.widget.EditText;
-import android.widget.ImageButton;
+import com.google.android.material.button.MaterialButton;
 import android.widget.ProgressBar;
 import android.widget.Toast;
 
@@ -27,7 +27,7 @@ import xiangze.mmu.rssnewsreader.R;
 public class ChatActivity extends AppCompatActivity {
     private RecyclerView recyclerView;
     private EditText messageInput;
-    private ImageButton sendButton;
+    private MaterialButton sendButton;
     private ProgressBar progressBar;
     private ChatAdapter adapter;
     private List<Message> messages = new ArrayList<>();

@@ -1,11 +1,37 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="primary">#E36F65</color>
-    <color name="primary_opacity16">#29E36F65</color>
-    <color name="primary_lighter">#F0B0AA</color>
-    <color name="text">#DDFFFFFF</color>
-    <color name="stroke">#333333</color>
-    <color name="background">#121212</color>
-    <color name="unread">#803B3B3B</color>
-    <color name="unreadText">#B6B6B6</color>
+    <!-- Material 3 Core Roles - Purple Accent #340098 -->
+    <color name="primary">#4b21bd</color>
+    <color name="onPrimary">#FFFFFF</color>
+    <color name="primaryContainer">#4B21BD</color>
+    <color name="onPrimaryContainer">#E5DEFF</color>
+
+    <color name="secondary">#C9C3DC</color>
+    <color name="onSecondary">#312E42</color>
+    <color name="secondaryContainer">#474459</color>
+    <color name="onSecondaryContainer">#E5DFF9</color>
+
+    <color name="tertiary">#ECB9CC</color>
+    <color name="onTertiary">#482534</color>
+    <color name="tertiaryContainer">#613B4B</color>
+    <color name="onTertiaryContainer">#FFD8E5</color>
+
+    <color name="background">#1C1B1D</color>
+    <color name="onBackground">#E2E2E6</color>
+    <color name="surface">@color/background</color>
+    <color name="onSurface">@color/onBackground</color>
+
+    <color name="surfaceVariant">#47464F</color>
+    <color name="onSurfaceVariant">#C9C5D0</color>
+    <color name="outline">#928F99</color>
+    <color name="outlineVariant">#44474F</color>
+    <color name="surfaceContainer">#252329</color>
+
+    <!-- UI Component References (Legacy Compatibility) -->
+    <color name="primary_opacity16">#29340098</color>
+    <color name="primary_lighter">@color/primaryContainer</color>
+    <color name="text">@color/onSurface</color>
+    <color name="stroke">@color/surfaceVariant</color>
+    <color name="unread">@color/surfaceVariant</color>
+    <color name="unreadText">#C9C3DC</color>
 </resources>

@@ -11,9 +11,10 @@
     </style>
 
     <style name="Widget.App.BottomNavigationView" parent="Widget.Material3.BottomNavigationView">
-        <item name="backgroundTint">@color/background</item>
-        <item name="itemRippleColor">@color/bottom_nav_item_color</item>
+        <item name="backgroundTint">@color/surfaceContainer</item>
+        <item name="itemRippleColor">@color/primary_opacity16</item>
         <item name="itemIconTint">@color/bottom_nav_item_color</item>
+        <item name="itemTextColor">@color/bottom_nav_item_color</item>
     </style>
 
     <style name="Widget.App.SmallButton" parent="Widget.Material3.Button.IconButton">
@@ -76,8 +77,8 @@
     </style>
 
     <style name="Widget.App.EntryCard" parent="Widget.Material3.CardView.Outlined">
-        <item name="cardBackgroundColor">@color/background</item>
-        <item name="strokeColor">@color/background</item>
+        <item name="cardBackgroundColor">@color/surface</item>
+        <item name="strokeColor">@color/outlineVariant</item>
     </style>
 
     <style name="Widget.App.Chip" parent="Widget.Material3.Chip.Filter">

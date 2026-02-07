@@ -38,7 +38,7 @@
         <activity
             android:name=".model.ai.ChatActivity"
             android:label="AI Chatbot"
-            android:theme="@style/Theme.AppCompat.Light.NoActionBar" />
+            android:theme="@style/Theme.RSSNewsReader" />
         <activity
             android:name=".ui.main.MainActivity"
             android:exported="true"
