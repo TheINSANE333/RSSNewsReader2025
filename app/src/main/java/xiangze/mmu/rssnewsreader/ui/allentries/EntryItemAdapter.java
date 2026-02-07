@@ -140,6 +140,10 @@ public class EntryItemAdapter extends ListAdapter<EntryInfo, EntryItemAdapter.En
 
             if (entryInfo.getVisitedDate() != null) {
                 textViewEntryTitle.setTextColor(ContextCompat.getColor(context, R.color.unreadText));
+                view.setAlpha(0.9f);
+            } else {
+                textViewEntryTitle.setTextColor(ContextCompat.getColor(context, R.color.text));
+                view.setAlpha(1.0f);
             }
 
             if (entryInfo.getBookmark() == null || entryInfo.getBookmark().equals("N")) {

@@ -33,5 +33,5 @@
     <color name="text">@color/onSurface</color>
     <color name="stroke">@color/surfaceVariant</color>
     <color name="unread">@color/surfaceVariant</color>
-    <color name="unreadText">#C9C3DC</color>
+    <color name="unreadText">#727272</color>
 </resources>
