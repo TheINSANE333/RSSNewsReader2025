@@ -180,7 +180,7 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
     private void doWhenTranslationFinish(EntryInfo entryInfo, String originalHtml, String translatedHtml) {
         loading.clearAnimation();
         loading.setVisibility(View.INVISIBLE);
-        webView.animate().alpha(1.0f).setDuration(500).start();
+        webView.animate().alpha(1.0f).setDuration(800).start();
 
         translatedHtml = translatedHtml
                 .replaceAll("(?s)^\\s*```[a-zA-Z]*\\n?", "") // Removes the opening ```html
@@ -200,13 +200,14 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
         Document doc = Jsoup.parse(translatedHtml.substring(
             translatedHtml.indexOf("[CONTENT]") + 9
         ).trim());
-        doc.head().append(webViewViewModel.getStyle());
+        doc.head().append(webViewViewModel.getStyle(sharedPreferencesRepository.getNight()));
         Objects.requireNonNull(doc.selectFirst("body"))
                 .prepend(webViewViewModel.getHtml(
                         entryInfo.getEntryTitle(),
                         entryInfo.getFeedTitle(),
                         entryInfo.getEntryPublishedDate(),
-                        entryInfo.getFeedImageUrl()
+                        entryInfo.getFeedImageUrl(),
+                        sharedPreferencesRepository.getNight()
                 ));
         String finalHtml = doc.html();
 
@@ -239,7 +240,7 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
     private void doWhenSummarizationFinish(EntryInfo entryInfo, String originalHtml, String summarizedHtml) {
         loading.clearAnimation();
         loading.setVisibility(View.INVISIBLE);
-        webView.animate().alpha(1.0f).setDuration(500).start();
+        webView.animate().alpha(1.0f).setDuration(800).start();
 
         if (webViewViewModel.getOriginalHtmlById(currentId) == null && originalHtml != null) {
             webViewViewModel.updateOriginalHtml(originalHtml, currentId);
@@ -248,13 +249,14 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
         }
 
         Document doc = Jsoup.parse(summarizedHtml);
-        doc.head().append(webViewViewModel.getStyle());
+        doc.head().append(webViewViewModel.getStyle(sharedPreferencesRepository.getNight()));
         Objects.requireNonNull(doc.selectFirst("body"))
                 .prepend(webViewViewModel.getHtml(
                         entryInfo.getEntryTitle(),
                         entryInfo.getFeedTitle(),
                         entryInfo.getEntryPublishedDate(),
-                        entryInfo.getFeedImageUrl()
+                        entryInfo.getFeedImageUrl(),
+                        sharedPreferencesRepository.getNight()
                 ));
         String finalHtml = doc.html();
 
@@ -625,7 +627,7 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
 
     private void loadHtmlIntoWebView(String html) {
         Document doc = Jsoup.parse(html);
-        doc.head().append(webViewViewModel.getStyle());
+        doc.head().append(webViewViewModel.getStyle(sharedPreferencesRepository.getNight()));
 
         EntryInfo entryInfo = webViewViewModel.getEntryInfoById(currentId);
         if (entryInfo != null && !doc.html().contains("class=\"entry-header\"")) {
@@ -634,7 +636,8 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
                         entryInfo.getEntryTitle(),
                         entryInfo.getFeedTitle(),
                         entryInfo.getEntryPublishedDate(),
-                        entryInfo.getFeedImageUrl()
+                        entryInfo.getFeedImageUrl(),
+                        sharedPreferencesRepository.getNight()
                 )
             );
         }
@@ -913,7 +916,7 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
         }
 
         Document doc = Jsoup.parse(html);
-        doc.head().append(webViewViewModel.getStyle());
+        doc.head().append(webViewViewModel.getStyle(sharedPreferencesRepository.getNight()));
 
         EntryInfo entryInfo = webViewViewModel.getEntryInfoById(currentId);
         if (entryInfo != null && !doc.html().contains("class=\"entry-header\"")) {
@@ -922,7 +925,8 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
                             entryInfo.getEntryTitle(),
                             entryInfo.getFeedTitle(),
                             entryInfo.getEntryPublishedDate(),
-                            entryInfo.getFeedImageUrl()
+                            entryInfo.getFeedImageUrl(),
+                            sharedPreferencesRepository.getNight()
                     )
             );
         }
@@ -1126,7 +1130,6 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
                 String finalHtmlToLoad = htmlToLoad;
                 webView.animate().alpha(0f).setDuration(150).withEndAction(() -> {
                     loadHtmlIntoWebView(finalHtmlToLoad);
-                    webView.animate().alpha(1f).setDuration(150).start();
                 }).start();
 
                 // Refresh buttons to update titles ("Show Original" vs "Show Translation")
@@ -1170,7 +1173,6 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
                 String finalHtmlToLoad = htmlToLoad;
                 webView.animate().alpha(0f).setDuration(150).withEndAction(() -> {
                     loadHtmlIntoWebView(finalHtmlToLoad);
-                    webView.animate().alpha(1f).setDuration(150).start();
                 }).start();
 
                 // Refresh buttons to update titles
@@ -1201,14 +1203,15 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
         String html = webViewViewModel.getHtmlById(entryInfo.getEntryId());
 
         Document doc = Jsoup.parse(html);
-        doc.head().append(webViewViewModel.getStyle());
+        doc.head().append(webViewViewModel.getStyle(sharedPreferencesRepository.getNight()));
 
         Objects.requireNonNull(doc.selectFirst("body")).prepend(
                 webViewViewModel.getHtml(
                         entryInfo.getEntryTitle(),
                         entryInfo.getFeedTitle(),
                         entryInfo.getEntryPublishedDate(),
-                        entryInfo.getFeedImageUrl()
+                        entryInfo.getFeedImageUrl(),
+                        sharedPreferencesRepository.getNight()
                 )
         );
 
@@ -1316,6 +1319,7 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
     }
 
     private void initializeWebViewSettings() {
+        webView.setBackgroundColor(0);
         webView.getSettings().setJavaScriptEnabled(true);
         webView.getSettings().setDomStorageEnabled(true);
         webView.getSettings().setBuiltInZoomControls(true);
@@ -1728,6 +1732,7 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
         public void onPageCommitVisible(WebView view, String url) {
             super.onPageCommitVisible(view, url);
             Log.d(TAG, "WebClient: onPageCommitVisible - loadingWebView hidden.");
+            webView.animate().alpha(1.0f).setDuration(800).setStartDelay(400).start();
             webViewViewModel.setLoadingState(false);
             if (content != null) {
                 if (currentId != ttsPlaylist.getPlayingId()) {
@@ -1772,6 +1777,7 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
             super.onPageCommitVisible(view, url);
             loading.setVisibility(View.INVISIBLE);
             Log.d(TAG, "ReadingWebClient: onPageCommitVisible - loadingWebView hidden.");
+            webView.animate().alpha(1.0f).setDuration(800).setStartDelay(400).start();
             webViewViewModel.setLoadingState(false);
         }
     }

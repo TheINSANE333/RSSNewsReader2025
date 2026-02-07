@@ -376,13 +376,14 @@ public class AllEntriesFragment extends Fragment implements EntryItemAdapter.Ent
 
         // Handle html
         Document doc = Jsoup.parse(translatedHtml);
-        doc.head().append(webViewViewModel.getStyle());
+        doc.head().append(webViewViewModel.getStyle(sharedPreferencesRepository.getNight()));
         Objects.requireNonNull(doc.selectFirst("body"))
                 .prepend(webViewViewModel.getHtml(
                         entryInfo.getEntryTitle(),
                         entryInfo.getFeedTitle(),
                         entryInfo.getEntryPublishedDate(),
-                        entryInfo.getFeedImageUrl()
+                        entryInfo.getFeedImageUrl(),
+                        sharedPreferencesRepository.getNight()
                 ));
         String finalHtml = doc.html();
 

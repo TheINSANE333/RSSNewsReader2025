@@ -114,7 +114,8 @@ public class WebViewViewModel extends ViewModel {
         return entryRepository.getSummarizedHtmlById(id);
     }
 
-    public String getStyle() {
+    public String getStyle(boolean isNightMode) {
+        String textColor = isNightMode ? "#E2E2E6" : "#1B1B1F";
         return "<style>\n" +
                 "    @font-face {\n" +
                 "        font-family: open_sans;\n" +
@@ -124,13 +125,15 @@ public class WebViewViewModel extends ViewModel {
                 "        font-family: open_sans;\n" +
                 "        text-align: justify;\n" +
                 "        font-size: 0.875em;\n" +
+                "        color: " + textColor + ";\n" +
                 "    }\n" +
                 "</style>";
     }
 
     @SuppressLint("SimpleDateFormat")
-    public String getHtml(String entryTitle, String feedTitle, Date publishDate, String feedImageUrl) {
-        return "<div class=\"entry-header\">" +
+    public String getHtml(String entryTitle, String feedTitle, Date publishDate, String feedImageUrl, boolean isNightMode) {
+        String textColor = isNightMode ? "#E2E2E6" : "#1B1B1F";
+        return "<div class=\"entry-header\" style=\"color: " + textColor + "\">" +
                 "  <div style=\"display: flex; align-items: center;\">" +
                 "    <img style=\"margin-right: 10px; width: 20px; height: 20px\" src=" + feedImageUrl + ">" +
                 "    <p style=\"font-size: 0.75em\">" + feedTitle + "</p>" +
