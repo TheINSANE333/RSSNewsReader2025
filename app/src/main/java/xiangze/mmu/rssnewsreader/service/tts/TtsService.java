@@ -3,6 +3,7 @@ package xiangze.mmu.rssnewsreader.service.tts;
 import android.annotation.SuppressLint;
 import android.app.Notification;
 import android.app.PendingIntent;
+import android.app.Service;
 import android.content.ComponentName;
 import android.content.Intent;
 import android.os.Build;
@@ -16,6 +17,7 @@ import android.util.Log;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.core.app.ServiceCompat;
 import androidx.core.content.ContextCompat;
 import androidx.media.MediaBrowserServiceCompat;
 import androidx.media.session.MediaButtonReceiver;
@@ -93,8 +95,6 @@ public class TtsService extends MediaBrowserServiceCompat {
 
         // 5. Configure Session Properties
         mediaSession.setMediaButtonReceiver(mbrPendingIntent);
-        mediaSession.setFlags(MediaSessionCompat.FLAG_HANDLES_MEDIA_BUTTONS |
-                MediaSessionCompat.FLAG_HANDLES_TRANSPORT_CONTROLS);
         mediaSession.setCallback(callback);
 
         // 6. Set Initial Playback State
@@ -497,9 +497,7 @@ public class TtsService extends MediaBrowserServiceCompat {
 
                 Log.d(TAG, "notification to pause");
 
-                if (Build.VERSION.SDK_INT < 31) {
-                    stopForeground(false);
-                }
+                ServiceCompat.stopForeground(TtsService.this, ServiceCompat.STOP_FOREGROUND_DETACH);
 
                 Notification notification = ttsNotification.getNotification(preparedData, state, getSessionToken());
                 ttsNotification.getNotificationManager().notify(TtsNotification.TTS_NOTIFICATION_ID, notification);
@@ -509,7 +507,7 @@ public class TtsService extends MediaBrowserServiceCompat {
                 if (serviceInStartedState) {
                     Log.d(TAG, "notification destroyed");
                     ttsNotification.getNotificationManager().cancelAll();
-                    stopForeground(true);
+                    ServiceCompat.stopForeground(TtsService.this, ServiceCompat.STOP_FOREGROUND_REMOVE);
                     serviceInStartedState = false;
                 }
             }

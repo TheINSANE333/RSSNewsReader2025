@@ -156,8 +156,14 @@ public class TtsPlayer extends PlayerAdapter implements TtsPlayerListener {
             }
 
             @Override
+            @Deprecated
             public void onError(String s) {
-                Log.d("TTS", "onError");
+                Log.d("TTS", "onError: " + s);
+            }
+
+            @Override
+            public void onError(String utteranceId, int errorCode) {
+                Log.e(TAG, "TTS Error for utterance " + utteranceId + ", code: " + errorCode);
             }
         });
     }
@@ -359,7 +365,7 @@ public class TtsPlayer extends PlayerAdapter implements TtsPlayerListener {
                 try {
                     Log.d(TAG, "Setting TTS language to: " + language);
                     Log.d(TAG, "setupTts() using language: " + language);
-                    setLanguage(new Locale(language), true);
+                    setLanguage(Locale.forLanguageTag(language), true);
                 } catch (Exception e) {
                     Log.d(TAG, "Invalid locale " + e.getMessage());
                     setLanguage(Locale.ENGLISH, true);
@@ -401,7 +407,7 @@ public class TtsPlayer extends PlayerAdapter implements TtsPlayerListener {
                         setLanguage(Locale.ENGLISH, fromService);
                     } else {
                         Log.i(TAG, "Language: " + languageCode);
-                        setLanguage(new Locale(languageCode), fromService);
+                        setLanguage(Locale.forLanguageTag(languageCode), fromService);
                     }
                     if (!fromService) {
                         doSpeak(sentence);

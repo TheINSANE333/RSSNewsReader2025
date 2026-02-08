@@ -101,7 +101,7 @@ public class EntryItemDialog extends AppCompatDialogFragment {
         entryTitle.setText(entryInfo.getEntryTitle());
         entryDate.setText(new SimpleDateFormat("EEE, d MMM yyyy").format(entryInfo.getEntryPublishedDate()));
         if (entryInfo.getEntryDescription() != null) {
-            entryDesc.setText(Html.fromHtml(entryInfo.getEntryDescription()));
+            entryDesc.setText(Html.fromHtml(entryInfo.getEntryDescription(), Html.FROM_HTML_MODE_LEGACY));
         }
 
         if (entryInfo.getBookmark() == null || entryInfo.getBookmark().equals("N")) {
@@ -110,7 +110,7 @@ public class EntryItemDialog extends AppCompatDialogFragment {
             bookmarkButton.setIcon(R.drawable.ic_bookmark_filled);
         }
 
-        binding.entryDialogToolbar.setNavigationOnClickListener(view -> getDialog().onBackPressed());
+        binding.entryDialogToolbar.setNavigationOnClickListener(view -> dismiss());
 
         binding.entryDialogToolbar.setOnMenuItemClickListener(new Toolbar.OnMenuItemClickListener() {
             @Override

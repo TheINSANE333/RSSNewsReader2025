@@ -11,6 +11,8 @@ import android.view.View;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
+import androidx.webkit.WebSettingsCompat;
+import androidx.webkit.WebViewFeature;
 
 import androidx.activity.OnBackPressedCallback;
 import androidx.annotation.Nullable;

@@ -96,7 +96,7 @@ public class LanguageSelectionDialog extends AppCompatDialogFragment {
         radioGroup.addView(identifierRadioButton);
 
         for (Map.Entry<String, Integer> entry : languagesMap.entrySet()) {
-            Locale locale = new Locale(entry.getKey());
+            Locale locale = Locale.forLanguageTag(entry.getKey());
             RadioButton radioButton = new RadioButton(requireContext());
             radioButton.setText(locale.getDisplayName());
             radioButton.setId(entry.getValue());

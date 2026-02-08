@@ -25,12 +25,15 @@ import android.webkit.WebChromeClient;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
+import androidx.webkit.WebSettingsCompat;
+import androidx.webkit.WebViewFeature;
 import android.widget.LinearLayout;
 
 import androidx.activity.OnBackPressedCallback;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.app.ActivityOptionsCompat;
 import androidx.core.content.ContextCompat;
 import androidx.lifecycle.LiveData;
 import androidx.lifecycle.Observer;
@@ -521,7 +524,9 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
             @Override
             public void handleOnBackPressed() {
                 finish();
-                overridePendingTransition(R.anim.article_pop_enter, R.anim.article_pop_exit);
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                    overrideActivityTransition(OVERRIDE_TRANSITION_CLOSE, R.anim.article_pop_enter, R.anim.article_pop_exit);
+                }
             }
         });
 
@@ -1298,7 +1303,7 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
     }
 
     private void initializeToolbarListeners() {
-        toolbar.setNavigationOnClickListener(view -> onBackPressed());
+        toolbar.setNavigationOnClickListener(view -> getOnBackPressedDispatcher().onBackPressed());
 
         toolbar.setOnMenuItemClickListener(item -> {
             int itemId = item.getItemId();
@@ -1367,11 +1372,6 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             webView.getSettings().setAlgorithmicDarkeningAllowed(sharedPreferencesRepository.getNight());
-        } else {
-            boolean isNight = sharedPreferencesRepository.getNight();
-            webView.getSettings().setForceDark(isNight
-                    ? WebSettings.FORCE_DARK_ON
-                    : WebSettings.FORCE_DARK_OFF);
         }
 
         webView.setWebChromeClient(new WebChromeClient() {
@@ -1642,9 +1642,13 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
         }
 
         finish();
-        overridePendingTransition(0, 0);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+            overrideActivityTransition(OVERRIDE_TRANSITION_CLOSE, 0, 0);
+        }
         startActivity(getIntent());
-        overridePendingTransition(0, 0);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+            overrideActivityTransition(OVERRIDE_TRANSITION_OPEN, 0, 0);
+        }
     }
 
     @Override

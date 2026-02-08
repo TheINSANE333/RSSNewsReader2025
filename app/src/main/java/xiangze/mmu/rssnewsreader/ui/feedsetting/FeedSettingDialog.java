@@ -62,7 +62,7 @@ public class FeedSettingDialog extends AppCompatDialogFragment implements FeedSe
             speechRateDisplay = getArguments().getFloat("ttsSpeechRate");
             if (language != null) {
                 try {
-                    Locale locale = new Locale(language);
+                    Locale locale = Locale.forLanguageTag(language);
                     languageDisplayName = locale.getDisplayName();
                 } catch (Exception e) {
                     Log.d(TAG, "Failed to create Locale " + e.getMessage());
@@ -149,7 +149,7 @@ public class FeedSettingDialog extends AppCompatDialogFragment implements FeedSe
         if (language == null) {
             languageTextView.setText(newLanguage);
         } else {
-            Locale locale = new Locale(newLanguage);
+            Locale locale = Locale.forLanguageTag(newLanguage);
             languageTextView.setText(locale.getDisplayName());
         }
     }

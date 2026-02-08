@@ -88,7 +88,11 @@ public abstract class PlayerAdapter {
 
     private void registerAudioNoisyReceiver() {
         if (!mAudioNoisyReceiverRegistered) {
-            mApplicationContext.registerReceiver(mAudioNoisyReceiver, AUDIO_NOISY_INTENT_FILTER);
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                mApplicationContext.registerReceiver(mAudioNoisyReceiver, AUDIO_NOISY_INTENT_FILTER, Context.RECEIVER_NOT_EXPORTED);
+            } else {
+                mApplicationContext.registerReceiver(mAudioNoisyReceiver, AUDIO_NOISY_INTENT_FILTER);
+            }
             mAudioNoisyReceiverRegistered = true;
         }
     }
@@ -125,8 +129,7 @@ public abstract class PlayerAdapter {
         private void abandonAudioFocus() {
             if (mFocusRequest != null) {
                 mAudioManager.abandonAudioFocusRequest(mFocusRequest);
-            } else {
-                mAudioManager.abandonAudioFocus(this);
+                mFocusRequest = null;
             }
         }
 

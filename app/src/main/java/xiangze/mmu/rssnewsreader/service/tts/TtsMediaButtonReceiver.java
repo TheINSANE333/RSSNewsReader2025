@@ -21,6 +21,7 @@ import android.view.KeyEvent;
 
 import androidx.annotation.RestrictTo;
 import androidx.core.content.ContextCompat;
+import androidx.core.content.IntentCompat;
 import androidx.media.MediaBrowserServiceCompat;
 import androidx.media.session.MediaButtonReceiver;
 
@@ -92,7 +93,7 @@ public class TtsMediaButtonReceiver extends BroadcastReceiver {
             return;
         }
 
-        KeyEvent keyEvent = intent.getParcelableExtra(Intent.EXTRA_KEY_EVENT);
+        KeyEvent keyEvent = IntentCompat.getParcelableExtra(intent, Intent.EXTRA_KEY_EVENT, KeyEvent.class);
         if (keyEvent == null) {
             Log.d(TAG, "No KeyEvent found in the intent");
             return;
@@ -187,7 +188,7 @@ public class TtsMediaButtonReceiver extends BroadcastReceiver {
         public void onConnected() {
             MediaControllerCompat mediaController = new MediaControllerCompat(mContext,
                     mMediaBrowser.getSessionToken());
-            KeyEvent ke = mIntent.getParcelableExtra(Intent.EXTRA_KEY_EVENT);
+            KeyEvent ke = IntentCompat.getParcelableExtra(mIntent, Intent.EXTRA_KEY_EVENT, KeyEvent.class);
             mediaController.dispatchMediaButtonEvent(ke);
             finish();
         }
@@ -225,7 +226,7 @@ public class TtsMediaButtonReceiver extends BroadcastReceiver {
                 || !intent.hasExtra(Intent.EXTRA_KEY_EVENT)) {
             return null;
         }
-        KeyEvent ke = intent.getParcelableExtra(Intent.EXTRA_KEY_EVENT);
+        KeyEvent ke = IntentCompat.getParcelableExtra(intent, Intent.EXTRA_KEY_EVENT, KeyEvent.class);
         MediaControllerCompat mediaController = mediaSessionCompat.getController();
         mediaController.dispatchMediaButtonEvent(ke);
         return ke;
