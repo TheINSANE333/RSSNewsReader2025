@@ -26,16 +26,14 @@ public class RssNotification {
     }
 
     public void sendNotification(String text) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            if (notificationManager.getNotificationChannel(RSS_CHANNEL_ID) == null) {
-                NotificationChannel rssChannel = new NotificationChannel(
-                        RSS_CHANNEL_ID,
-                        "Channel RSS",
-                        NotificationManager.IMPORTANCE_HIGH
-                );
-                rssChannel.setDescription("RSS Notification Channel");
-                notificationManager.createNotificationChannel(rssChannel);
-            }
+        if (notificationManager.getNotificationChannel(RSS_CHANNEL_ID) == null) {
+            NotificationChannel rssChannel = new NotificationChannel(
+                    RSS_CHANNEL_ID,
+                    "Channel RSS",
+                    NotificationManager.IMPORTANCE_HIGH
+            );
+            rssChannel.setDescription("RSS Notification Channel");
+            notificationManager.createNotificationChannel(rssChannel);
         }
 
         Notification notification = new NotificationCompat.Builder(context, RSS_CHANNEL_ID)

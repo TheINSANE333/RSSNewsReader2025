@@ -99,14 +99,8 @@ public class LoginWebViewActivity extends AppCompatActivity {
             webView.getSettings().setTextZoom(textZoom);
         }
 
-        if (sharedPreferencesRepository.getNight()) {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                webView.getSettings().setForceDark(WebSettings.FORCE_DARK_ON);
-            }
-        } else {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                webView.getSettings().setForceDark(WebSettings.FORCE_DARK_OFF);
-            }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            webView.getSettings().setAlgorithmicDarkeningAllowed(sharedPreferencesRepository.getNight());
         }
 
         webView.loadUrl(link);
@@ -123,8 +117,8 @@ public class LoginWebViewActivity extends AppCompatActivity {
         }
 
         @Override
-        public boolean shouldOverrideUrlLoading(WebView view,String url){
-            view.loadUrl(url);
+        public boolean shouldOverrideUrlLoading(WebView view, android.webkit.WebResourceRequest request) {
+            view.loadUrl(request.getUrl().toString());
             return true;
         }
 

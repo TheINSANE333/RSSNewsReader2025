@@ -1365,7 +1365,9 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
             webView.getSettings().setTextZoom(textZoom);
         }
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            webView.getSettings().setAlgorithmicDarkeningAllowed(sharedPreferencesRepository.getNight());
+        } else {
             boolean isNight = sharedPreferencesRepository.getNight();
             webView.getSettings().setForceDark(isNight
                     ? WebSettings.FORCE_DARK_ON
@@ -1758,8 +1760,8 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
         }
 
         @Override
-        public boolean shouldOverrideUrlLoading(WebView view, String url) {
-            view.loadUrl(url);
+        public boolean shouldOverrideUrlLoading(WebView view, android.webkit.WebResourceRequest request) {
+            view.loadUrl(request.getUrl().toString());
             return true;
         }
 
@@ -1803,8 +1805,8 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
         }
 
         @Override
-        public boolean shouldOverrideUrlLoading(WebView view, String url) {
-            view.loadUrl(url);
+        public boolean shouldOverrideUrlLoading(WebView view, android.webkit.WebResourceRequest request) {
+            view.loadUrl(request.getUrl().toString());
             return true;
         }
 

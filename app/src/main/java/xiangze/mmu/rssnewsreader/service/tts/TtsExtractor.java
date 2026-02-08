@@ -261,8 +261,8 @@ public class TtsExtractor {
         }
 
         @Override
-        public boolean shouldOverrideUrlLoading(WebView view, String url) {
-            view.loadUrl(url);
+        public boolean shouldOverrideUrlLoading(WebView view, android.webkit.WebResourceRequest request) {
+            view.loadUrl(request.getUrl().toString());
             return true;
         }
 

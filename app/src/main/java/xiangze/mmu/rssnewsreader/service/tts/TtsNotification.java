@@ -83,19 +83,17 @@ public class TtsNotification extends Notification {
     }
 
     private Notification buildNotification(@NonNull PlaybackStateCompat state, MediaSessionCompat.Token token, MediaDescriptionCompat description) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            if (notificationManager.getNotificationChannel(TTS_CHANNEL_ID) == null) {
-                NotificationChannel ttsChannel = new NotificationChannel(
-                        TTS_CHANNEL_ID,
-                        "Channel TTS",
-                        NotificationManager.IMPORTANCE_LOW
-                );
-                ttsChannel.setDescription("Text To Speech Notification Channel");
-                ttsChannel.enableVibration(true);
-                ttsChannel.setVibrationPattern(
-                        new long[]{100, 200, 300, 400, 500, 400, 300, 200, 400});
-                notificationManager.createNotificationChannel(ttsChannel);
-            }
+        if (notificationManager.getNotificationChannel(TTS_CHANNEL_ID) == null) {
+            NotificationChannel ttsChannel = new NotificationChannel(
+                    TTS_CHANNEL_ID,
+                    "Channel TTS",
+                    NotificationManager.IMPORTANCE_LOW
+            );
+            ttsChannel.setDescription("Text To Speech Notification Channel");
+            ttsChannel.enableVibration(true);
+            ttsChannel.setVibrationPattern(
+                    new long[]{100, 200, 300, 400, 500, 400, 300, 200, 400});
+            notificationManager.createNotificationChannel(ttsChannel);
         }
 
         NotificationCompat.Builder builder = new NotificationCompat.Builder(ttsService, TTS_CHANNEL_ID)
@@ -135,13 +133,8 @@ public class TtsNotification extends Notification {
     private PendingIntent createContentIntent() {
         Intent openUI = new Intent(ttsService, WebViewActivity.class);
         openUI.setFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP);
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            return PendingIntent.getActivity(ttsService,
-                    REQUEST_CODE, openUI, PendingIntent.FLAG_CANCEL_CURRENT | PendingIntent.FLAG_IMMUTABLE);
-        } else {
-            return PendingIntent.getActivity(ttsService,
-                    REQUEST_CODE, openUI, PendingIntent.FLAG_UPDATE_CURRENT);
-        }
+        return PendingIntent.getActivity(ttsService,
+                REQUEST_CODE, openUI, PendingIntent.FLAG_CANCEL_CURRENT | PendingIntent.FLAG_IMMUTABLE);
     }
 
 }

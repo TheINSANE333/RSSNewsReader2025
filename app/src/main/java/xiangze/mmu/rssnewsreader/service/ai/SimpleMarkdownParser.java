@@ -17,10 +17,6 @@ public class SimpleMarkdownParser {
         text = text.replaceAll("`(.*?)`", "<tt>$1</tt>");
 
         // Use Android's fromHtml for basic formatting
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.N) {
-            return new SpannableString(Html.fromHtml(text, Html.FROM_HTML_MODE_LEGACY));
-        } else {
-            return new SpannableString(Html.fromHtml(text));
-        }
+        return new SpannableString(Html.fromHtml(text, Html.FROM_HTML_MODE_LEGACY));
     }
 }
