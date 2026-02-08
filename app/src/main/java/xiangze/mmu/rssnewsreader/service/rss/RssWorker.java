@@ -56,12 +56,14 @@ public class RssWorker extends Worker {
             }
 
             AutoSummarizer autoSummarizer = new AutoSummarizer(
+                    context,
                     feedRepository.getEntryRepository(),
                     new TextUtil(feedRepository.getSharedPreferencesRepository()),
                     feedRepository.getSharedPreferencesRepository()
             );
 
             AutoTranslator autoTranslator = new AutoTranslator(
+                    context,
                     feedRepository.getEntryRepository(),
                     new TextUtil(feedRepository.getSharedPreferencesRepository()),
                     feedRepository.getSharedPreferencesRepository()

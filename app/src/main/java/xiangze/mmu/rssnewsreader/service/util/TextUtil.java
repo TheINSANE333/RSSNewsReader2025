@@ -67,7 +67,7 @@ public class TextUtil {
 
         // 1. Extract structured elements
         Elements elements = doc.select(
-                "h2, h3, h4, h5, h6, p, td, th, li, figcaption, blockquote"
+                "h2, h3, h4, h5, h6, p, td, th, li, figcaption, blockquote, section, pre"
         );
 
         for (Element element : elements) {

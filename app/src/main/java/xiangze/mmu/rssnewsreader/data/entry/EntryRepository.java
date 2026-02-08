@@ -412,6 +412,14 @@ public class EntryRepository {
         return entryDao.getEntryEntityById(id);
     }
 
+    public void updateSummarizedResult(long id, String html, String summarized, String summarizedHtml) {
+        entryDao.updateSummarizedResult(id, html, summarized, summarizedHtml);
+    }
+
+    public void updateTranslatedResult(long id, String html, String translated, String translatedHtml, String title) {
+        entryDao.updateTranslatedResult(id, html, translated, translatedHtml, title);
+    }
+
     public Entry getEntryById(long id) {
         return entryDao.getEntryById(id);
     }

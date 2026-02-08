@@ -96,6 +96,8 @@ public class TtsExtractor {
                 webView.clearCache(true);
                 webView.getSettings().setJavaScriptEnabled(true);
                 webView.getSettings().setDomStorageEnabled(true);
+                webView.getSettings().setUserAgentString("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36");
+                webView.getSettings().setMediaPlaybackRequiresUserGesture(false);
             }
         });
     }
@@ -269,7 +271,7 @@ public class TtsExtractor {
             Log.d(TAG, "[onPageFinished] triggered for: " + url);
             super.onPageFinished(view, url);
             final String executionToken = currentLoadToken;
-            if (extractionInProgress && view.getProgress() == 100) {
+            if (extractionInProgress) {
                 handler.postDelayed(new Runnable() {
                     @Override
                     public void run() {
@@ -305,191 +307,7 @@ public class TtsExtractor {
                 String html = reader.nextString();
 
                 if (html != null) {
-                    // 1. Parse with Readability4J
-                    Readability4JExtended readability4J = new Readability4JExtended(currentLink, html);
-                    Article article = readability4J.parse();
-                    StringBuilder content = new StringBuilder();
-
-                    if (currentTitle != null && !currentTitle.isEmpty()) {
-                        content.append(currentTitle).append(delimiter);
-                    }
-
-                    String articleContent = article.getContentWithUtf8Encoding();
-                    if (articleContent != null) {
-                        // 2. Clean with Jsoup
-                        Document doc = Jsoup.parse(articleContent);
-
-                        // Clean images and layout
-                        doc.select("img").removeAttr("width");
-                        doc.select("img").removeAttr("height");
-                        doc.select("img").removeAttr("sizes");
-                        doc.select("img").removeAttr("srcset");
-                        doc.select("h1").remove();
-                        doc.select("img").attr("style", "border-radius: 5px; width: 100%; margin-left:0");
-                        doc.select("figure").attr("style", "width: 100%; margin-left:0");
-                        doc.select("iframe").attr("style", "width: 100%; margin-left:0");
-
-                        List<String> tags = Arrays.asList("h2", "h3", "h4", "h5", "h6", "p", "td", "pre", "th", "li", "figcaption", "blockquote", "section");
-
-                        // Initialize the Sentence Iterator with Locale.ROOT for universal language support
-                        BreakIterator sentenceIterator = BreakIterator.getSentenceInstance(Locale.ROOT);
-
-                        // Extract text by sentences
-                        for (Element element : doc.getAllElements()) {
-                            if (tags.contains(element.tagName())) {
-                                // Check if this element contains other "target" tags to avoid double-processing nested content
-                                boolean hasNestedTag = false;
-                                for (Element child : element.children()) {
-                                    if (tags.contains(child.tagName())) {
-                                        hasNestedTag = true;
-                                        break;
-                                    }
-                                }
-
-                                if (!hasNestedTag) {
-                                    String elementText = element.text().trim();
-                                    if (!elementText.isEmpty() && elementText.length() > 1) {
-
-                                        // --- START SENTENCE SPLITTING LOGIC ---
-                                        sentenceIterator.setText(elementText);
-                                        int start = sentenceIterator.first();
-                                        int end = sentenceIterator.next();
-
-                                        while (end != BreakIterator.DONE) {
-                                            String candidate = elementText.substring(start, end);
-                                            String sentence = candidate.trim();
-
-                                            // Check if the sentence ends with a common abbreviation
-                                            if (TextUtil.endsWithAbbreviation(sentence)) {
-                                                int nextEnd = sentenceIterator.next();
-                                                if (nextEnd != BreakIterator.DONE) {
-                                                    end = nextEnd;
-                                                    continue;
-                                                }
-                                            }
-
-                                            if (!sentence.isEmpty()) {
-                                                if (content.length() > 0) {
-                                                    // Always add delimiter BEFORE adding a new sentence
-                                                    content.append(delimiter).append(sentence);
-                                                } else {
-                                                    content.append(sentence);
-                                                }
-                                            }
-                                            start = end;
-                                            end = sentenceIterator.next();
-                                        }
-                                        // --- END SENTENCE SPLITTING LOGIC ---
-
-                                    } else if (elementText.length() <= 1) {
-                                        element.remove();
-                                    }
-                                }
-                            }
-                        }
-
-                        // Save Content & Backup HTML
-                        entryRepository.updateContent(content.toString(), currentIdInProgress);
-                        entryRepository.updateOriginalHtml(doc.html(), currentIdInProgress);
-
-                        // View State Logic
-                        boolean isSummarizedView = sharedPreferencesRepository.getIsSummarizedView(currentIdInProgress);
-                        String existingSummarized = entryRepository.getSummarizedTextById(currentIdInProgress);
-                        boolean hasSummarization = existingSummarized != null && !existingSummarized.trim().isEmpty();
-
-                        if (!isSummarizedView || !hasSummarization) {
-                            entryRepository.updateHtml(doc.html(), currentIdInProgress);
-                        }
-
-                        boolean isTranslatedView = sharedPreferencesRepository.getIsTranslatedView(currentIdInProgress);
-                        String existingTranslated = entryRepository.getTranslatedTextById(currentIdInProgress);
-                        boolean hasTranslation = existingTranslated != null && !existingTranslated.trim().isEmpty();
-
-                        if (!isTranslatedView || !hasTranslation) {
-                            entryRepository.updateHtml(doc.html(), currentIdInProgress);
-                        }
-
-                        // 3. Loop Guard
-                        final long processingId = currentIdInProgress;
-                        final String processingTitle = currentTitle;
-
-                        if (processingId == lastSuccessfullyProcessedId) {
-                            Log.e(TAG, "LOOP DETECTED on ID " + processingId + ". Aborting.");
-                            if (webViewCallback != null) {
-                                webViewCallback.makeSnackbar("Queue stopped: Loop detected.");
-                                webViewCallback.finishedSetup();
-                            }
-                            extractionInProgress = false;
-                            currentIdInProgress = -1;
-                            return;
-                        }
-
-                        boolean shouldTranslate = sharedPreferencesRepository.getAutoTranslate();
-                        boolean shouldSummarize = sharedPreferencesRepository.getAutoSummarize();
-                        int length = sharedPreferencesRepository.getSummaryLength();
-
-                        // 4. Determine Source Language
-                        Single<String> sourceLangSingle;
-                        if (currentLanguage != null && !currentLanguage.isEmpty() && !"und".equalsIgnoreCase(currentLanguage)) {
-                            sourceLangSingle = Single.just(currentLanguage);
-                        } else {
-                            Log.d(TAG, "Language unknown. Detecting from content...");
-                            sourceLangSingle = textUtil.identifyLanguageRx(content.toString());
-                        }
-
-                        // 5. Chain: Identify -> Translate/Summarize
-                        Handler handler = new Handler(Looper.getMainLooper());
-
-                        sourceLangSingle
-                                .subscribeOn(Schedulers.io())
-                                .observeOn(AndroidSchedulers.mainThread())
-                                .subscribe(detectedLang -> {
-                                    currentLanguage = detectedLang;
-                                    String targetLang = sharedPreferencesRepository.getDefaultTranslationLanguage();
-                                    boolean isSameLanguage = detectedLang.equalsIgnoreCase(targetLang);
-
-                                    if (shouldTranslate && !isSameLanguage) {
-                                        textUtil.translateHtmlAllAtOnce(detectedLang, targetLang, doc.html(), processingTitle, processingId, progress -> {})
-                                                .subscribeOn(Schedulers.io())
-                                                .observeOn(AndroidSchedulers.mainThread())
-                                                .subscribe(translatedHtml -> {
-                                                    entryRepository.updateHtml(translatedHtml, processingId);
-                                                    entryRepository.updateTranslatedHtml(translatedHtml, processingId);
-                                                    String translatedContent = textUtil.extractHtmlContent(translatedHtml, delimiter);
-                                                    entryRepository.updateTranslatedText(translatedContent, processingId);
-                                                    entryRepository.updateTranslated(translatedContent, processingId);
-
-                                                    if (processingId == currentIdInProgress) {
-                                                        handler.postDelayed(this::finishAndMoveToNext, WebClient.TRANSLATION_COOLDOWN_MS);
-                                                    }
-                                                }, error -> handleError(error, processingId));
-
-                                    } else if (shouldSummarize) {
-                                        textUtil.summarizeHtmlAllAtOnce(detectedLang, targetLang, doc.html(), length, processingId, progress -> {})
-                                                .subscribeOn(Schedulers.io())
-                                                .observeOn(AndroidSchedulers.mainThread())
-                                                .subscribe(summarizedHtml -> {
-                                                    entryRepository.updateHtml(summarizedHtml, processingId);
-                                                    entryRepository.updateSummarizedHtml(summarizedHtml, processingId);
-                                                    String summarizedContent = textUtil.extractHtmlContent(summarizedHtml, delimiter);
-                                                    entryRepository.updateSummarizedText(summarizedContent, processingId);
-                                                    entryRepository.updateSummarized(summarizedContent, processingId);
-
-                                                    if (processingId == currentIdInProgress) {
-                                                        handler.postDelayed(this::finishAndMoveToNext, WebClient.TRANSLATION_COOLDOWN_MS);
-                                                    }
-                                                }, error -> handleError(error, processingId));
-                                    } else {
-                                        finishAndMoveToNext();
-                                    }
-                                }, error -> {
-                                    Log.e(TAG, "Language detection failed", error);
-                                    finishAndMoveToNext();
-                                });
-
-                    } else {
-                        handleFailure(currentIdInProgress);
-                    }
+                    processExtraction(currentIdInProgress, currentLink, currentTitle, html);
                 } else {
                     handleFailure(currentIdInProgress);
                 }
@@ -499,6 +317,209 @@ public class TtsExtractor {
         } catch (Exception e) {
             Log.e(TAG, "Exception during extraction", e);
             handleFailure(currentIdInProgress);
+        }
+    }
+
+    @SuppressLint("CheckResult")
+    public void processExtraction(long entryId, String link, String title, String html) {
+        if (html == null || html.isEmpty()) {
+            handleFailure(entryId);
+            return;
+        }
+
+        try {
+            // 1. Parse with Readability4J
+            Readability4JExtended readability4J = new Readability4JExtended(link, html);
+            Article article = readability4J.parse();
+            StringBuilder content = new StringBuilder();
+
+            if (title != null && !title.isEmpty()) {
+                content.append(title).append(delimiter);
+            }
+
+            String articleContent = article.getContentWithUtf8Encoding();
+            if (articleContent != null) {
+                // 2. Clean with Jsoup
+                Document doc = Jsoup.parse(articleContent);
+
+                // Clean images and layout
+                doc.select("img").removeAttr("width");
+                doc.select("img").removeAttr("height");
+                doc.select("img").removeAttr("sizes");
+                doc.select("img").removeAttr("srcset");
+                doc.select("h1").remove();
+                doc.select("img").attr("style", "border-radius: 5px; width: 100%; margin-left:0");
+                doc.select("figure").attr("style", "width: 100%; margin-left:0");
+                doc.select("iframe").attr("style", "width: 100%; margin-left:0");
+
+                List<String> tags = Arrays.asList("h2", "h3", "h4", "h5", "h6", "p", "td", "pre", "th", "li", "figcaption", "blockquote", "section");
+
+                // Initialize the Sentence Iterator with Locale.ROOT for universal language support
+                BreakIterator sentenceIterator = BreakIterator.getSentenceInstance(Locale.ROOT);
+
+                // Extract text by sentences
+                for (Element element : doc.getAllElements()) {
+                    if (tags.contains(element.tagName())) {
+                        // Check if this element contains other "target" tags to avoid double-processing nested content
+                        boolean hasNestedTag = false;
+                        for (Element child : element.children()) {
+                            if (tags.contains(child.tagName())) {
+                                hasNestedTag = true;
+                                break;
+                            }
+                        }
+
+                        if (!hasNestedTag) {
+                            String elementText = element.text().trim();
+                            if (!elementText.isEmpty() && elementText.length() > 1) {
+
+                                // --- START SENTENCE SPLITTING LOGIC ---
+                                sentenceIterator.setText(elementText);
+                                int start = sentenceIterator.first();
+                                int end = sentenceIterator.next();
+
+                                while (end != BreakIterator.DONE) {
+                                    String candidate = elementText.substring(start, end);
+                                    String sentence = candidate.trim();
+
+                                    // Check if the sentence ends with a common abbreviation
+                                    if (TextUtil.endsWithAbbreviation(sentence)) {
+                                        int nextEnd = sentenceIterator.next();
+                                        if (nextEnd != BreakIterator.DONE) {
+                                            end = nextEnd;
+                                            continue;
+                                        }
+                                    }
+
+                                    if (!sentence.isEmpty()) {
+                                        if (content.length() > 0) {
+                                            // Always add delimiter BEFORE adding a new sentence
+                                            content.append(delimiter).append(sentence);
+                                        } else {
+                                            content.append(sentence);
+                                        }
+                                    }
+                                    start = end;
+                                    end = sentenceIterator.next();
+                                }
+                                // --- END SENTENCE SPLITTING LOGIC ---
+
+                            } else if (elementText.length() <= 1) {
+                                element.remove();
+                            }
+                        }
+                    }
+                }
+
+                // Save Content & Backup HTML
+                entryRepository.updateContent(content.toString(), entryId);
+                entryRepository.updateOriginalHtml(doc.html(), entryId);
+
+                // View State Logic
+                boolean isSummarizedView = sharedPreferencesRepository.getIsSummarizedView(entryId);
+                String existingSummarized = entryRepository.getSummarizedTextById(entryId);
+                boolean hasSummarization = existingSummarized != null && !existingSummarized.trim().isEmpty();
+
+                if (!isSummarizedView || !hasSummarization) {
+                    entryRepository.updateHtml(doc.html(), entryId);
+                }
+
+                boolean isTranslatedView = sharedPreferencesRepository.getIsTranslatedView(entryId);
+                String existingTranslated = entryRepository.getTranslatedTextById(entryId);
+                boolean hasTranslation = existingTranslated != null && !existingTranslated.trim().isEmpty();
+
+                if (!isTranslatedView || !hasTranslation) {
+                    entryRepository.updateHtml(doc.html(), entryId);
+                }
+
+                // 3. Loop Guard
+                final long processingId = entryId;
+                final String processingTitle = title;
+
+                if (processingId == lastSuccessfullyProcessedId) {
+                    Log.e(TAG, "LOOP DETECTED on ID " + processingId + ". Aborting.");
+                    if (webViewCallback != null) {
+                        webViewCallback.makeSnackbar("Queue stopped: Loop detected.");
+                        webViewCallback.finishedSetup();
+                    }
+                    extractionInProgress = false;
+                    currentIdInProgress = -1;
+                    return;
+                }
+
+                boolean shouldTranslate = sharedPreferencesRepository.getAutoTranslate();
+                boolean shouldSummarize = sharedPreferencesRepository.getAutoSummarize();
+                int length = sharedPreferencesRepository.getSummaryLength();
+
+                // 4. Determine Source Language
+                Single<String> sourceLangSingle;
+                if (currentLanguage != null && !currentLanguage.isEmpty() && !"und".equalsIgnoreCase(currentLanguage)) {
+                    sourceLangSingle = Single.just(currentLanguage);
+                } else {
+                    Log.d(TAG, "Language unknown. Detecting from content...");
+                    sourceLangSingle = textUtil.identifyLanguageRx(content.toString());
+                }
+
+                // 5. Chain: Identify -> Translate/Summarize
+                Handler handler = new Handler(Looper.getMainLooper());
+
+                sourceLangSingle
+                        .subscribeOn(Schedulers.io())
+                        .observeOn(AndroidSchedulers.mainThread())
+                        .subscribe(detectedLang -> {
+                            currentLanguage = detectedLang;
+                            String targetLang = sharedPreferencesRepository.getDefaultTranslationLanguage();
+                            boolean isSameLanguage = detectedLang.equalsIgnoreCase(targetLang);
+
+                            if (shouldTranslate && !isSameLanguage) {
+                                textUtil.translateHtmlAllAtOnce(detectedLang, targetLang, doc.html(), processingTitle, processingId, progress -> {})
+                                        .subscribeOn(Schedulers.io())
+                                        .observeOn(AndroidSchedulers.mainThread())
+                                        .subscribe(translatedHtml -> {
+                                            entryRepository.updateHtml(translatedHtml, processingId);
+                                            entryRepository.updateTranslatedHtml(translatedHtml, processingId);
+                                            String translatedContent = textUtil.extractHtmlContent(translatedHtml, delimiter);
+                                            entryRepository.updateTranslatedText(translatedContent, processingId);
+                                            entryRepository.updateTranslated(translatedContent, processingId);
+
+                                            if (processingId == currentIdInProgress) {
+                                                handler.postDelayed(this::finishAndMoveToNext, WebClient.TRANSLATION_COOLDOWN_MS);
+                                            }
+                                        }, error -> handleError(error, processingId));
+
+                            } else if (shouldSummarize) {
+                                textUtil.summarizeHtmlAllAtOnce(detectedLang, targetLang, doc.html(), length, processingId, progress -> {})
+                                        .subscribeOn(Schedulers.io())
+                                        .observeOn(AndroidSchedulers.mainThread())
+                                        .subscribe(summarizedHtml -> {
+                                            entryRepository.updateHtml(summarizedHtml, processingId);
+                                            entryRepository.updateSummarizedHtml(summarizedHtml, processingId);
+                                            String summarizedContent = textUtil.extractHtmlContent(summarizedHtml, delimiter);
+                                            entryRepository.updateSummarizedText(summarizedContent, processingId);
+                                            entryRepository.updateSummarized(summarizedContent, processingId);
+
+                                            if (processingId == currentIdInProgress) {
+                                                handler.postDelayed(this::finishAndMoveToNext, WebClient.TRANSLATION_COOLDOWN_MS);
+                                            }
+                                        }, error -> handleError(error, processingId));
+                            } else {
+                                if (processingId == currentIdInProgress) {
+                                    finishAndMoveToNext();
+                                }
+                            }
+                        }, error -> {
+                            Log.e(TAG, "Language detection failed", error);
+                            if (processingId == currentIdInProgress) {
+                                finishAndMoveToNext();
+                            }
+                        });
+
+            } else {
+                handleFailure(entryId);
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "Exception during extraction", e);
+            handleFailure(entryId);
         }
     }
 

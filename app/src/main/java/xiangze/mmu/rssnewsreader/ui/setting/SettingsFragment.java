@@ -105,6 +105,12 @@ public class SettingsFragment extends PreferenceFragmentCompat {
                 case "backgroundMusicVolume":
                     ttsPlayer.changeMediaPlayerVolume();
                     break;
+                case "autoTranslate":
+                case "autoSummarize":
+                    if (sharedPreferences.getBoolean(key, false)) {
+                        rssWorkManager.triggerOneTimeRssWorker();
+                    }
+                    break;
             }
         }
     };

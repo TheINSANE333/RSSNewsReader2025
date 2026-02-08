@@ -225,12 +225,14 @@ public class AllEntriesFragment extends Fragment implements EntryItemAdapter.Ent
 
         // 1. Initialize workers FIRST
         autoTranslator = new AutoTranslator(
+                requireContext(),
                 entryRepository,
                 textUtil,
                 sharedPreferencesRepository
         );
 
         autoSummarizer = new AutoSummarizer(
+                requireContext(),
                 entryRepository,
                 textUtil,
                 sharedPreferencesRepository

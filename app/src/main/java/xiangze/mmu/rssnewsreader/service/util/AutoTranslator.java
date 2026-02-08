@@ -21,12 +21,14 @@ public class AutoTranslator {
     private final EntryRepository entryRepository;
     private final TextUtil textUtil;
     private final SharedPreferencesRepository prefs;
+    private final android.content.Context context;
     private final String delimiter = "--####--";
 
     @Inject
     SharedPreferencesRepository sharedPreferencesRepository;
 
-    public AutoTranslator(EntryRepository entryRepository, TextUtil textUtil, SharedPreferencesRepository prefs) {
+    public AutoTranslator(android.content.Context context, EntryRepository entryRepository, TextUtil textUtil, SharedPreferencesRepository prefs) {
+        this.context = context;
         this.entryRepository = entryRepository;
         this.textUtil = textUtil;
         this.prefs = prefs;
@@ -44,25 +46,21 @@ public class AutoTranslator {
 
             try {
 
-                if (!prefs.getAutoTranslate()) {
+                if (prefs.getAutoTranslate()) {
+                    Log.d(TAG, "Starting batch translation.");
+                } else {
                     Log.d(TAG, "Auto-translate disabled by user.");
                     if (onComplete != null) onComplete.run();
                     return;
                 }
 
-                List<Entry> untranslatedEntries = entryRepository.getUntranslatedEntries();
+                while (true) {
+                    List<Entry> untranslatedEntries = entryRepository.getUntranslatedEntries();
+                    if (untranslatedEntries.isEmpty()) break;
 
-                if (untranslatedEntries.isEmpty()) {
-                    Log.d(TAG, "No untranslated entries found.");
-                    if (onComplete != null) onComplete.run();
-                    return;
-                }
-
-                Log.d(TAG, "Starting batch translation for " + untranslatedEntries.size() + " entries.");
-
-                for (Entry entry : untranslatedEntries) {
-
+                    Entry entry = untranslatedEntries.get(0);
                     long id = entry.getId();
+                    String title = entry.getTitle();
 
                     try {
 
@@ -78,8 +76,6 @@ public class AutoTranslator {
                             Log.d(TAG, "Skipping ID " + id + " - Already translated.");
                             continue;
                         }
-
-                        String title = entry.getTitle();
 
                         // Detect language
                         String sourceLang = textUtil.identifyLanguageRx(currentHtml)
@@ -136,15 +132,12 @@ public class AutoTranslator {
                             entryRepository.updateOriginalHtml(currentHtml, id);
                         }
 
-                        entryRepository.updateHtml(cleanedTranslated, id);
-
+                        // Save new data atomically
                         String translatedContent = textUtil.extractHtmlContent(cleanedTranslated, delimiter);
+                        entryRepository.updateTranslatedResult(id, cleanedTranslated, translatedContent, cleanedTranslated, translatedTitle);
 
-                        entryRepository.updateTranslatedText(translatedContent, id);
-                        entryRepository.updateTranslated(translatedContent, id);
-                        entryRepository.updateTranslatedHtml(cleanedTranslated, id);
-                        entryRepository.updateTitle(translatedTitle, entry.getFeedId(), entry.getLink());
-
+                        // Update in-memory object just in case
+                        entry.setHtml(cleanedTranslated);
                         entry.setTranslatedHtml(cleanedTranslated);
                         entry.setTranslated(translatedContent);
                         entry.setTitle(translatedTitle);
@@ -153,9 +146,20 @@ public class AutoTranslator {
 
                         Log.d(TAG, "SUCCESS: Translated ID " + id);
 
-                    } catch (Exception entryError) {
+                        // Add a small delay to avoid hitting rate limits
+                        try {
+                            Thread.sleep(2000);
+                        } catch (InterruptedException e) {
+                            Thread.currentThread().interrupt();
+                            Log.w(TAG, "Auto-translation sleep interrupted");
+                        }
 
+                    } catch (Exception entryError) {
                         Log.e(TAG, "ERROR translating ID " + id, entryError);
+                        androidx.core.content.ContextCompat.getMainExecutor(context).execute(() -> {
+                            android.widget.Toast.makeText(context, "Translation failed for: " + title, android.widget.Toast.LENGTH_SHORT).show();
+                        });
+                        break;
                     }
                 }
 

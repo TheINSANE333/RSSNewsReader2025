@@ -14,6 +14,7 @@ import xiangze.mmu.rssnewsreader.model.EntryInfo;
 
 import java.text.SimpleDateFormat;
 import java.util.Date;
+import java.util.List;
 
 import javax.inject.Inject;
 
@@ -23,6 +24,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel;
 public class WebViewViewModel extends ViewModel {
 
     private final EntryRepository entryRepository;
+    private final xiangze.mmu.rssnewsreader.data.playlist.PlaylistRepository playlistRepository;
 
     private final MutableLiveData<String> originalHtmlLiveData = new MutableLiveData<>();
 
@@ -47,8 +49,9 @@ public class WebViewViewModel extends ViewModel {
     }
 
     @Inject
-    public WebViewViewModel(EntryRepository entryRepository) {
+    public WebViewViewModel(EntryRepository entryRepository, xiangze.mmu.rssnewsreader.data.playlist.PlaylistRepository playlistRepository) {
         this.entryRepository = entryRepository;
+        this.playlistRepository = playlistRepository;
     }
 
     public void resetEntry(long id) {
@@ -207,6 +210,23 @@ public class WebViewViewModel extends ViewModel {
 
     public void triggerEntryRefresh(long entryId) {
         entryIdTrigger.postValue(entryId);
+    }
+
+    public void prioritizeEntry(long entryId) {
+        entryRepository.updatePriority(1, entryId);
+        prioritizeNextArticle(entryId);
+    }
+
+    private void prioritizeNextArticle(long currentId) {
+        String latestPlaylist = playlistRepository.getLatestPlaylist();
+        if (latestPlaylist == null || latestPlaylist.isEmpty()) return;
+
+        List<Long> playlist = playlistRepository.stringToLongList(latestPlaylist);
+        int currentIndex = playlist.indexOf(currentId);
+        if (currentIndex != -1 && currentIndex < playlist.size() - 1) {
+            long nextId = playlist.get(currentIndex + 1);
+            entryRepository.updatePriority(2, nextId);
+        }
     }
 
     public LiveData<Entry> getLiveEntry() {

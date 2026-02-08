@@ -176,7 +176,7 @@ public interface EntryDao {
     @Query("UPDATE entry_table SET priority = 0 WHERE priority != 0")
     void clearPriority();
 
-    @Query("UPDATE entry_table SET priority = :priority WHERE id = :id AND content is null")
+    @Query("UPDATE entry_table SET priority = :priority WHERE id = :id")
     void updatePriority(int priority, long id);
 
     @Query("UPDATE entry_table SET sentCountStopAt = :sentCount WHERE id = :id")
@@ -230,10 +230,16 @@ public interface EntryDao {
     @Query("SELECT * FROM entry_table WHERE id = :id")
     LiveData<Entry> getEntryEntityById(long id);
 
-    @Query("SELECT * FROM entry_table WHERE html IS NOT NULL AND html NOT LIKE '%translated-title%'")
+    @Query("UPDATE entry_table SET html = :html, summarized = :summarized, summarized_html = :summarizedHtml WHERE id = :id")
+    void updateSummarizedResult(long id, String html, String summarized, String summarizedHtml);
+
+    @Query("UPDATE entry_table SET html = :html, translated = :translated, translated_html = :translatedHtml, title = :title WHERE id = :id")
+    void updateTranslatedResult(long id, String html, String translated, String translatedHtml, String title);
+
+    @Query("SELECT * FROM entry_table WHERE (original_html IS NOT NULL OR html IS NOT NULL) AND (translated_html IS NULL OR translated_html NOT LIKE '%translated-title%') ORDER BY CASE WHEN priority = 0 THEN 999999 ELSE priority END ASC, id DESC")
     List<Entry> getUntranslatedEntries();
 
-    @Query("SELECT * FROM entry_table WHERE html IS NOT NULL AND html NOT LIKE '%summarized-title%'")
+    @Query("SELECT * FROM entry_table WHERE (original_html IS NOT NULL OR html IS NOT NULL) AND (summarized_html IS NULL OR summarized_html NOT LIKE '%summarized-title%') ORDER BY CASE WHEN priority = 0 THEN 999999 ELSE priority END ASC, id DESC")
     List<Entry> getUnsummarizedEntries();
 
     @Query("SELECT original_html FROM entry_table WHERE id = :id")

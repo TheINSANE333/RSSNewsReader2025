@@ -14,8 +14,11 @@ import android.support.v4.media.MediaMetadataCompat;
 import android.support.v4.media.session.MediaControllerCompat;
 import android.support.v4.media.session.MediaSessionCompat;
 import android.support.v4.media.session.PlaybackStateCompat;
+import android.util.JsonReader;
+import android.util.JsonToken;
 import android.util.Log;
 import android.view.KeyEvent;
+import java.io.StringReader;
 import android.view.MenuItem;
 import android.view.View;
 import android.webkit.WebChromeClient;
@@ -76,8 +79,8 @@ import dagger.hilt.android.AndroidEntryPoint;
 @AndroidEntryPoint
 public class WebViewActivity extends AppCompatActivity implements WebViewListener {
     private final static String TAG = "WebViewActivity";
-    private LiveData<Entry> autoTranslationObserver;
-    private Observer<Entry> checkAutoTranslated;
+    private LiveData<Entry> autoProcessingObserver;
+    private Observer<Entry> checkAutoProcessed;
     // Share
     private ActivityWebviewBinding binding;
     private WebViewViewModel webViewViewModel;
@@ -670,6 +673,7 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
         }
 
         currentId = entryInfo.getEntryId();
+        webViewViewModel.prioritizeEntry(currentId);
         Entry entry = entryRepository.getEntryById(currentId);
 
         if (entry == null) {
@@ -763,7 +767,7 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
 
         // 8. Observers
         observeLiveEntry();
-        observeAutoTranslation();
+        observeAutoProcessing();
         syncLoadingWithTts();
         refreshButtonVisibility();
     }
@@ -877,12 +881,17 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
         }
     }
 
-    private void observeAutoTranslation() {
-        LiveData<Entry> observer = webViewViewModel.getEntryEntityById(currentId);
-        Observer<Entry> checkAutoTranslated = new Observer<Entry>() {
+    private void observeAutoProcessing() {
+        autoProcessingObserver = webViewViewModel.getEntryEntityById(currentId);
+        checkAutoProcessed = new Observer<Entry>() {
             @Override
             public void onChanged(Entry entry) {
-                if (entry != null && entry.getTranslated() != null) {
+                if (entry == null) return;
+
+                boolean hasSummary = entry.getSummarized() != null && !entry.getSummarized().trim().isEmpty();
+                boolean hasTranslation = entry.getTranslated() != null && !entry.getTranslated().trim().isEmpty();
+
+                if (hasSummary || hasTranslation) {
 
                     String originalHtmlFromDb = entryRepository.getOriginalHtmlById(currentId);
                     if (originalHtmlFromDb != null) {
@@ -890,24 +899,49 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
                         Log.d(TAG, "Original HTML restored from DB.");
                     }
 
-                    String translatedHtmlFromDb = entry.getTranslatedHtml();
-                    if (translatedHtmlFromDb != null) {
-                        webViewViewModel.updateHtml(translatedHtmlFromDb, currentId);
-                        Log.d(TAG, "Translated HTML synced from auto translation.");
+                    if (hasSummary && !isSummarizedView && !isTranslatedView) {
+                        String summarizedHtmlFromDb = entry.getSummarizedHtml();
+                        if (summarizedHtmlFromDb != null) {
+                            isSummarizedView = true;
+                            isTranslatedView = false;
+                            sharedPreferencesRepository.setIsSummarizedView(currentId, true);
+                            sharedPreferencesRepository.setIsTranslatedView(currentId, false);
+                            webViewViewModel.updateSummarizedHtml(summarizedHtmlFromDb, currentId);
+                            Log.d(TAG, "Summarized HTML synced from auto processing.");
+                            
+                            refreshButtonVisibility();
+                            webViewViewModel.triggerEntryRefresh(currentId);
+                            autoProcessingObserver.removeObserver(this);
+                        }
+                    } else if (hasTranslation && !isTranslatedView && !isSummarizedView) {
+                        String translatedHtmlFromDb = entry.getTranslatedHtml();
+                        if (translatedHtmlFromDb != null) {
+                            isTranslatedView = true;
+                            isSummarizedView = false;
+                            sharedPreferencesRepository.setIsTranslatedView(currentId, true);
+                            sharedPreferencesRepository.setIsSummarizedView(currentId, false);
+                            webViewViewModel.updateTranslatedHtml(translatedHtmlFromDb, currentId);
+                            Log.d(TAG, "Translated HTML synced from auto processing.");
+
+                            refreshButtonVisibility();
+                            webViewViewModel.triggerEntryRefresh(currentId);
+                            autoProcessingObserver.removeObserver(this);
+                        }
+                    } else {
+                        // Already in a processed view, or waiting for more data. 
+                        // Just refresh buttons to show they are available now.
+                        refreshButtonVisibility();
+                        
+                        // If we already have the summary/translation but didn't auto-switch (e.g. user manually switched already)
+                        // we can stop observing.
+                        if ((hasSummary && entry.getSummarizedHtml() != null) || (hasTranslation && entry.getTranslatedHtml() != null)) {
+                             autoProcessingObserver.removeObserver(this);
+                        }
                     }
-
-                    toggleTranslationButton.setTitle(isTranslatedView ? "Show Original" : "Show Translation");
-
-                    Log.d(TAG, "AutoTranslation - Final Original:\n" + webViewViewModel.getOriginalHtmlById(currentId));
-                    Log.d(TAG, "AutoTranslation - Final Translated:\n" + webViewViewModel.getHtmlById(currentId));
-
-                    webViewViewModel.triggerEntryRefresh(currentId);
-
-                    observer.removeObserver(this);
                 }
             }
         };
-        observer.observeForever(checkAutoTranslated);
+        autoProcessingObserver.observeForever(checkAutoProcessed);
     }
 
     private void loadHtmlToWebView(String html) {
@@ -1481,6 +1515,7 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
         bookmark = metadata.getString("bookmark");
         currentLink = metadata.getString("link");
         currentId = Long.parseLong(metadata.getString(MediaMetadataCompat.METADATA_KEY_MEDIA_ID));
+        webViewViewModel.prioritizeEntry(currentId);
         refreshButtonVisibility();
         feedId = metadata.getLong("feedId");
 
@@ -1620,8 +1655,8 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
     protected void onDestroy() {
         super.onDestroy();
 
-        if (autoTranslationObserver != null && checkAutoTranslated != null) {
-            autoTranslationObserver.removeObserver(checkAutoTranslated);
+        if (autoProcessingObserver != null && checkAutoProcessed != null) {
+            autoProcessingObserver.removeObserver(checkAutoProcessed);
         }
 
         if (isReadingMode) {
@@ -1734,7 +1769,7 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
             Log.d(TAG, "WebClient: onPageCommitVisible - loadingWebView hidden.");
             webView.animate().alpha(1.0f).setDuration(800).setStartDelay(400).start();
             webViewViewModel.setLoadingState(false);
-            if (content != null) {
+            if (content != null && !content.trim().isEmpty()) {
                 if (currentId != ttsPlaylist.getPlayingId()) {
                     ttsPlaylist.updatePlayingId(currentId);
                     mMediaBrowserHelper.getTransportControls().sendCustomAction("autoPlay", null);
@@ -1748,6 +1783,7 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
                 if (currentId != ttsPlaylist.getPlayingId()) {
                     ttsPlaylist.updatePlayingId(currentId);
                 }
+                triggerManualExtraction(view);
             }
         }
     }
@@ -1779,7 +1815,33 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
             Log.d(TAG, "ReadingWebClient: onPageCommitVisible - loadingWebView hidden.");
             webView.animate().alpha(1.0f).setDuration(800).setStartDelay(400).start();
             webViewViewModel.setLoadingState(false);
+
+            if (content == null || content.trim().isEmpty()) {
+                triggerManualExtraction(view);
+            }
         }
+    }
+
+    private void triggerManualExtraction(WebView view) {
+        if (currentId <= 0 || currentLink == null) return;
+
+        Log.d(TAG, "Triggering manual extraction for: " + currentLink);
+        view.evaluateJavascript("(function() {return document.getElementsByTagName('html')[0].outerHTML;})();", value -> {
+            JsonReader reader = new JsonReader(new StringReader(value));
+            reader.setLenient(true);
+            try {
+                if (reader.peek() == JsonToken.STRING) {
+                    String extractedHtml = reader.nextString();
+                    if (extractedHtml != null) {
+                        EntryInfo info = webViewViewModel.getEntryInfoById(currentId);
+                        String title = (info != null) ? info.getEntryTitle() : "";
+                        ttsExtractor.processExtraction(currentId, currentLink, title, extractedHtml);
+                    }
+                }
+            } catch (Exception e) {
+                Log.e(TAG, "Manual extraction failed", e);
+            }
+        });
     }
 
     private class MediaBrowserConnection extends MediaBrowserHelper {

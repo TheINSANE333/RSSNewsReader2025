@@ -52,6 +52,19 @@ public class RssWorkManager {
         Log.d(TAG, "RssWorker scheduled with interval: " + interval + " minutes.");
     }
 
+    public void triggerOneTimeRssWorker() {
+        Constraints constraints = new Constraints.Builder()
+                .setRequiredNetworkType(NetworkType.CONNECTED)
+                .build();
+
+        androidx.work.OneTimeWorkRequest request = new androidx.work.OneTimeWorkRequest.Builder(RssWorker.class)
+                .setConstraints(constraints)
+                .build();
+
+        WorkManager.getInstance(context).enqueue(request);
+        Log.d(TAG, "One-time RssWorker triggered.");
+    }
+
     public void dequeueRssWorker() {
         WorkManager.getInstance(context).cancelUniqueWork(refreshWorkerName);
     }

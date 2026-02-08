@@ -20,12 +20,14 @@ public class AutoSummarizer {
     private final EntryRepository entryRepository;
     private final TextUtil textUtil;
     private final SharedPreferencesRepository prefs;
+    private final android.content.Context context;
     private final String delimiter = "--####--";
 
     @Inject
     SharedPreferencesRepository sharedPreferencesRepository;
 
-    public AutoSummarizer(EntryRepository entryRepository, TextUtil textUtil, SharedPreferencesRepository prefs) {
+    public AutoSummarizer(android.content.Context context, EntryRepository entryRepository, TextUtil textUtil, SharedPreferencesRepository prefs) {
+        this.context = context;
         this.entryRepository = entryRepository;
         this.textUtil = textUtil;
         this.prefs = prefs;
@@ -40,81 +42,95 @@ public class AutoSummarizer {
 
         Schedulers.io().scheduleDirect(() -> {
             try {
-                if (!prefs.getAutoSummarize()) {
+                if (prefs.getAutoSummarize()) {
+                    Log.d(TAG, "Starting batch summarization.");
+                } else {
                     Log.d(TAG, "Auto-summarize disabled by user.");
                     if (onComplete != null) onComplete.run();
                     return;
                 }
 
-                // Fetch list of items that need translation
-                List<Entry> unsummarizedEntries = entryRepository.getUnsummarizedEntries();
+                while (true) {
+                    List<Entry> unsummarizedEntries = entryRepository.getUnsummarizedEntries();
+                    if (unsummarizedEntries.isEmpty()) break;
 
-                if (unsummarizedEntries.isEmpty()) {
-                    Log.d(TAG, "No unsummarized entries found.");
-                    if (onComplete != null) onComplete.run();
-                    return;
-                }
-
-                Log.d(TAG, "Starting batch summarization for " + unsummarizedEntries.size() + " entries.");
-
-                for (Entry entry : unsummarizedEntries) {
+                    Entry entry = unsummarizedEntries.get(0);
                     long id = entry.getId();
+                    String title = entry.getTitle();
 
                     try {
-                        // 1. Check if already translated (Double check to save quota)
-                        String currentHtml = entry.getSummarizedHtml();
-                        if (currentHtml != null && currentHtml.contains("summarized-title")) {
+                        // 1. Check if already summarized (Double check to save quota)
+                        String existingSummarized = entry.getSummarizedHtml();
+                        if (existingSummarized != null && existingSummarized.contains("summarized-title")) {
                             Log.d(TAG, "Skipping ID " + id + " - Already contains summarized marker.");
                             continue;
                         }
 
+                        // Use original HTML as source for summarization
+                        String sourceHtml = entry.getOriginalHtml();
+                        if (sourceHtml == null || sourceHtml.trim().isEmpty()) {
+                            sourceHtml = entry.getHtml();
+                        }
+
+                        if (sourceHtml == null || sourceHtml.trim().isEmpty()) {
+                            Log.w(TAG, "Skipping ID " + id + " - No content to summarize.");
+                            continue;
+                        }
+
                         String content = entry.getContent();
-                        String title = entry.getTitle();
                         String targetLang = prefs.getDefaultTranslationLanguage();
                         int length = prefs.getSummaryLength();
                         String sourceLang = textUtil.identifyLanguageRx(content)
                                 .subscribeOn(Schedulers.io())
                                 .blockingGet();
 
-                        Log.d(TAG, "Summarizing ID " + id + "in" + targetLang);
+                        Log.d(TAG, "Summarizing ID " + id + " in " + targetLang);
 
                         Single<String> summarizationSingle;
 
                         // Pass empty progress listener since we are in background
-                        summarizationSingle = textUtil.summarizeHtmlAllAtOnce(sourceLang, targetLang, currentHtml, length, id, progress -> {
+                        summarizationSingle = textUtil.summarizeHtmlAllAtOnce(sourceLang, targetLang, sourceHtml, length, id, progress -> {
                         });
 
-                        // 5. Execute Translation (Synchronous / Blocking)
+                        // 5. Execute Summarization (Synchronous / Blocking)
                         // If this fails (Network error, Rate limit), it throws an exception immediately.
-                        String summarizedHtml = summarizationSingle.blockingGet();
+                        String summaryText = summarizationSingle.blockingGet();
+
+                        // Convert plain text summary to HTML with marker
+                        org.jsoup.nodes.Document doc = org.jsoup.Jsoup.parse("");
+                        org.jsoup.nodes.Element titleElement = doc.body().appendElement("p");
+                        titleElement.addClass("summarized-title");
+                        titleElement.text("Summary"); // Or use the actual title if preferred, but the marker is what matters
+
+                        org.jsoup.nodes.Element contentElement = doc.body().appendElement("p");
+                        contentElement.text(summaryText); // Use text() to escape any HTML in the summary itself
+
+                        String finalSummarizedHtml = doc.html();
 
                         // 6. Save to Database (Only reached if step 5 succeeds)
                         String existingOriginal = entryRepository.getOriginalHtmlById(id);
 
                         // Backup original if needed
-                        if ((existingOriginal == null || existingOriginal.trim().isEmpty()) && currentHtml != null && !currentHtml.trim().isEmpty()) {
-                            entryRepository.updateOriginalHtml(currentHtml, id);
+                        if ((existingOriginal == null || existingOriginal.trim().isEmpty()) && sourceHtml != null && !sourceHtml.trim().isEmpty()) {
+                            entryRepository.updateOriginalHtml(sourceHtml, id);
                         }
 
-                        // Save new data
-                        entryRepository.updateHtml(summarizedHtml, id);
-
-                        String summarizedContent = textUtil.extractHtmlContent(summarizedHtml, delimiter);
-                        entryRepository.updateSummarizedText(summarizedContent, id);
-                        entryRepository.updateSummarized(summarizedContent, id);
-                        entryRepository.updateSummarizedHtml(summarizedHtml, id);
+                        // Save new data atomically
+                        String summarizedContent = textUtil.extractHtmlContent(finalSummarizedHtml, delimiter);
+                        entryRepository.updateSummarizedResult(id, finalSummarizedHtml, summarizedContent, finalSummarizedHtml);
 
                         // Update in-memory object just in case
-                        entry.setSummarizedHtml(summarizedHtml);
+                        entry.setHtml(finalSummarizedHtml);
+                        entry.setSummarizedHtml(finalSummarizedHtml);
                         entry.setSummarized(summarizedContent);
 
                         prefs.setIsSummarizedView(id, true);
 
                         Log.d(TAG, "SUCCESS: Summarized ID " + id);
 
-                        // Add a small delay to avoid hitting rate limits (3 seconds)
+                        // Add a small delay to avoid hitting rate limits
                         try {
-                            Thread.sleep(5000);
+                            Thread.sleep(2000);
                         } catch (InterruptedException e) {
                             Thread.currentThread().interrupt();
                             Log.w(TAG, "Auto-summarization sleep interrupted");
@@ -122,8 +138,13 @@ public class AutoSummarizer {
 
                     } catch (Exception e) {
                         Log.e(TAG, "CRITICAL ERROR summarizing ID " + id + ": " + e.getMessage());
-                        Log.e(TAG, "Stopping entire batch summarization due to error.");
+                        
+                        androidx.core.content.ContextCompat.getMainExecutor(context).execute(() -> {
+                            android.widget.Toast.makeText(context, "Summarization failed for: " + title, android.widget.Toast.LENGTH_SHORT).show();
+                        });
 
+                        Log.e(TAG, "Stopping entire batch summarization due to error.");
+                        break;
                     }
                 }
             } catch (Exception fatal) {
