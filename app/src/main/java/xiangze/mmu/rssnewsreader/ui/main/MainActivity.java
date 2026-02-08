@@ -22,6 +22,7 @@ import androidx.appcompat.app.AppCompatActivity;
 
 import androidx.appcompat.app.AppCompatDelegate;
 import androidx.appcompat.widget.Toolbar;
+import androidx.core.splashscreen.SplashScreen;
 import androidx.core.view.GravityCompat;
 import androidx.drawerlayout.widget.DrawerLayout;
 import androidx.lifecycle.Observer;
@@ -317,7 +318,28 @@ public class MainActivity extends AppCompatActivity {
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+        SplashScreen splashScreen = SplashScreen.installSplashScreen(this);
         super.onCreate(savedInstanceState);
+
+        splashScreen.setOnExitAnimationListener(splashScreenView -> {
+            final android.view.View iconView = splashScreenView.getIconView();
+            final long duration = 500L;
+
+            iconView.animate()
+                    .scaleX(2.0f)
+                    .scaleY(2.0f)
+                    .alpha(0f)
+                    .setDuration(duration)
+                    .setInterpolator(new android.view.animation.AnticipateInterpolator())
+                    .withEndAction(splashScreenView::remove)
+                    .start();
+
+            splashScreenView.getView().animate()
+                    .alpha(0f)
+                    .setDuration(duration)
+                    .start();
+        });
+
         binding = ActivityMainBinding.inflate(getLayoutInflater());
 
         mainActivityViewModel = new ViewModelProvider(this).get(MainActivityViewModel.class);
@@ -326,6 +348,16 @@ public class MainActivity extends AppCompatActivity {
 
         updateThemeSwitch();
         setContentView(binding.getRoot());
+
+        // Fancy animation for main content
+        binding.getRoot().setAlpha(0f);
+        binding.getRoot().setTranslationY(100f);
+        binding.getRoot().animate()
+                .alpha(1f)
+                .translationY(0f)
+                .setDuration(600L)
+                .setInterpolator(new android.view.animation.DecelerateInterpolator())
+                .start();
 
         drawerLayout = binding.drawerLayout;
 
