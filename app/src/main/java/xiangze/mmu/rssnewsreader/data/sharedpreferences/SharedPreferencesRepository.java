@@ -142,7 +142,22 @@ public class SharedPreferencesRepository {
     }
 
     public void setDefaultTranslationLanguage(String language) {
-        sharedPreferences.edit().putString("target_language", language).apply();
+        editor.putString("defaultTranslationLanguage", language).apply();
+    }
+
+    public void setSummaryLength(int summaryLength) {
+        editor.putInt("summaryLength", summaryLength);
+        editor.apply();
+    }
+
+    public void setOpenRouterApiKey(String apiKey) {
+        editor.putString("openrouter_api_key", apiKey);
+        editor.apply();
+    }
+
+    public void setAiModel(String aiModel) {
+        editor.putString("ai_model", aiModel);
+        editor.apply();
     }
 
     public String getTranslationMethod() {

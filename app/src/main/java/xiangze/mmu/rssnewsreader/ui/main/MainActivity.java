@@ -38,6 +38,7 @@ import xiangze.mmu.rssnewsreader.data.entry.Entry;
 import xiangze.mmu.rssnewsreader.data.feed.Feed;
 import xiangze.mmu.rssnewsreader.data.sharedpreferences.SharedPreferencesRepository;
 import xiangze.mmu.rssnewsreader.databinding.ActivityMainBinding;
+import xiangze.mmu.rssnewsreader.service.rss.RssWorkManager;
 
 import com.google.android.material.materialswitch.MaterialSwitch;
 
@@ -71,6 +72,8 @@ public class MainActivity extends AppCompatActivity {
     private GestureDetector gestureDetector;
     @Inject
     SharedPreferencesRepository sharedPreferencesRepository;
+    @Inject
+    RssWorkManager rssWorkManager;
 
     // Define the ActivityResultLauncher for importing OPML file
     private final ActivityResultLauncher<String[]> importOpmlLauncher = registerForActivityResult(
@@ -103,14 +106,23 @@ public class MainActivity extends AppCompatActivity {
                                             String entriesLimitPerFeed = parser.getAttributeValue(null, "entriesLimitPerFeed");
                                             String defaultTranslationLanguage = parser.getAttributeValue(null, "defaultTranslationLanguage");
                                             String translationMethod = parser.getAttributeValue(null, "translationMethod");
+                                            String summaryLength = parser.getAttributeValue(null, "summaryLength");
+                                            String night = parser.getAttributeValue(null, "night");
+                                            String autoTranslate = parser.getAttributeValue(null, "autoTranslate");
+                                            String autoSummarize = parser.getAttributeValue(null, "autoSummarize");
+                                            String backgroundMusicFile = parser.getAttributeValue(null, "backgroundMusicFile");
+                                            String aiModel = parser.getAttributeValue(null, "ai_model");
+                                            String openRouterApiKey = parser.getAttributeValue(null, "openrouter_api_key");
+
                                             Log.d(TAG, "onActivityResult: set defaultTranslationLanguage" + defaultTranslationLanguage);
                                             if (jobPeriodic != null && !jobPeriodic.isEmpty()) {
                                                 sharedPreferencesRepository.setJobPeriodic(jobPeriodic);
+                                                rssWorkManager.enqueueRssWorker();
                                             }
                                             if (highlightText != null && !highlightText.isEmpty()) {
                                                 sharedPreferencesRepository.setHighlightText(highlightText.equals("true"));
                                             }
-                                            if (sortBy != null && !textZoom.isEmpty()) {
+                                            if (textZoom != null && !textZoom.isEmpty()) {
                                                 sharedPreferencesRepository.setTextZoom(Integer.parseInt(textZoom));
                                             }
                                             if (sortBy != null && !sortBy.isEmpty()) {
@@ -133,6 +145,28 @@ public class MainActivity extends AppCompatActivity {
                                             }
                                             if (translationMethod != null && !translationMethod.isEmpty()) {
                                                 sharedPreferencesRepository.setTranslationMethod(translationMethod);
+                                            }
+                                            if (summaryLength != null && !summaryLength.isEmpty()) {
+                                                sharedPreferencesRepository.setSummaryLength(Integer.parseInt(summaryLength));
+                                            }
+                                            if (night != null && !night.isEmpty()) {
+                                                sharedPreferencesRepository.setNight(night.equals("true"));
+                                                updateThemeSwitch();
+                                            }
+                                            if (autoTranslate != null && !autoTranslate.isEmpty()) {
+                                                sharedPreferencesRepository.setAutoTranslate(autoTranslate.equals("true"));
+                                            }
+                                            if (autoSummarize != null && !autoSummarize.isEmpty()) {
+                                                sharedPreferencesRepository.setAutoSummarize(autoSummarize.equals("true"));
+                                            }
+                                            if (backgroundMusicFile != null && !backgroundMusicFile.isEmpty()) {
+                                                sharedPreferencesRepository.setBackgroundMusicFile(backgroundMusicFile);
+                                            }
+                                            if (aiModel != null && !aiModel.isEmpty()) {
+                                                sharedPreferencesRepository.setAiModel(aiModel);
+                                            }
+                                            if (openRouterApiKey != null && !openRouterApiKey.isEmpty()) {
+                                                sharedPreferencesRepository.setOpenRouterApiKey(openRouterApiKey);
                                             }
                                         } else if (eventType == XmlPullParser.START_TAG && parser.getName().equals("outline")) {
                                             String title = parser.getAttributeValue(null, "text");
@@ -230,6 +264,12 @@ public class MainActivity extends AppCompatActivity {
                             serializer.attribute(null, "defaultTranslationLanguage", sharedPreferencesRepository.getDefaultTranslationLanguage());
                             serializer.attribute(null, "translationMethod", sharedPreferencesRepository.getTranslationMethod());
                             serializer.attribute(null, "summaryLength", Integer.toString(sharedPreferencesRepository.getSummaryLength()));
+                            serializer.attribute(null, "night", sharedPreferencesRepository.getNight() ? "true" : "false");
+                            serializer.attribute(null, "autoTranslate", sharedPreferencesRepository.getAutoTranslate() ? "true" : "false");
+                            serializer.attribute(null, "autoSummarize", sharedPreferencesRepository.getAutoSummarize() ? "true" : "false");
+                            serializer.attribute(null, "backgroundMusicFile", sharedPreferencesRepository.getBackgroundMusicFile());
+                            serializer.attribute(null, "ai_model", sharedPreferencesRepository.getAiModel());
+                            serializer.attribute(null, "openrouter_api_key", sharedPreferencesRepository.getOpenRouterApiKey());
                             serializer.endTag(null, "setting");
                             List<Feed> feeds = mainActivityViewModel.getAllStaticFeeds();
                             @SuppressLint("SimpleDateFormat") SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
