@@ -14,6 +14,7 @@ import xiangze.mmu.rssnewsreader.service.rss.RssReader;
 import xiangze.mmu.rssnewsreader.service.rss.RssWorkManager;
 import xiangze.mmu.rssnewsreader.data.sharedpreferences.SharedPreferencesRepository;
 import xiangze.mmu.rssnewsreader.service.tts.TtsExtractor;
+import xiangze.mmu.rssnewsreader.service.util.TextUtil;
 
 import java.util.ArrayList;
 import java.util.Date;
@@ -43,15 +44,17 @@ public class FeedRepository {
     private RssWorkManager rssWorkManager;
     private SharedPreferencesRepository preferencesRepository;
     private final Provider<TtsExtractor> ttsExtractorProvider;
+    private final TextUtil textUtil;
 
     @Inject
-    public FeedRepository(FeedDao feedDao, EntryRepository entryRepository, HistoryRepository historyRepository, RssWorkManager rssWorkManager, SharedPreferencesRepository sharedPreferencesRepository,  Provider<TtsExtractor> ttsExtractorProvider) {
+    public FeedRepository(FeedDao feedDao, EntryRepository entryRepository, HistoryRepository historyRepository, RssWorkManager rssWorkManager, SharedPreferencesRepository sharedPreferencesRepository,  Provider<TtsExtractor> ttsExtractorProvider, TextUtil textUtil) {
         this.feedDao = feedDao;
         this.entryRepository = entryRepository;
         this.historyRepository = historyRepository;
         this.rssWorkManager = rssWorkManager;
         this.preferencesRepository = sharedPreferencesRepository;
         this.ttsExtractorProvider = ttsExtractorProvider;
+        this.textUtil = textUtil;
     }
 
     public List<Feed> getAllStaticFeeds() {
@@ -153,8 +156,43 @@ public class FeedRepository {
     }
 
     public void addNewFeed(RssFeed feed) {
+        String language = "Use Language Identifier";
+        StringBuilder sampleText = new StringBuilder();
+        if (feed.getTitle() != null) sampleText.append(feed.getTitle()).append(" ");
+        if (feed.getDescription() != null) sampleText.append(feed.getDescription()).append(" ");
+
+        // Take up to 3 items to get enough text
+        int count = 0;
+        for (RssItem item : feed.getRssItems()) {
+            if (count++ >= 3) break;
+            if (item.getTitle() != null) sampleText.append(item.getTitle()).append(" ");
+            if (item.getDescription() != null) sampleText.append(item.getDescription()).append(" ");
+        }
+
+        String textToIdentify = sampleText.toString().trim();
+        if (!textToIdentify.isEmpty()) {
+            try {
+                String detected = textUtil.identifyLanguageRx(textToIdentify).blockingGet();
+                if (detected != null && !detected.equals("und")) {
+                    language = detected;
+                    Log.d(TAG, "Detected language for feed: " + language);
+                }
+            } catch (Exception e) {
+                Log.e(TAG, "Failed to identify feed language", e);
+            }
+        }
+
+        // 1. Try to detect.
+        // 2. If valid detection, use it.
+        // 3. If detection fails/und, use declared feed language.
+        // 4. If declared is also null, use "Use Language Identifier" (which presumably triggers per-article detection).
+
+        if (language.equals("Use Language Identifier") && feed.getLanguage() != null && !feed.getLanguage().isEmpty()) {
+             language = feed.getLanguage();
+        }
+
         String imageUrl = "https://www.google.com/s2/favicons?sz=64&domain_url=" + feed.getLink();
-        Feed newFeed = new Feed(feed.getTitle(), feed.getLink(), feed.getDescription(), imageUrl, feed.getLanguage());
+        Feed newFeed = new Feed(feed.getTitle(), feed.getLink(), feed.getDescription(), imageUrl, language);
 
         feedDao.insert(newFeed);
         long feedId = feedDao.getIdByLink(feed.getLink());
