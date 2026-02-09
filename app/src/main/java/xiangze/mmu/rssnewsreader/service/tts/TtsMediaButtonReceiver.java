@@ -101,60 +101,28 @@ public class TtsMediaButtonReceiver extends BroadcastReceiver {
 
         Log.d(TAG, "Media Button Received: " + keyEvent.toString());
 
-        ComponentName mediaButtonServiceComponentName =
-                getServiceComponentByAction(context, Intent.ACTION_MEDIA_BUTTON);
-        if (mediaButtonServiceComponentName != null) {
-            intent.setComponent(mediaButtonServiceComponentName);
-            ContextCompat.startForegroundService(context, intent);
-            return;
-        }
-
-        ComponentName mediaBrowserServiceComponentName =
-                getServiceComponentByAction(context, MediaBrowserServiceCompat.SERVICE_INTERFACE);
-        if (mediaBrowserServiceComponentName != null) {
-            PendingResult pendingResult = goAsync();
-            Context applicationContext = context.getApplicationContext();
-            MediaButtonConnectionCallback connectionCallback =
-                    new MediaButtonConnectionCallback(applicationContext, intent, pendingResult);
-            MediaBrowserCompat mediaBrowser = new MediaBrowserCompat(applicationContext,
-                    mediaBrowserServiceComponentName, connectionCallback, null);
-            connectionCallback.setMediaBrowser(mediaBrowser);
-            mediaBrowser.connect();
-            return;
-        }
-
-        if (keyEvent.getAction() == KeyEvent.ACTION_DOWN) {
-            try {
-                MediaSessionCompat mediaSession = TtsService.getMediaSession();
-                MediaControllerCompat mediaController = new MediaControllerCompat(context, mediaSession.getSessionToken());
-                switch (keyEvent.getKeyCode()) {
-                    case KeyEvent.KEYCODE_MEDIA_PLAY:
-                        mediaController.getTransportControls().play();
-                        break;
-                    case KeyEvent.KEYCODE_MEDIA_PAUSE:
-                        mediaController.getTransportControls().pause();
-                        break;
-                    case KeyEvent.KEYCODE_MEDIA_NEXT:
-                        mediaController.getTransportControls().skipToNext();
-                        break;
-                    case KeyEvent.KEYCODE_MEDIA_PREVIOUS:
-                        mediaController.getTransportControls().skipToPrevious();
-                        break;
-                    case KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE:
-                        PlaybackStateCompat state = mediaController.getPlaybackState();
-                        if (state != null && state.getState() == PlaybackStateCompat.STATE_PLAYING) {
-                            mediaController.getTransportControls().pause();
-                        } else {
-                            mediaController.getTransportControls().play();
-                        }
-                        break;
-                    default:
-                        Log.d(TAG, "Unhandled media key code: " + keyEvent.getKeyCode());
-                }
-            } catch (Exception e) {
-                Log.e(TAG, "Error handling media button event: ", e);
+        // 1. Try to dispatch to active session first (fast path)
+        MediaSessionCompat session = TtsService.getMediaSession();
+        if (session != null) {
+            MediaControllerCompat controller = session.getController();
+            if (controller != null) {
+                // If the session is active, we dispatch directly.
+                // Even if not active, if the service is alive, we might want to let it handle it.
+                Log.d(TAG, "Dispatching to existing MediaSession");
+                controller.dispatchMediaButtonEvent(keyEvent);
+                return;
             }
         }
+
+        // 2. Start Service (slow path / cold start)
+        // We know TtsService is the one we want. We don't need to query PackageManager.
+        Log.d(TAG, "MediaSession not found. Starting TtsService.");
+        Intent serviceIntent = new Intent(context, TtsService.class);
+        serviceIntent.setAction(Intent.ACTION_MEDIA_BUTTON);
+        serviceIntent.putExtra(Intent.EXTRA_KEY_EVENT, keyEvent);
+        
+        // Use startForegroundService for Android O+
+        ContextCompat.startForegroundService(context, serviceIntent);
     }
 //    @Override
 //    public void onReceive(Context context, Intent intent) {
