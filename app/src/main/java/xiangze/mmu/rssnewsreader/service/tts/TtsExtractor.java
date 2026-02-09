@@ -100,7 +100,7 @@ public class TtsExtractor {
                 webView.clearCache(true);
                 WebSettings settings = webView.getSettings();
                 settings.setJavaScriptEnabled(true);
-                settings.setDomStorageEnabled(true);
+//                settings.setDomStorageEnabled(true);
                 settings.setDatabaseEnabled(true);
                 settings.setLoadsImagesAutomatically(true);
                 settings.setBlockNetworkImage(false);
