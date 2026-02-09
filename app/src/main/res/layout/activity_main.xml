@@ -39,11 +39,12 @@
             android:layout_height="wrap_content"
             android:layout_gravity="bottom"
             android:fitsSystemWindows="true"
+            android:minHeight="0dp"
             app:menu="@menu/bottom_navigation_menu"
             app:labelVisibilityMode="unlabeled"
             app:itemIconSize="24dp"
             app:itemIconTint="@color/bottom_nav_item_color"
-            app:itemTextColor="@color/bottom_nav_item_color"/>
+            app:itemTextColor="@color/bottom_nav_item_color" />
 
     </androidx.coordinatorlayout.widget.CoordinatorLayout>
 
