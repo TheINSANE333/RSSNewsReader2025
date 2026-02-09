@@ -21,6 +21,10 @@ public class Feed {
     private String language;
     @ColumnInfo(defaultValue = "0")
     private boolean isPreloaded;
+    @ColumnInfo(defaultValue = "1")
+    private boolean autoSummarize = true;
+    @ColumnInfo(defaultValue = "1")
+    private boolean autoTranslate = true;
 
     public Feed(String title, String link, String description, String imageUrl, String language) {
         this.title = title;
@@ -28,6 +32,8 @@ public class Feed {
         this.description = description;
         this.imageUrl = imageUrl;
         this.language = language;
+        this.autoSummarize = true;
+        this.autoTranslate = true;
     }
 
     @Ignore
@@ -39,6 +45,21 @@ public class Feed {
         this.language = language;
         this.delayTime = delayTime;
         this.ttsSpeechRate = ttsSpeechRate;
+        this.autoSummarize = true;
+        this.autoTranslate = true;
+    }
+
+    @Ignore
+    public Feed(String title, String link, String description, String imageUrl, String language, int delayTime, float ttsSpeechRate, boolean autoSummarize, boolean autoTranslate) {
+        this.title = title;
+        this.link = link;
+        this.description = description;
+        this.imageUrl = imageUrl;
+        this.language = language;
+        this.delayTime = delayTime;
+        this.ttsSpeechRate = ttsSpeechRate;
+        this.autoSummarize = autoSummarize;
+        this.autoTranslate = autoTranslate;
     }
 
     public long getId() {
@@ -110,12 +131,12 @@ public class Feed {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
         Feed feed = (Feed) o;
-        return id == feed.id && Objects.equals(title, feed.title) && Objects.equals(link, feed.link) && Objects.equals(description, feed.description) && Objects.equals(imageUrl, feed.imageUrl) && Objects.equals(language, feed.language) && Objects.equals(ttsSpeechRate, feed.ttsSpeechRate);
+        return id == feed.id && Objects.equals(title, feed.title) && Objects.equals(link, feed.link) && Objects.equals(description, feed.description) && Objects.equals(imageUrl, feed.imageUrl) && Objects.equals(language, feed.language) && Objects.equals(ttsSpeechRate, feed.ttsSpeechRate) && autoSummarize == feed.autoSummarize && autoTranslate == feed.autoTranslate;
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(id, title, link, description, imageUrl, language);
+        return Objects.hash(id, title, link, description, imageUrl, language, autoSummarize, autoTranslate);
     }
 
     public boolean isPreloaded() {
@@ -124,5 +145,21 @@ public class Feed {
 
     public void setPreloaded(boolean preloaded) {
         isPreloaded = preloaded;
+    }
+
+    public boolean isAutoSummarize() {
+        return autoSummarize;
+    }
+
+    public void setAutoSummarize(boolean autoSummarize) {
+        this.autoSummarize = autoSummarize;
+    }
+
+    public boolean isAutoTranslate() {
+        return autoTranslate;
+    }
+
+    public void setAutoTranslate(boolean autoTranslate) {
+        this.autoTranslate = autoTranslate;
     }
 }

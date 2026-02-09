@@ -44,8 +44,8 @@ public interface FeedDao {
     @Query("SELECT COUNT(*) FROM feed_table")
     int getFeedCount();
 
-    @Query("UPDATE feed_table SET title = :title, description = :desc, language = :language WHERE link = :link")
-    void updateTitleDescLanguage(String title, String desc, String language, String link);
+    @Query("UPDATE feed_table SET title = :title, description = :desc, language = :language, autoSummarize = :autoSummarize, autoTranslate = :autoTranslate WHERE link = :link")
+    void updateFeedSettings(String title, String desc, String language, boolean autoSummarize, boolean autoTranslate, String link);
 
     @Query("SELECT ttsSpeechRate FROM feed_table WHERE id = :id")
     float getTtsSpeechRateById(long id);

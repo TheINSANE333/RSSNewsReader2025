@@ -18,7 +18,7 @@ public class FeedSettingViewModel extends ViewModel {
         this.feedRepository = feedRepository;
     }
 
-    public void updateTitleDescLanguage(String title, String desc, String language, String link) {
-        feedRepository.updateTitleDescLanguage(title, desc, language, link);
+    public void updateFeedSettings(String title, String desc, String language, boolean autoSummarize, boolean autoTranslate, String link) {
+        feedRepository.updateFeedSettings(title, desc, language, autoSummarize, autoTranslate, link);
     }
 }

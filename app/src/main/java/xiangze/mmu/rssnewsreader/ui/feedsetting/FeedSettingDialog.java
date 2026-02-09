@@ -39,10 +39,14 @@ public class FeedSettingDialog extends AppCompatDialogFragment implements FeedSe
     private String language;
     private String languageDisplayName;
     private float speechRateDisplay;
+    private boolean autoSummarize;
+    private boolean autoTranslate;
     private TextInputEditText titleEditText;
     private TextInputEditText descriptionEditText;
     private MaterialAutoCompleteTextView languageTextView;
     private MaterialAutoCompleteTextView speechRateTextView;
+    private com.google.android.material.materialswitch.MaterialSwitch autoSummarizeSwitch;
+    private com.google.android.material.materialswitch.MaterialSwitch autoTranslateSwitch;
     private LanguageSelectionDialog dialog;
     private CircularProgressIndicator loading;
 
@@ -60,6 +64,8 @@ public class FeedSettingDialog extends AppCompatDialogFragment implements FeedSe
             description = getArguments().getString("description");
             language = getArguments().getString("language");
             speechRateDisplay = getArguments().getFloat("ttsSpeechRate");
+            autoSummarize = getArguments().getBoolean("autoSummarize");
+            autoTranslate = getArguments().getBoolean("autoTranslate");
             if (language != null) {
                 try {
                     Locale locale = Locale.forLanguageTag(language);
@@ -80,10 +86,14 @@ public class FeedSettingDialog extends AppCompatDialogFragment implements FeedSe
         TextInputEditText urlEditText = view.findViewById(R.id.feedUrlEditText);
         languageTextView = view.findViewById(R.id.languageTextView);
         speechRateTextView = view.findViewById(R.id.speechRateTextView);
+        autoSummarizeSwitch = view.findViewById(R.id.autoSummarizeSwitch);
+        autoTranslateSwitch = view.findViewById(R.id.autoTranslateSwitch);
 
         urlEditText.setText(link);
         titleEditText.setText(title);
         descriptionEditText.setText(description);
+        autoSummarizeSwitch.setChecked(autoSummarize);
+        autoTranslateSwitch.setChecked(autoTranslate);
 
         String speechRateDisplayName;
         if (speechRateDisplay == 0) {
@@ -131,7 +141,9 @@ public class FeedSettingDialog extends AppCompatDialogFragment implements FeedSe
                     public void onClick(DialogInterface dialogInterface, int i) {
                         String updatedTitle = Objects.requireNonNull(titleEditText.getText()).toString();
                         String updatedDesc = Objects.requireNonNull(descriptionEditText.getText()).toString();
-                        feedSettingViewModel.updateTitleDescLanguage(updatedTitle, updatedDesc, language, link);
+                        boolean updatedAutoSummarize = autoSummarizeSwitch.isChecked();
+                        boolean updatedAutoTranslate = autoTranslateSwitch.isChecked();
+                        feedSettingViewModel.updateFeedSettings(updatedTitle, updatedDesc, language, updatedAutoSummarize, updatedAutoTranslate, link);
                         Toast.makeText(requireContext(), "Update on speech rate will be reflected in the next article", Toast.LENGTH_SHORT).show();
                     }
                 });

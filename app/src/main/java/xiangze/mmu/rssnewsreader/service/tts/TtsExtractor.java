@@ -19,6 +19,7 @@ import io.reactivex.rxjava3.core.Single;
 import io.reactivex.rxjava3.schedulers.Schedulers;
 import xiangze.mmu.rssnewsreader.data.entry.Entry;
 import xiangze.mmu.rssnewsreader.data.entry.EntryRepository;
+import xiangze.mmu.rssnewsreader.data.feed.Feed;
 import xiangze.mmu.rssnewsreader.data.feed.FeedRepository;
 import xiangze.mmu.rssnewsreader.data.playlist.PlaylistRepository;
 import xiangze.mmu.rssnewsreader.data.sharedpreferences.SharedPreferencesRepository;
@@ -447,8 +448,22 @@ public class TtsExtractor {
                     return;
                 }
 
-                boolean shouldTranslate = sharedPreferencesRepository.getAutoTranslate();
-                boolean shouldSummarize = sharedPreferencesRepository.getAutoSummarize();
+                boolean shouldTranslateGlobal = sharedPreferencesRepository.getAutoTranslate();
+                boolean shouldSummarizeGlobal = sharedPreferencesRepository.getAutoSummarize();
+                
+                Entry entryObj = entryRepository.getEntryById(processingId);
+                boolean shouldTranslateFeed = false;
+                boolean shouldSummarizeFeed = false;
+                if (entryObj != null) {
+                    Feed feed = feedRepository.getFeedById(entryObj.getFeedId());
+                    if (feed != null) {
+                        shouldTranslateFeed = feed.isAutoTranslate();
+                        shouldSummarizeFeed = feed.isAutoSummarize();
+                    }
+                }
+                
+                boolean shouldTranslate = shouldTranslateGlobal && shouldTranslateFeed;
+                boolean shouldSummarize = shouldSummarizeGlobal && shouldSummarizeFeed;
                 int length = sharedPreferencesRepository.getSummaryLength();
 
                 // 4. Determine Source Language

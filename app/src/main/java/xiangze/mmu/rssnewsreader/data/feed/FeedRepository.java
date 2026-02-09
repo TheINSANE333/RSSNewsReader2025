@@ -279,8 +279,8 @@ public class FeedRepository {
         feedDao.updateDelayTimeById(id, delayTime);
     }
 
-    public void updateTitleDescLanguage(String title, String desc, String language, String link) {
-        feedDao.updateTitleDescLanguage(title, desc, language, link);
+    public void updateFeedSettings(String title, String desc, String language, boolean autoSummarize, boolean autoTranslate, String link) {
+        feedDao.updateFeedSettings(title, desc, language, autoSummarize, autoTranslate, link);
     }
 
     public float getTtsSpeechRateById(long id) {
@@ -293,5 +293,9 @@ public class FeedRepository {
 
     public boolean checkFeedExist(String link) {
         return feedDao.getIdByLink(link) != 0;
+    }
+
+    public Feed getFeedById(long id) {
+        return feedDao.getFeedById(id);
     }
 }

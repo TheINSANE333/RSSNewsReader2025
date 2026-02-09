@@ -236,10 +236,18 @@ public interface EntryDao {
     @Query("UPDATE entry_table SET html = :html, translated = :translated, translated_html = :translatedHtml, title = :title WHERE id = :id")
     void updateTranslatedResult(long id, String html, String translated, String translatedHtml, String title);
 
-    @Query("SELECT * FROM entry_table WHERE (original_html IS NOT NULL OR html IS NOT NULL) AND (translated_html IS NULL OR translated_html NOT LIKE '%translated-title%') ORDER BY CASE WHEN priority = 0 THEN 999999 ELSE priority END ASC, id DESC")
+    @Query("SELECT e.* FROM entry_table e " +
+            "INNER JOIN feed_table f ON e.feedId = f.id " +
+            "WHERE (e.original_html IS NOT NULL OR e.html IS NOT NULL) AND (e.translated_html IS NULL OR e.translated_html NOT LIKE '%translated-title%') " +
+            "AND f.autoTranslate = 1 " +
+            "ORDER BY CASE WHEN e.priority = 0 THEN 999999 ELSE e.priority END ASC, e.id DESC")
     List<Entry> getUntranslatedEntries();
 
-    @Query("SELECT * FROM entry_table WHERE (original_html IS NOT NULL OR html IS NOT NULL) AND (summarized_html IS NULL OR summarized_html NOT LIKE '%summarized-title%') ORDER BY CASE WHEN priority = 0 THEN 999999 ELSE priority END ASC, id DESC")
+    @Query("SELECT e.* FROM entry_table e " +
+            "INNER JOIN feed_table f ON e.feedId = f.id " +
+            "WHERE (e.original_html IS NOT NULL OR e.html IS NOT NULL) AND (e.summarized_html IS NULL OR e.summarized_html NOT LIKE '%summarized-title%') " +
+            "AND f.autoSummarize = 1 " +
+            "ORDER BY CASE WHEN e.priority = 0 THEN 999999 ELSE e.priority END ASC, e.id DESC")
     List<Entry> getUnsummarizedEntries();
 
     @Query("SELECT original_html FROM entry_table WHERE id = :id")
