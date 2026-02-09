@@ -9,6 +9,8 @@ import android.util.JsonReader;
 import android.util.JsonToken;
 import android.util.Log;
 import android.webkit.ValueCallback;
+import android.webkit.WebChromeClient;
+import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 
@@ -74,6 +76,7 @@ public class TtsExtractor {
     private final List<Long> failedIds = new ArrayList<>();
     private final HashMap<Long, Integer> retryCountMap = new HashMap<>();
     private final int MAX_RETRIES = 5;
+    private static final int MIN_CONTENT_LENGTH = 100;
     private long lastExtractStart = 0;
 
     private long lastSuccessfullyProcessedId = -1;
@@ -95,10 +98,33 @@ public class TtsExtractor {
                 webView = new WebView(context);
                 webView.setWebViewClient(new WebClient());
                 webView.clearCache(true);
-                webView.getSettings().setJavaScriptEnabled(true);
-                webView.getSettings().setDomStorageEnabled(true);
-                webView.getSettings().setUserAgentString("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36");
-                webView.getSettings().setMediaPlaybackRequiresUserGesture(false);
+                WebSettings settings = webView.getSettings();
+                settings.setJavaScriptEnabled(true);
+                settings.setDomStorageEnabled(true);
+                settings.setDatabaseEnabled(true);
+                settings.setLoadsImagesAutomatically(true);
+                settings.setBlockNetworkImage(false);
+                settings.setMixedContentMode(WebSettings.MIXED_CONTENT_ALWAYS_ALLOW);
+                settings.setSupportMultipleWindows(false);
+                settings.setJavaScriptCanOpenWindowsAutomatically(false);
+                settings.setUseWideViewPort(true);
+                settings.setLoadWithOverviewMode(true);
+                
+                // Tricking sites to think it's a real browser on a standard screen
+                webView.layout(0, 0, 1080, 1920); 
+                
+                settings.setUserAgentString("Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/116.0.0.0 Mobile Safari/537.36");
+                settings.setMediaPlaybackRequiresUserGesture(false);
+
+                webView.setWebChromeClient(new WebChromeClient() {
+                    @Override
+                    public void onProgressChanged(WebView view, int newProgress) {
+                        super.onProgressChanged(view, newProgress);
+                        Log.d(TAG, "[Progress] " + newProgress + "% for: " + currentLink);
+                    }
+                });
+                webView.onResume();
+                webView.resumeTimers();
             }
         });
     }
@@ -106,7 +132,12 @@ public class TtsExtractor {
     private void finishAndMoveToNext() {
         Log.d(TAG, "Item complete. Moving to next...");
 
-        lastSuccessfullyProcessedId = currentIdInProgress;
+        // Only mark as successfully processed if it wasn't just added to failedIds
+        if (!failedIds.contains(currentIdInProgress)) {
+            lastSuccessfullyProcessedId = currentIdInProgress;
+        } else {
+             Log.d(TAG, "Item " + currentIdInProgress + " failed, not marking as successfully processed.");
+        }
 
         // Your existing cleanup logic
         if (currentIdInProgress == ttsPlaylist.getPlayingId()) {
@@ -159,6 +190,10 @@ public class TtsExtractor {
 
         Entry entry = entryRepository.getEmptyContentEntry();
 
+        if (entry != null && failedIds.contains(entry.getId())) {
+            entry = null;
+        }
+
         if (entry == null && !failedIds.isEmpty()) {
             long retryId = failedIds.remove(0);
             int attempts = retryCountMap.getOrDefault(retryId, 0);
@@ -169,6 +204,8 @@ public class TtsExtractor {
                 entry = entryRepository.getEntryById(retryId);
             } else {
                 Log.w(TAG, "Max retries reached for article ID: " + retryId);
+                entryRepository.updateContent("Extraction Failed. Please try opening in browser.", retryId);
+                retryCountMap.remove(retryId);
                 extractAllEntries();
                 return;
             }
@@ -185,7 +222,12 @@ public class TtsExtractor {
 
                 currentLanguage = null;
 
-                delayTime = feedRepository.getDelayTimeById(entry.getFeedId());
+                int baseDelay = feedRepository.getDelayTimeById(entry.getFeedId());
+                int attempts = retryCountMap.getOrDefault(entry.getId(), 0);
+                delayTime = baseDelay + (attempts * 5); // Add 5 seconds per retry
+
+                Log.d(TAG, "Delay for ID " + entry.getId() + " is " + delayTime + "s (Attempt " + attempts + ")");
+
                 ContextCompat.getMainExecutor(context).execute(new Runnable() {
                     @Override
                     public void run() {
@@ -245,6 +287,13 @@ public class TtsExtractor {
         extractAllEntries();
     }
 
+    // Helper methods to keep the main function cleaner
+    private void handleFailure(long id) {
+        entryRepository.updatePriority(0, id);
+        failedIds.add(id);
+        finishAndMoveToNext();
+    }
+
     public class WebClient extends WebViewClient {
 
         private final Handler handler = new Handler(Looper.getMainLooper());
@@ -256,6 +305,7 @@ public class TtsExtractor {
         @Override
         public void onPageStarted(WebView view, String url, Bitmap favicon) {
             super.onPageStarted(view, url, favicon);
+            Log.d(TAG, "[onPageStarted] " + url);
             currentLoadToken = java.util.UUID.randomUUID().toString();
             hasProcessedCurrentToken = false;
             extractionInProgress = true;
@@ -263,8 +313,34 @@ public class TtsExtractor {
 
         @Override
         public boolean shouldOverrideUrlLoading(WebView view, android.webkit.WebResourceRequest request) {
-            view.loadUrl(request.getUrl().toString());
-            return true;
+            String url = request.getUrl().toString();
+            if (url.startsWith("http://") || url.startsWith("https://")) {
+                view.loadUrl(url);
+                return true;
+            } else {
+                Log.w(TAG, "Blocked navigation to non-http/https URL: " + url);
+                return true; // We handled it by ignoring it
+            }
+        }
+
+        @Override
+        public void onPageCommitVisible(WebView view, String url) {
+            super.onPageCommitVisible(view, url);
+            Log.d(TAG, "[onPageCommitVisible] triggered for: " + url);
+            // We use this as a supplementary trigger to ensure the page is actually rendering
+        }
+
+        @Override
+        public void onReceivedError(WebView view, android.webkit.WebResourceRequest request, android.webkit.WebResourceError error) {
+            super.onReceivedError(view, request, error);
+            if (request.isForMainFrame()) {
+                // -10 is ERROR_UNKNOWN_URL_SCHEME
+                if (error.getErrorCode() == -10) {
+                     Log.w(TAG, "[onReceivedError] Ignored ERR_UNKNOWN_URL_SCHEME for: " + request.getUrl());
+                     return;
+                }
+                Log.e(TAG, "[onReceivedError] Main frame error: " + error.getDescription() + " (" + error.getErrorCode() + ") for " + request.getUrl());
+            }
         }
 
         @Override
@@ -273,27 +349,57 @@ public class TtsExtractor {
             super.onPageFinished(view, url);
             final String executionToken = currentLoadToken;
             if (extractionInProgress) {
-                handler.postDelayed(new Runnable() {
-                    @Override
-                    public void run() {
-                        if (!executionToken.equals(currentLoadToken) || !extractionInProgress || hasProcessedCurrentToken) {
-                            Log.d(TAG, "Ignoring stale onPageFinished event.");
-                            return;
-                        }
-                        view.evaluateJavascript("(function() {return document.getElementsByTagName('html')[0].outerHTML;})();", new ValueCallback<String>() {
-                            @Override
-                            public void onReceiveValue(final String value) {
-                                if (!executionToken.equals(currentLoadToken) || hasProcessedCurrentToken) {
-                                    Log.d(TAG, "Ignoring JS callback. Token mismatch.");
-                                    return;
-                                }
-                                hasProcessedCurrentToken = true;
-                                processHtmlExtraction(value);
-                            }
-                        });
-                    }
-                }, delayTime * 1000L);
+                // Start polling after the initial delay
+                handler.postDelayed(() -> checkReadyState(view, executionToken, 1), delayTime * 1000L);
             }
+        }
+        
+        private void checkReadyState(WebView view, String executionToken, int attempt) {
+             if (!executionToken.equals(currentLoadToken) || !extractionInProgress || hasProcessedCurrentToken) return;
+             
+             // Scroll to bottom to trigger lazy loading
+             view.evaluateJavascript("(function() { window.scrollTo(0, document.body.scrollHeight); return document.readyState; })();", value -> {
+                 if (!executionToken.equals(currentLoadToken) || hasProcessedCurrentToken) return;
+                 
+                 // Value is JSON string, e.g. "complete"
+                 if (value != null && value.contains("complete")) {
+                     Log.d(TAG, "Page ready (" + value + "). Waiting 3s settle time...");
+                     handler.postDelayed(() -> extractHtml(view, executionToken), 3000);
+                 } else if (value != null && value.contains("interactive")) {
+                     if (attempt < 15) { 
+                         Log.d(TAG, "Page interactive. Attempt " + attempt + "/15. Waiting 2s for complete...");
+                         handler.postDelayed(() -> checkReadyState(view, executionToken, attempt + 1), 2000);
+                     } else {
+                         Log.w(TAG, "Page stuck at interactive. Proceeding with 3s settle...");
+                         handler.postDelayed(() -> extractHtml(view, executionToken), 3000);
+                     }
+                 } else {
+                     if (attempt < 20) {
+                         Log.d(TAG, "Page loading (" + value + "). Attempt " + attempt + "/20. Waiting 2s...");
+                         handler.postDelayed(() -> checkReadyState(view, executionToken, attempt + 1), 2000);
+                     } else {
+                         Log.w(TAG, "Page ready check timed out. Forcing extraction with 3s settle.");
+                         handler.postDelayed(() -> extractHtml(view, executionToken), 3000);
+                     }
+                 }
+             });
+        }
+
+        private void extractHtml(WebView view, String executionToken) {
+             // Final guard before starting extraction
+             if (!executionToken.equals(currentLoadToken) || !extractionInProgress || hasProcessedCurrentToken) {
+                 Log.d(TAG, "Aborting extraction: Token mismatch or already processed.");
+                 return;
+             }
+
+             view.evaluateJavascript("(function() {return document.getElementsByTagName('html')[0].outerHTML;})();", value -> {
+                if (!executionToken.equals(currentLoadToken) || hasProcessedCurrentToken) {
+                    Log.d(TAG, "Ignoring JS callback. Token mismatch.");
+                    return;
+                }
+                hasProcessedCurrentToken = true;
+                processHtmlExtraction(value);
+            });
         }
     }
 
@@ -307,9 +413,10 @@ public class TtsExtractor {
             if (reader.peek() == JsonToken.STRING) {
                 String html = reader.nextString();
 
-                if (html != null) {
+                if (html != null && html.length() >= 500) {
                     processExtraction(currentIdInProgress, currentLink, currentTitle, html);
                 } else {
+                    Log.w(TAG, "HTML too short (" + (html != null ? html.length() : 0) + " chars). Retrying...");
                     handleFailure(currentIdInProgress);
                 }
             } else {
@@ -323,7 +430,8 @@ public class TtsExtractor {
 
     @SuppressLint("CheckResult")
     public void processExtraction(long entryId, String link, String title, String html) {
-        if (html == null || html.isEmpty()) {
+        if (html == null || html.length() < 500) {
+            Log.w(TAG, "HTML too short or null in processExtraction. Retrying...");
             handleFailure(entryId);
             return;
         }
@@ -412,8 +520,17 @@ public class TtsExtractor {
                     }
                 }
 
+                String extractedContent = content.toString();
+                int attempts = retryCountMap.getOrDefault(entryId, 0);
+
+                if (extractedContent.length() < MIN_CONTENT_LENGTH && attempts < MAX_RETRIES) {
+                    Log.w(TAG, "Extracted content too short (" + extractedContent.length() + " chars) for ID: " + entryId + ". Attempt: " + attempts + ". Retrying...");
+                    handleFailure(entryId);
+                    return;
+                }
+
                 // Save Content & Backup HTML
-                entryRepository.updateContent(content.toString(), entryId);
+                entryRepository.updateContent(extractedContent, entryId);
                 entryRepository.updateOriginalHtml(doc.html(), entryId);
 
                 // View State Logic
@@ -536,12 +653,6 @@ public class TtsExtractor {
             Log.e(TAG, "Exception during extraction", e);
             handleFailure(entryId);
         }
-    }
-
-    // Helper methods to keep the main function cleaner
-    private void handleFailure(long id) {
-        failedIds.add(id);
-        finishAndMoveToNext();
     }
 
     private void handleError(Throwable error, long id) {

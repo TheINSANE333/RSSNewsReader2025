@@ -650,6 +650,10 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
             );
         }
 
+        if (!isTranslatedView && !isSummarizedView) {
+            webViewViewModel.updateOriginalHtml(html, currentId);
+        }
+
         webView.loadDataWithBaseURL("file///android_res/", doc.html(), "text/html", "UTF-8", null);
 
         webView.postDelayed(() -> {
@@ -677,6 +681,7 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
             return;
         }
 
+        webViewViewModel.clearViewData();
         currentId = entryInfo.getEntryId();
         webViewViewModel.prioritizeEntry(currentId);
         Entry entry = entryRepository.getEntryById(currentId);
@@ -772,7 +777,7 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
 
         // 8. Observers
         observeLiveEntry();
-        observeAutoProcessing();
+        subscribeToEntry(currentId);
         syncLoadingWithTts();
         refreshButtonVisibility();
     }
@@ -886,67 +891,109 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
         }
     }
 
-    private void observeAutoProcessing() {
-        autoProcessingObserver = webViewViewModel.getEntryEntityById(currentId);
-        checkAutoProcessed = new Observer<Entry>() {
-            @Override
-            public void onChanged(Entry entry) {
-                if (entry == null) return;
+    private void subscribeToEntry(long entryId) {
+        if (autoProcessingObserver != null && checkAutoProcessed != null) {
+            autoProcessingObserver.removeObserver(checkAutoProcessed);
+        }
 
-                boolean hasSummary = entry.getSummarized() != null && !entry.getSummarized().trim().isEmpty();
-                boolean hasTranslation = entry.getTranslated() != null && !entry.getTranslated().trim().isEmpty();
-
-                if (hasSummary || hasTranslation) {
-
-                    String originalHtmlFromDb = entryRepository.getOriginalHtmlById(currentId);
-                    if (originalHtmlFromDb != null) {
-                        webViewViewModel.updateOriginalHtml(originalHtmlFromDb, currentId);
-                        Log.d(TAG, "Original HTML restored from DB.");
+        autoProcessingObserver = webViewViewModel.getEntryEntityById(entryId);
+        
+        if (checkAutoProcessed == null) {
+            checkAutoProcessed = new Observer<Entry>() {
+                @Override
+                public void onChanged(Entry entry) {
+                    if (entry == null) return;
+                    
+                    // Crucial: Ignore updates for entries that are no longer current
+                    if (entry.getId() != currentId) {
+                        Log.d(TAG, "Ignored update for ID " + entry.getId() + " because currentId is " + currentId);
+                        return;
                     }
 
-                    if (hasSummary && !isSummarizedView && !isTranslatedView) {
-                        String summarizedHtmlFromDb = entry.getSummarizedHtml();
-                        if (summarizedHtmlFromDb != null) {
-                            isSummarizedView = true;
-                            isTranslatedView = false;
-                            sharedPreferencesRepository.setIsSummarizedView(currentId, true);
-                            sharedPreferencesRepository.setIsTranslatedView(currentId, false);
-                            webViewViewModel.updateSummarizedHtml(summarizedHtmlFromDb, currentId);
-                            Log.d(TAG, "Summarized HTML synced from auto processing.");
-                            
-                            refreshButtonVisibility();
-                            webViewViewModel.triggerEntryRefresh(currentId);
-                            autoProcessingObserver.removeObserver(this);
-                        }
-                    } else if (hasTranslation && !isTranslatedView && !isSummarizedView) {
-                        String translatedHtmlFromDb = entry.getTranslatedHtml();
-                        if (translatedHtmlFromDb != null) {
-                            isTranslatedView = true;
-                            isSummarizedView = false;
-                            sharedPreferencesRepository.setIsTranslatedView(currentId, true);
-                            sharedPreferencesRepository.setIsSummarizedView(currentId, false);
-                            webViewViewModel.updateTranslatedHtml(translatedHtmlFromDb, currentId);
-                            Log.d(TAG, "Translated HTML synced from auto processing.");
+                    boolean hasContent = entry.getContent() != null && !entry.getContent().trim().isEmpty();
+                    boolean hasOriginalHtml = entry.getOriginalHtml() != null && !entry.getOriginalHtml().trim().isEmpty();
+                    boolean hasSummary = entry.getSummarized() != null && !entry.getSummarized().trim().isEmpty();
+                    boolean hasTranslation = entry.getTranslated() != null && !entry.getTranslated().trim().isEmpty();
 
-                            refreshButtonVisibility();
-                            webViewViewModel.triggerEntryRefresh(currentId);
-                            autoProcessingObserver.removeObserver(this);
+                    if (hasContent || hasOriginalHtml || hasSummary || hasTranslation) {
+
+                        String originalHtmlFromDb = entry.getOriginalHtml();
+                        if (originalHtmlFromDb != null && webViewViewModel.getOriginalHtmlById(currentId) == null) {
+                            webViewViewModel.updateOriginalHtml(originalHtmlFromDb, currentId);
+                            Log.d(TAG, "Original HTML restored from DB.");
                         }
-                    } else {
-                        // Already in a processed view, or waiting for more data. 
-                        // Just refresh buttons to show they are available now.
-                        refreshButtonVisibility();
+
+                        if (hasSummary && !isSummarizedView && !isTranslatedView) {
+                            String summarizedHtmlFromDb = entry.getSummarizedHtml();
+                            if (summarizedHtmlFromDb != null) {
+                                isSummarizedView = true;
+                                isTranslatedView = false;
+                                sharedPreferencesRepository.setIsSummarizedView(currentId, true);
+                                sharedPreferencesRepository.setIsTranslatedView(currentId, false);
+                                webViewViewModel.updateSummarizedHtml(summarizedHtmlFromDb, currentId);
+                                Log.d(TAG, "Summarized HTML synced from auto processing.");
+                                
+                                refreshButtonVisibility();
+                                webViewViewModel.triggerEntryRefresh(currentId);
+                                // Don't remove observer yet, user might switch view modes
+                            }
+                        } else if (hasTranslation && !isTranslatedView && !isSummarizedView) {
+                            String translatedHtmlFromDb = entry.getTranslatedHtml();
+                            if (translatedHtmlFromDb != null) {
+                                isTranslatedView = true;
+                                isSummarizedView = false;
+                                sharedPreferencesRepository.setIsTranslatedView(currentId, true);
+                                sharedPreferencesRepository.setIsSummarizedView(currentId, false);
+                                webViewViewModel.updateTranslatedHtml(translatedHtmlFromDb, currentId);
+                                Log.d(TAG, "Translated HTML synced from auto processing.");
+
+                                refreshButtonVisibility();
+                                webViewViewModel.triggerEntryRefresh(currentId);
+                                // Don't remove observer yet
+                            }
+                                                                } else if (!isSummarizedView && !isTranslatedView && hasOriginalHtml) {
+                                                                    // Just regular extraction finished
+                                                                    String htmlFromDb = entry.getHtml(); 
+                                                                    if (htmlFromDb == null) htmlFromDb = entry.getOriginalHtml();
+                                                                    
+                                                                    // Use LiveData value from ViewModel to detect if we are currently showing a fallback
+                                                                    String currentViewModelHtml = webViewViewModel.getOriginalHtmlLiveData().getValue();
+                                                                    boolean isShowingFallback = (currentViewModelHtml == null || currentViewModelHtml.isEmpty());
+                                            
+                                                                    if (htmlFromDb != null && isShowingFallback) {
+                                                                        Log.d(TAG, "Regular extraction synced. Switching to extracted view.");
+                                                                        
+                                                                        // 1. Notify user
+                                                                        makeSnackbar("Article extracted. Switching to reader view...");
+                                                                        
+                                                                        // 2. Update ViewModel which triggers the LiveData observer to load HTML
+                                                                        webViewViewModel.updateOriginalHtml(htmlFromDb, currentId);
+                                                                        
+                                                                        // 3. Update buttons
+                                                                        refreshButtonVisibility();
+                                                                        
+                                                                        // 4. Start TTS immediately
+                                                                        String lang = getLanguageForCurrentView(currentId, false, "en");
+                                                                        ttsPlayer.extract(currentId, feedId, entry.getContent(), lang);
+                                                                        
+                                                                        // Stop observing this entry as we have transitioned
+                                                                        autoProcessingObserver.removeObserver(this);
+                                                                    }
+                                                                }
+                                             else {
                         
-                        // If we already have the summary/translation but didn't auto-switch (e.g. user manually switched already)
-                        // we can stop observing.
-                        if ((hasSummary && entry.getSummarizedHtml() != null) || (hasTranslation && entry.getTranslatedHtml() != null)) {
-                             autoProcessingObserver.removeObserver(this);
+                            // Already in a processed view, or waiting for more data. 
+                            refreshButtonVisibility();
                         }
                     }
                 }
-            }
-        };
-        autoProcessingObserver.observeForever(checkAutoProcessed);
+            };
+        }
+        
+        // Use observe (with lifecycle) if possible, but since we manage it manually and it might persist 
+        // across some states, observeForever is okay IF we strictly unsubscribe.
+        // Given we are in an Activity, observe(this, ...) is much safer to avoid leaks.
+        autoProcessingObserver.observe(this, checkAutoProcessed);
     }
 
     private void loadHtmlToWebView(String html) {
@@ -1892,7 +1939,12 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
 
             // Now it is safe to parse
             try {
+                if (currentId != Long.parseLong(mediaIdStr)) {
+                    webViewViewModel.clearViewData();
+                }
                 currentId = Long.parseLong(mediaIdStr);
+                // Update observer to the new ID immediately
+                subscribeToEntry(currentId);
             } catch (NumberFormatException e) {
                 Log.e(TAG, "onMetadataChanged: Error parsing Media ID: " + mediaIdStr, e);
                 return;

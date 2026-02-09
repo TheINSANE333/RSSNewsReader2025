@@ -12,6 +12,7 @@ import android.view.View;
 import android.widget.Toast;
 
 import xiangze.mmu.rssnewsreader.R;
+import xiangze.mmu.rssnewsreader.databinding.ActivityMainBinding;
 
 import androidx.activity.OnBackPressedCallback;
 import androidx.activity.result.ActivityResult;
@@ -38,8 +39,8 @@ import androidx.recyclerview.widget.RecyclerView;
 import xiangze.mmu.rssnewsreader.data.entry.Entry;
 import xiangze.mmu.rssnewsreader.data.feed.Feed;
 import xiangze.mmu.rssnewsreader.data.sharedpreferences.SharedPreferencesRepository;
-import xiangze.mmu.rssnewsreader.databinding.ActivityMainBinding;
 import xiangze.mmu.rssnewsreader.service.rss.RssWorkManager;
+import xiangze.mmu.rssnewsreader.service.tts.TtsExtractor;
 
 import com.google.android.material.materialswitch.MaterialSwitch;
 
@@ -75,6 +76,8 @@ public class MainActivity extends AppCompatActivity {
     SharedPreferencesRepository sharedPreferencesRepository;
     @Inject
     RssWorkManager rssWorkManager;
+    @Inject
+    TtsExtractor ttsExtractor;
 
     // Define the ActivityResultLauncher for importing OPML file
     private final ActivityResultLauncher<String[]> importOpmlLauncher = registerForActivityResult(
@@ -556,6 +559,14 @@ public class MainActivity extends AppCompatActivity {
                 adapter.submitList(feeds);
             }
         });
+
+        ttsExtractor.extractAllEntries();
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        ttsExtractor.extractAllEntries();
     }
 
     @Override

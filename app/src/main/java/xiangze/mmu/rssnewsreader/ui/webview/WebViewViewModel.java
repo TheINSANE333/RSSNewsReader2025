@@ -80,12 +80,20 @@ public class WebViewViewModel extends ViewModel {
 
     public void updateHtml(String html, long id) {
         entryRepository.updateHtml(html, id);
-        translatedHtmlLiveData.postValue(html);
+        originalHtmlLiveData.postValue(html);
     }
 
     public void updateTranslatedHtml(String html, long id) {
         entryRepository.updateTranslatedHtml(html, id);
         translatedHtmlLiveData.postValue(html);
+    }
+
+    public void clearViewData() {
+        originalHtmlLiveData.postValue(null);
+        translatedHtmlLiveData.postValue(null);
+        summarizedHtmlLiveData.postValue(null);
+        translatedTextReady.postValue(null);
+        summarizedTextReady.postValue(null);
     }
 
     public void updateSummarizedHtml(String html, long id) {
