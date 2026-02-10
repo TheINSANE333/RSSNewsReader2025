@@ -608,7 +608,6 @@ public class TtsExtractor {
                                         .subscribeOn(Schedulers.io())
                                         .observeOn(AndroidSchedulers.mainThread())
                                         .subscribe(translatedHtml -> {
-                                            entryRepository.updateHtml(translatedHtml, processingId);
                                             entryRepository.updateTranslatedHtml(translatedHtml, processingId);
                                             String translatedContent = textUtil.extractHtmlContent(translatedHtml, delimiter);
                                             entryRepository.updateTranslatedText(translatedContent, processingId);
@@ -620,11 +619,10 @@ public class TtsExtractor {
                                         }, error -> handleError(error, processingId));
 
                             } else if (shouldSummarize) {
-                                textUtil.summarizeHtmlAllAtOnce(detectedLang, targetLang, doc.html(), length, processingId, progress -> {})
+                                textUtil.summarizeHtmlAllAtOnce(detectedLang, targetLang, doc.html(), length, processingId, processingTitle, progress -> {})
                                         .subscribeOn(Schedulers.io())
                                         .observeOn(AndroidSchedulers.mainThread())
                                         .subscribe(summarizedHtml -> {
-                                            entryRepository.updateHtml(summarizedHtml, processingId);
                                             entryRepository.updateSummarizedHtml(summarizedHtml, processingId);
                                             String summarizedContent = textUtil.extractHtmlContent(summarizedHtml, delimiter);
                                             entryRepository.updateSummarizedText(summarizedContent, processingId);

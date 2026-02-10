@@ -176,22 +176,37 @@ public class TtsService extends MediaBrowserServiceCompat {
                 }
 
                 // 3. WATERFALL LOGIC: Content Selection
-                // Priority: Summarized > Translated > Original
+                // Priority: Preference > Summarized > Translated > Original
                 String contentToSpeak;
                 boolean useSummarized = false;
                 boolean useTranslated = false;
 
-                if (entry.getSummarized() != null && !entry.getSummarized().trim().isEmpty()) {
+                boolean hasSummary = entry.getSummarized() != null && !entry.getSummarized().trim().isEmpty();
+                boolean hasTranslation = entry.getTranslated() != null && !entry.getTranslated().trim().isEmpty();
+
+                if (sharedPreferencesRepository.hasSummarizationToggle(currentReadingId) ||
+                        sharedPreferencesRepository.hasTranslationToggle(currentReadingId)) {
+                    // USE SAVED PREFERENCE
+                    useSummarized = sharedPreferencesRepository.getIsSummarizedView(currentReadingId) && hasSummary;
+                    useTranslated = !useSummarized && sharedPreferencesRepository.getIsTranslatedView(currentReadingId) && hasTranslation;
+                } else {
+                    // NO PREFERENCE: Use Data Priority
+                    if (hasSummary) {
+                        useSummarized = true;
+                    } else if (hasTranslation) {
+                        useTranslated = true;
+                    }
+                }
+
+                if (useSummarized) {
                     contentToSpeak = entry.getSummarized();
-                    useSummarized = true;
-                    Log.d(TAG, "Waterfall selection: Summarized Content");
-                } else if (entry.getTranslated() != null && !entry.getTranslated().trim().isEmpty()) {
+                    Log.d(TAG, "Selection: Summarized Content");
+                } else if (useTranslated) {
                     contentToSpeak = entry.getTranslated();
-                    useTranslated = true;
-                    Log.d(TAG, "Waterfall selection: Translated Content");
+                    Log.d(TAG, "Selection: Translated Content");
                 } else {
                     contentToSpeak = entry.getContent(); // Original content
-                    Log.d(TAG, "Waterfall selection: Original Content");
+                    Log.d(TAG, "Selection: Original Content");
                 }
 
                 // 4. WATERFALL LOGIC: Language Selection

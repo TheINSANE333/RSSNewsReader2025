@@ -132,12 +132,13 @@ public class AutoTranslator {
                             entryRepository.updateOriginalHtml(currentHtml, id);
                         }
 
-                        // Save new data atomically
+                        // Save new data atomically (without overwriting original 'html' column)
                         String translatedContent = textUtil.extractHtmlContent(cleanedTranslated, delimiter);
-                        entryRepository.updateTranslatedResult(id, cleanedTranslated, translatedContent, cleanedTranslated, translatedTitle);
+                        entryRepository.updateTranslatedHtml(cleanedTranslated, id);
+                        entryRepository.updateTranslated(translatedContent, id);
+                        entryRepository.updateTitle(translatedTitle, id, entry.getLink());
 
                         // Update in-memory object just in case
-                        entry.setHtml(cleanedTranslated);
                         entry.setTranslatedHtml(cleanedTranslated);
                         entry.setTranslated(translatedContent);
                         entry.setTitle(translatedTitle);

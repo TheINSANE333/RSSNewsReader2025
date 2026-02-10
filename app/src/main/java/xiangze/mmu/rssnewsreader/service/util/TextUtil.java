@@ -354,7 +354,7 @@ public class TextUtil {
         });
     }
 
-    public Single<String> summarizeHtmlAllAtOnce(String sourceLanguage, String targetLanguage, String html, int length, long articleId, Consumer<Integer> progressCallback) {
+    public Single<String> summarizeHtmlAllAtOnce(String sourceLanguage, String targetLanguage, String html, int length, long articleId, String title, Consumer<Integer> progressCallback) {
         return Single.defer(() -> {
 
             Log.d(TAG, "Attempting to acquire Summarization Lock for ID: " + articleId);
@@ -371,7 +371,7 @@ public class TextUtil {
 
             // 2. RUN: Your existing translation logic goes here.
             // Ensure this returns a Single<String>.
-            return performActualSummarization(sourceLanguage, targetLanguage, html, length, articleId, progressCallback)
+            return performActualSummarization(sourceLanguage, targetLanguage, html, length, articleId, title, progressCallback)
                     .doFinally(() -> {
                         // 3. RELEASE: This runs whether the translation Succeeds OR Fails.
                         // It is critical to ensure the next item in line can proceed.
@@ -462,7 +462,7 @@ public class TextUtil {
         });
     }
 
-    private Single<String> performActualSummarization(String sourceLanguage, String targetLanguage, String html, int length, long articleId, Consumer<Integer> progressCallback) {
+    private Single<String> performActualSummarization(String sourceLanguage, String targetLanguage, String html, int length, long articleId, String title, Consumer<Integer> progressCallback) {
         Log.d(TAG, "summarizeHtmlAllAtOnce: AI Mode - in" + length);
 
         return Single.create(emitter -> {
@@ -493,8 +493,8 @@ public class TextUtil {
                 messages.add(new Message(
                         "system",
                         "You are a helpful assistant designed to summarize web articles. " +
-                                "Provide a concise summary of the content provided in targeted language. " +
-                                "Respond in just plain text of the summary. " +
+                                "Translate the title and provide a concise summary of the content in targeted language. " +
+                                "Format your response exactly like this: [TITLE] <translated_title> [CONTENT] <summary_text>. " +
                                 "If it's an opinion piece, tell the name and background of the writer. " +
                                 "If the content is short, do not make it longer. "
                 ));
@@ -506,9 +506,11 @@ public class TextUtil {
                                 "Please summarize the following article \n" +
                                         "Target Language: %s\n" +
                                         "Length: %s\n" +
+                                        "Title: %s\n" +
                                         "Content:\n%s",
                                 targetLanguage,
                                 length,
+                                title,
                                 html
                         )
                 ));
@@ -516,6 +518,7 @@ public class TextUtil {
                 // 3. Execute Blocking Request (Safe inside Single.create)
                 // Note: Ensure summarizeChunkWithRetry is accessible here
                 String summarizedHtml = summarizeChunkWithRetry(aiClient, messages);
+                Log.d(TAG, "AI Summary Response: " + summarizedHtml);
 
                 // 4. Stop Progress & Validate
                 progressThread.interrupt();

@@ -89,21 +89,34 @@ public class AutoSummarizer {
                         Single<String> summarizationSingle;
 
                         // Pass empty progress listener since we are in background
-                        summarizationSingle = textUtil.summarizeHtmlAllAtOnce(sourceLang, targetLang, sourceHtml, length, id, progress -> {
+                        summarizationSingle = textUtil.summarizeHtmlAllAtOnce(sourceLang, targetLang, sourceHtml, length, id, title, progress -> {
                         });
 
                         // 5. Execute Summarization (Synchronous / Blocking)
                         // If this fails (Network error, Rate limit), it throws an exception immediately.
                         String summaryText = summarizationSingle.blockingGet();
 
+                        String summarizedTitle = "Summary";
+                        String summarizedBody = summaryText;
+
+                        if (summaryText.contains("[TITLE]") && summaryText.contains("[CONTENT]")) {
+                            summarizedTitle = summaryText.substring(
+                                    summaryText.indexOf("[TITLE]") + 7,
+                                    summaryText.indexOf("[CONTENT]")
+                            ).trim();
+                            summarizedBody = summaryText.substring(
+                                    summaryText.indexOf("[CONTENT]") + 9
+                            ).trim();
+                        }
+
                         // Convert plain text summary to HTML with marker
                         org.jsoup.nodes.Document doc = org.jsoup.Jsoup.parse("");
                         org.jsoup.nodes.Element titleElement = doc.body().appendElement("p");
                         titleElement.addClass("summarized-title");
-                        titleElement.text("Summary"); // Or use the actual title if preferred, but the marker is what matters
+                        titleElement.text(summarizedTitle); // Use the translated title
 
                         org.jsoup.nodes.Element contentElement = doc.body().appendElement("p");
-                        contentElement.text(summaryText); // Use text() to escape any HTML in the summary itself
+                        contentElement.text(summarizedBody); // Use text() to escape any HTML in the summary itself
 
                         String finalSummarizedHtml = doc.html();
 
@@ -115,12 +128,12 @@ public class AutoSummarizer {
                             entryRepository.updateOriginalHtml(sourceHtml, id);
                         }
 
-                        // Save new data atomically
+                        // Save new data atomically (without overwriting original 'html' column)
                         String summarizedContent = textUtil.extractHtmlContent(finalSummarizedHtml, delimiter);
-                        entryRepository.updateSummarizedResult(id, finalSummarizedHtml, summarizedContent, finalSummarizedHtml);
+                        entryRepository.updateSummarizedHtml(finalSummarizedHtml, id);
+                        entryRepository.updateSummarized(summarizedContent, id);
 
                         // Update in-memory object just in case
-                        entry.setHtml(finalSummarizedHtml);
                         entry.setSummarizedHtml(finalSummarizedHtml);
                         entry.setSummarized(summarizedContent);
 

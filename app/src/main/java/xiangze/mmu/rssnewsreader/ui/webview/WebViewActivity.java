@@ -251,11 +251,28 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
             Log.d(TAG, "Original HTML backed up from method parameter.");
         }
 
-        Document doc = Jsoup.parse(summarizedHtml);
+        summarizedHtml = summarizedHtml
+                .replaceAll("(?s)^\\s*```[a-zA-Z]*\\n?", "") // Removes the opening ```html
+                .replaceAll("(?s)\\n?```\\s*$", "");        // Removes the closing ```
+
+        String summarizedTitle = entryInfo.getEntryTitle();
+        String summarizedBody = summarizedHtml;
+
+        if (summarizedHtml.contains("[TITLE]") && summarizedHtml.contains("[CONTENT]")) {
+            summarizedTitle = summarizedHtml.substring(
+                    summarizedHtml.indexOf("[TITLE]") + 7,
+                    summarizedHtml.indexOf("[CONTENT]")
+            ).trim();
+            summarizedBody = summarizedHtml.substring(
+                    summarizedHtml.indexOf("[CONTENT]") + 9
+            ).trim();
+        }
+
+        Document doc = Jsoup.parse(summarizedBody);
         doc.head().append(webViewViewModel.getStyle(sharedPreferencesRepository.getNight()));
         Objects.requireNonNull(doc.selectFirst("body"))
                 .prepend(webViewViewModel.getHtml(
-                        entryInfo.getEntryTitle(),
+                        summarizedTitle,
                         entryInfo.getFeedTitle(),
                         entryInfo.getEntryPublishedDate(),
                         entryInfo.getFeedImageUrl(),
@@ -1119,8 +1136,8 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
                 messages.add(new Message(
                         "system",
                         "You are a helpful assistant designed to summarize web articles. " +
-                                "Provide a concise summary of the content provided in targeted language. " +
-                                "Respond in just plain text of the summary. " +
+                                "Translate the title and provide a concise summary of the content in targeted language. " +
+                                "Format your response exactly like this: [TITLE] <translated_title> [CONTENT] <summary_text>. " +
                                 "If it's an opinion piece, tell the name and background of the writer. " +
                                 "If the content is short, do not make it longer. "
                 ));
@@ -1141,6 +1158,7 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
                 // Execute Request
                 // Updated to use the method available in your AiClient
                 String summaryResult = aiClient.getChatResponse(messages);
+                Log.d(TAG, "AI Summary Response: " + summaryResult);
 
                 runOnUiThread(() -> loading.setProgress(80));
 
