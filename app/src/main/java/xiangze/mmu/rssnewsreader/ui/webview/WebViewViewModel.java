@@ -45,7 +45,15 @@ public class WebViewViewModel extends ViewModel {
     }
 
     public void setLoadingState(boolean isLoading) {
-        loadingState.postValue(isLoading);
+        setLiveDataValue(loadingState, isLoading);
+    }
+
+    private <T> void setLiveDataValue(MutableLiveData<T> liveData, T value) {
+        if (android.os.Looper.myLooper() == android.os.Looper.getMainLooper()) {
+            liveData.setValue(value);
+        } else {
+            liveData.postValue(value);
+        }
     }
 
     @Inject
@@ -80,25 +88,25 @@ public class WebViewViewModel extends ViewModel {
 
     public void updateHtml(String html, long id) {
         entryRepository.updateHtml(html, id);
-        originalHtmlLiveData.postValue(html);
+        setLiveDataValue(originalHtmlLiveData, html);
     }
 
     public void updateTranslatedHtml(String html, long id) {
         entryRepository.updateTranslatedHtml(html, id);
-        translatedHtmlLiveData.postValue(html);
+        setLiveDataValue(translatedHtmlLiveData, html);
     }
 
     public void clearViewData() {
-        originalHtmlLiveData.postValue(null);
-        translatedHtmlLiveData.postValue(null);
-        summarizedHtmlLiveData.postValue(null);
-        translatedTextReady.postValue(null);
-        summarizedTextReady.postValue(null);
+        setLiveDataValue(originalHtmlLiveData, null);
+        setLiveDataValue(translatedHtmlLiveData, null);
+        setLiveDataValue(summarizedHtmlLiveData, null);
+        setLiveDataValue(translatedTextReady, null);
+        setLiveDataValue(summarizedTextReady, null);
     }
 
     public void updateSummarizedHtml(String html, long id) {
         entryRepository.updateSummarizedHtml(html, id);
-        summarizedHtmlLiveData.postValue(html);
+        setLiveDataValue(summarizedHtmlLiveData, html);
     }
 
     public void updateContent(String content, long id) {
@@ -199,7 +207,7 @@ public class WebViewViewModel extends ViewModel {
 
     public void updateOriginalHtml(String html, long id) {
         entryRepository.updateOriginalHtml(html, id);
-        originalHtmlLiveData.postValue(html);
+        setLiveDataValue(originalHtmlLiveData, html);
     }
 
     public LiveData<String> getOriginalHtmlLiveData() {
@@ -217,7 +225,7 @@ public class WebViewViewModel extends ViewModel {
     }
 
     public void triggerEntryRefresh(long entryId) {
-        entryIdTrigger.postValue(entryId);
+        setLiveDataValue(entryIdTrigger, entryId);
     }
 
     public void prioritizeEntry(long entryId) {
@@ -294,13 +302,13 @@ public class WebViewViewModel extends ViewModel {
 
     public void setTranslatedTextReady(long id, String text) {
         if (text != null && !text.trim().isEmpty()) {
-            translatedTextReady.postValue(text);
+            setLiveDataValue(translatedTextReady, text);
         }
     }
 
     public void setSummarizedTextReady(long id, String text) {
         if (text != null && !text.trim().isEmpty()) {
-            summarizedTextReady.postValue(text);
+            setLiveDataValue(summarizedTextReady, text);
         }
     }
 }

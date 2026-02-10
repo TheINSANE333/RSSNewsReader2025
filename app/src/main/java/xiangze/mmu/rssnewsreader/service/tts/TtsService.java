@@ -204,9 +204,9 @@ public class TtsService extends MediaBrowserServiceCompat {
                 // Use target language if we are speaking a summary or a translation
                 String languageToUse = (useSummarized || useTranslated) ? targetLanguage : feedLanguage;
 
-                // 5. SYNC STATE: Update SharedPreferences so the UI matches what is being heard
-                sharedPreferencesRepository.setIsSummarizedView(currentReadingId, useSummarized);
-                sharedPreferencesRepository.setIsTranslatedView(currentReadingId, useTranslated);
+                // 5. SYNC STATE: (Removed forcing of prefs here, as it overrides user manual choice)
+                // sharedPreferencesRepository.setIsSummarizedView(currentReadingId, useSummarized);
+                // sharedPreferencesRepository.setIsTranslatedView(currentReadingId, useTranslated);
 
                 // 6. Setup Media Session and Metadata
                 preparedData = ttsPlaylist.getCurrentMetadata();

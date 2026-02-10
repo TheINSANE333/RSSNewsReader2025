@@ -124,7 +124,10 @@ public class AutoSummarizer {
                         entry.setSummarizedHtml(finalSummarizedHtml);
                         entry.setSummarized(summarizedContent);
 
-                        prefs.setIsSummarizedView(id, true);
+                        // Only auto-switch the view if the user hasn't manually interacted with this article's view state yet
+                        if (!prefs.hasSummarizationToggle(id)) {
+                            prefs.setIsSummarizedView(id, true);
+                        }
 
                         Log.d(TAG, "SUCCESS: Summarized ID " + id);
 

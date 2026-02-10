@@ -142,7 +142,10 @@ public class AutoTranslator {
                         entry.setTranslated(translatedContent);
                         entry.setTitle(translatedTitle);
 
-                        prefs.setIsTranslatedView(id, true);
+                        // Only auto-switch the view if the user hasn't manually interacted with this article's view state yet
+                        if (!prefs.hasTranslationToggle(id)) {
+                            prefs.setIsTranslatedView(id, true);
+                        }
 
                         Log.d(TAG, "SUCCESS: Translated ID " + id);
 
