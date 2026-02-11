@@ -162,6 +162,23 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
                     updatePlayPauseButtonIcon(isPlaying);
                     Log.d(TAG, "Playback state changed: " + state.getState());
                 }
+
+                @Override
+                public void onMetadataChanged(MediaMetadataCompat metadata) {
+                    super.onMetadataChanged(metadata);
+                    if (metadata != null) {
+                        String mediaIdStr = metadata.getString(MediaMetadataCompat.METADATA_KEY_MEDIA_ID);
+                        if (mediaIdStr != null) {
+                            long newId = Long.parseLong(mediaIdStr);
+                            if (newId != currentId && newId != 0) {
+                                Log.d(TAG, "Metadata changed to new article ID: " + newId);
+                                currentId = newId;
+                                sharedPreferencesRepository.setCurrentReadingEntryId(currentId);
+                                loadEntryContent();
+                            }
+                        }
+                    }
+                }
             };
 
     private void showTranslationLanguageDialog(Context context) {
@@ -554,6 +571,9 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
                 String lang = getLanguageForCurrentView(currentId, isTranslatedView, "en");
 
                 ttsPlayer.extract(currentId, feedId, translatedText, lang);
+                if (mMediaBrowserHelper != null && mMediaBrowserHelper.getTransportControls() != null) {
+                    mMediaBrowserHelper.getTransportControls().prepare();
+                }
                 Log.d(TAG, "LiveData.observe fired, isTranslatedView = " + isTranslatedView);
             }
         });
@@ -565,11 +585,21 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
                 String lang = getLanguageForCurrentView(currentId, isSummarizedView, "en");
 
                 ttsPlayer.extract(currentId, feedId, summarizedText, lang);
+                if (mMediaBrowserHelper != null && mMediaBrowserHelper.getTransportControls() != null) {
+                    mMediaBrowserHelper.getTransportControls().prepare();
+                }
                 Log.d(TAG, "LiveData.observe fired, isSummarizedView = " + isSummarizedView);
             }
         });
 
         isReadingMode = getIntent().getBooleanExtra("read", false);
+        currentId = getIntent().getLongExtra("entry_id", 0);
+
+        if (currentId != 0) {
+            ttsPlaylist.updatePlayingId(currentId);
+            sharedPreferencesRepository.setCurrentReadingEntryId(currentId);
+            entryRepository.updateDate(new Date(), currentId);
+        }
 
         if (ttsPlayer.isPlaying() && isReadingMode) {
             ttsPlayer.stop();
@@ -691,8 +721,13 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
     }
 
     private void loadEntryContent() {
+        EntryInfo entryInfo;
+        if (currentId != 0) {
+            entryInfo = webViewViewModel.getEntryInfoById(currentId);
+        } else {
+            entryInfo = webViewViewModel.getLastVisitedEntry();
+        }
 
-        EntryInfo entryInfo = webViewViewModel.getLastVisitedEntry();
         if (entryInfo == null) {
             makeSnackbar("No article to load.");
             return;
@@ -855,6 +890,9 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
                 if (entry != null && entry.getTranslated() != null) {
                     String lang = getLanguageForCurrentView(currentId, true, "en");
                     ttsPlayer.extract(entry.getId(), entry.getFeedId(), entry.getTranslated(), lang);
+                    if (mMediaBrowserHelper != null && mMediaBrowserHelper.getTransportControls() != null) {
+                        mMediaBrowserHelper.getTransportControls().prepare();
+                    }
                 }
             }
         });
@@ -871,6 +909,9 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
                 if (entry != null && entry.getSummarized() != null) {
                     String lang = getLanguageForCurrentView(currentId, true, "en");
                     ttsPlayer.extract(entry.getId(), entry.getFeedId(), entry.getSummarized(), lang);
+                    if (mMediaBrowserHelper != null && mMediaBrowserHelper.getTransportControls() != null) {
+                        mMediaBrowserHelper.getTransportControls().prepare();
+                    }
                 }
             }
         });
@@ -1290,12 +1331,18 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
                         if (translated != null) {
                             String lang = getLanguageForCurrentView(currentId, true, "en");
                             ttsPlayer.extract(currentId, feedId, translated, lang);
+                            if (mMediaBrowserHelper != null && mMediaBrowserHelper.getTransportControls() != null) {
+                                mMediaBrowserHelper.getTransportControls().prepare();
+                            }
                         }
                     } else {
                         // Revert to original TTS
                         String original = entry.getContent();
                         String lang = getLanguageForCurrentView(currentId, false, "en");
                         ttsPlayer.extract(currentId, feedId, original, lang);
+                        if (mMediaBrowserHelper != null && mMediaBrowserHelper.getTransportControls() != null) {
+                            mMediaBrowserHelper.getTransportControls().prepare();
+                        }
                     }
                 }
             }
@@ -1346,12 +1393,18 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
                         if (summarized != null) {
                             String lang = getLanguageForCurrentView(currentId, true, "en");
                             ttsPlayer.extract(currentId, feedId, summarized, lang);
+                            if (mMediaBrowserHelper != null && mMediaBrowserHelper.getTransportControls() != null) {
+                                mMediaBrowserHelper.getTransportControls().prepare();
+                            }
                         }
                     } else {
                         // Revert to original TTS
                         String original = entry.getContent();
                         String lang = getLanguageForCurrentView(currentId, false, "en");
                         ttsPlayer.extract(currentId, feedId, original, lang);
+                        if (mMediaBrowserHelper != null && mMediaBrowserHelper.getTransportControls() != null) {
+                            mMediaBrowserHelper.getTransportControls().prepare();
+                        }
                     }
                 }
             }

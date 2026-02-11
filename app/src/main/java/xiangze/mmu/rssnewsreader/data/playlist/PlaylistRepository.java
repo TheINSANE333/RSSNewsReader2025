@@ -44,7 +44,7 @@ public class PlaylistRepository {
         return playlistDao.getLatestPlaylist();
     }
 
-    public boolean updatePlaylistToPrevious() {
+    public long updatePlaylistToPrevious() {
         boolean loop = true;
         List<Long> playlist = stringToLongList(playlistDao.getLatestPlaylist());
         long lastId = entryRepository.getLastVisitedEntryId();
@@ -57,16 +57,16 @@ public class PlaylistRepository {
                 if (entryRepository.checkIdExist(currentId)) {
                     Date date = new Date();
                     entryRepository.updateDate(date, currentId);
-                    return true;
+                    return currentId;
                 }
             } else {
                 loop = false;
             }
         }
-        return false;
+        return 0;
     }
 
-    public boolean updatePlayListToNext() {
+    public long updatePlayListToNext() {
         boolean loop = true;
         List<Long> playlist = stringToLongList(playlistDao.getLatestPlaylist());
         long lastId = entryRepository.getLastVisitedEntryId();
@@ -79,13 +79,13 @@ public class PlaylistRepository {
                 if (entryRepository.checkIdExist(currentId)) {
                     Date date = new Date();
                     entryRepository.updateDate(date, currentId);
-                    return true;
+                    return currentId;
                 }
             } else {
                 loop = false;
             }
         }
-        return false;
+        return 0;
     }
 
     public List<Long> stringToLongList(String genreIds) {

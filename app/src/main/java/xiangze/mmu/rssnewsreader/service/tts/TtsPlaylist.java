@@ -44,15 +44,37 @@ public class TtsPlaylist {
     }
 
     public MediaMetadataCompat getCurrentMetadata() {
+        final EntryInfo[] localEntryInfo = new EntryInfo[1];
+        final String[] localContent = new String[1];
+        final String[] localHtml = new String[1];
+        final String[] localTranslated = new String[1];
+        final String[] localSummarized = new String[1];
+        final Bitmap[] localFeedImage = new Bitmap[1];
+
         Thread thread = new Thread(new Runnable() {
             @Override
             public void run() {
-                entryInfo = entryRepository.getLastVisitedEntry();
-                content = entryRepository.getContentById(entryInfo.getEntryId());
-                html = entryRepository.getHtmlById(entryInfo.getEntryId());
-                String translated = entryRepository.getTranslatedTextById(entryInfo.getEntryId());
+                if (playingId != 0) {
+                    localEntryInfo[0] = entryRepository.getEntryInfoById(playingId);
+                } else {
+                    localEntryInfo[0] = entryRepository.getLastVisitedEntry();
+                    if (localEntryInfo[0] != null) {
+                        playingId = localEntryInfo[0].getEntryId();
+                    }
+                }
+
+                if (localEntryInfo[0] == null) return;
+
+                localContent[0] = entryRepository.getContentById(localEntryInfo[0].getEntryId());
+                localHtml[0] = entryRepository.getHtmlById(localEntryInfo[0].getEntryId());
+                localTranslated[0] = entryRepository.getTranslatedTextById(localEntryInfo[0].getEntryId());
+                localSummarized[0] = entryRepository.getSummarizedTextById(localEntryInfo[0].getEntryId());
+
                 try {
-                    feedImage = Picasso.get().load(entryInfo.getFeedImageUrl()).get();
+                    String imageUrl = localEntryInfo[0].getFeedImageUrl();
+                    if (imageUrl != null && !imageUrl.isEmpty()) {
+                        localFeedImage[0] = Picasso.get().load(imageUrl).get();
+                    }
                 } catch (IOException e) {
                     e.printStackTrace();
                 }
@@ -65,6 +87,14 @@ public class TtsPlaylist {
             e.printStackTrace();
         }
 
+        if (localEntryInfo[0] == null) return null;
+
+        this.entryInfo = localEntryInfo[0];
+        this.content = localContent[0];
+        this.html = localHtml[0];
+        this.translated = localTranslated[0];
+        this.feedImage = localFeedImage[0];
+
         metadata = new MediaMetadataCompat.Builder()
                 .putString(MediaMetadataCompat.METADATA_KEY_MEDIA_ID, Long.toString(entryInfo.getEntryId()))
                 .putString(MediaMetadataCompat.METADATA_KEY_DISPLAY_TITLE, entryInfo.getFeedTitle())
@@ -72,6 +102,7 @@ public class TtsPlaylist {
                 .putString("link", entryInfo.getEntryLink())
                 .putString("content", content)
                 .putString("translated", translated)
+                .putString("summarized", localSummarized[0])
                 .putString("html", html)
                 .putString("language", entryInfo.getFeedLanguage())
                 .putLong("date", entryInfo.getEntryPublishedDate().getTime())
@@ -86,11 +117,21 @@ public class TtsPlaylist {
     }
 
     public boolean skipPrevious() {
-        return playlistRepository.updatePlaylistToPrevious();
+        long newId = playlistRepository.updatePlaylistToPrevious();
+        if (newId != 0) {
+            this.playingId = newId;
+            return true;
+        }
+        return false;
     }
 
     public boolean skipNext() {
-        return playlistRepository.updatePlayListToNext();
+        long newId = playlistRepository.updatePlayListToNext();
+        if (newId != 0) {
+            this.playingId = newId;
+            return true;
+        }
+        return false;
     }
 
     public void updatePlayingIdToLatest() {
