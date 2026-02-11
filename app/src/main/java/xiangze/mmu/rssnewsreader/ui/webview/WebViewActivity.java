@@ -242,15 +242,17 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
         webViewViewModel.updateEntryTranslatedField(currentId, translatedContent);
         entryRepository.updateTranslatedText(translatedContent, currentId);
 
-        webView.loadDataWithBaseURL("file///android_res/", finalHtml, "text/html", "UTF-8", null);
-
         isSummarizedView = false;
         sharedPreferencesRepository.setIsSummarizedView(currentId, false);
 
-        toggleTranslationButton.setVisible(true);
         isTranslatedView = true;
         sharedPreferencesRepository.setIsTranslatedView(currentId, true);
 
+        webView.loadDataWithBaseURL("file///android_res/", finalHtml, "text/html", "UTF-8", null);
+
+        toggleTranslationButton.setVisible(true);
+
+        webViewViewModel.updateTranslatedHtml(finalHtml, currentId);
         webViewViewModel.setTranslatedTextReady(currentId, translatedContent);
 
         Log.d(TAG, "FINAL translatedContent passed to TTS: " + translatedContent);
@@ -305,15 +307,17 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
         webViewViewModel.updateEntrySummarizedField(currentId, summarizedContent);
         entryRepository.updateSummarizedText(summarizedContent, currentId);
 
-        webView.loadDataWithBaseURL("file///android_res/", finalHtml, "text/html", "UTF-8", null);
-
         isTranslatedView = false;
         sharedPreferencesRepository.setIsTranslatedView(currentId, false);
 
-        toggleSummarizationButton.setVisible(true);
         isSummarizedView = true;
         sharedPreferencesRepository.setIsSummarizedView(currentId, true);
 
+        webView.loadDataWithBaseURL("file///android_res/", finalHtml, "text/html", "UTF-8", null);
+
+        toggleSummarizationButton.setVisible(true);
+
+        webViewViewModel.updateSummarizedHtml(finalHtml, currentId);
         webViewViewModel.setSummarizedTextReady(currentId, summarizedContent);
 
         Log.d(TAG, "FINAL summarizedContent passed to TTS: " + summarizedContent);
@@ -606,6 +610,7 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
         }
 
         initializeUI();
+        ttsPlayer.setWebViewCallback(this);
 
         targetLanguage = sharedPreferencesRepository.getDefaultTranslationLanguage();
         translationMethod = sharedPreferencesRepository.getTranslationMethod();
@@ -735,6 +740,10 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
 
         webViewViewModel.clearViewData();
         currentId = entryInfo.getEntryId();
+        feedId = entryInfo.getFeedId();
+        currentLink = entryInfo.getEntryLink();
+        bookmark = entryInfo.getBookmark();
+
         webViewViewModel.prioritizeEntry(currentId);
         Entry entry = entryRepository.getEntryById(currentId);
 
@@ -1752,12 +1761,78 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
     public void highlightText(String searchText) {
         if (!isReadingMode && sharedPreferencesRepository.getHighlightText()) {
             String text = searchText.trim();
-            if (webViewViewModel.endsWithBreak(text)) {
-                text = text.substring(0, text.length() - 1);
-            }
-            Log.d(TAG, "Highlighted text: " + text);
-            String finalText = text.trim();
-            ContextCompat.getMainExecutor(getApplicationContext()).execute(() -> webView.findAllAsync(finalText));
+            // Robust escaping for JS string
+            String escapedText = text.replace("\\", "\\\\")
+                                     .replace("'", "\\'")
+                                     .replace("\"", "\\\"")
+                                     .replace("\n", "\\n")
+                                     .replace("\r", "\\r");
+            
+            Log.d(TAG, "Highlighting text via JS: " + escapedText);
+            
+            String js = "(function() {" +
+                    "  try {" +
+                    "    var text = '" + escapedText + "';" +
+                    "    if (!text) return;" +
+                    "    " +
+                    "    function clean(s) { return s.replace(/[.,!?;:\"'\\s]+$/, '').trim(); }" +
+                    "    var cleanSearchText = clean(text);" +
+                    "    if (!cleanSearchText) return;" +
+                    "    " +
+                    "    function removeHighlights() {" +
+                    "      var highlights = document.querySelectorAll('.tts-highlight');" +
+                    "      highlights.forEach(function(el) {" +
+                    "        var parent = el.parentNode;" +
+                    "        parent.replaceChild(document.createTextNode(el.textContent), el);" +
+                    "        parent.normalize();" +
+                    "      });" +
+                    "    }" +
+                    "    " +
+                    "    var attempts = 0;" +
+                    "    function tryHighlight() {" +
+                    "      if (document.readyState !== 'complete' && attempts < 5) {" +
+                    "        attempts++;" +
+                    "        setTimeout(tryHighlight, 500);" +
+                    "        return;" +
+                    "      }" +
+                    "      removeHighlights();" +
+                    "      var walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, null, false);" +
+                    "      var node;" +
+                    "      var found = false;" +
+                    "      while(node = walker.nextNode()) {" +
+                    "        var nodeText = node.nodeValue;" +
+                    "        var idx = nodeText.indexOf(text);" +
+                    "        var matchLen = text.length;" +
+                    "        " +
+                    "        if (idx === -1) {" +
+                    "           idx = nodeText.indexOf(cleanSearchText);" +
+                    "           matchLen = cleanSearchText.length;" +
+                    "        }" +
+                    "        " +
+                    "        if (idx !== -1) {" +
+                    "          var range = document.createRange();" +
+                    "          range.setStart(node, idx);" +
+                    "          range.setEnd(node, idx + matchLen);" +
+                    "          var mark = document.createElement('mark');" +
+                    "          mark.className = 'tts-highlight';" +
+                    "          range.surroundContents(mark);" +
+                    "          mark.scrollIntoView({behavior: \"smooth\", block: \"center\"});" +
+                    "          found = true;" +
+                    "          break;" +
+                    "        }" +
+                    "      }" +
+                    "      if (!found && attempts < 10) {" +
+                    "        attempts++;" +
+                    "        setTimeout(tryHighlight, 1000);" +
+                    "      }" +
+                    "    }" +
+                    "    tryHighlight();" +
+                    "  } catch(e) {" +
+                    "    console.error('Highlight error:', e);" +
+                    "  }" +
+                    "})();";
+            
+            runOnUiThread(() -> webView.evaluateJavascript(js, null));
         }
     }
 
@@ -1812,20 +1887,26 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
 
         webViewViewModel.resetEntry(currentId);
         webViewViewModel.clearLiveEntryCache(currentId);
-        if (getIntent().getBooleanExtra("forceOriginal", false)) {
-            sharedPreferencesRepository.setIsTranslatedView(currentId, false);
-            sharedPreferencesRepository.setIsSummarizedView(currentId, false);
-        }
+        
+        // Reset view states to ensure we see the fresh original content
+        sharedPreferencesRepository.setIsTranslatedView(currentId, false);
+        sharedPreferencesRepository.setIsSummarizedView(currentId, false);
 
         if (!isReadingMode) {
-            mMediaBrowserHelper.getTransportControls().stop();
+            if (mMediaBrowserHelper != null && mMediaBrowserHelper.getTransportControls() != null) {
+                mMediaBrowserHelper.getTransportControls().stop();
+            }
         }
 
         finish();
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
             overrideActivityTransition(OVERRIDE_TRANSITION_CLOSE, 0, 0);
         }
-        startActivity(getIntent());
+
+        Intent intent = getIntent();
+        intent.putExtra("entry_id", currentId); // CRITICAL: Ensure we reload the currently viewed article
+        startActivity(intent);
+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
             overrideActivityTransition(OVERRIDE_TRANSITION_OPEN, 0, 0);
         }
@@ -1863,6 +1944,7 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
     @Override
     public void onStart() {
         super.onStart();
+        ttsPlayer.setWebViewCallback(this);
         if (!isReadingMode) {
             mMediaBrowserHelper.onStart();
 
@@ -1876,9 +1958,13 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
     @Override
     public void onStop() {
         if (isReadingMode) {
-            ttsExtractor.setCallback((WebViewListener) null);
+            if (ttsExtractor.getWebViewCallback() == this) {
+                ttsExtractor.setCallback((WebViewListener) null);
+            }
         } else {
-            ttsPlayer.setWebViewCallback(null);
+            if (ttsPlayer.getWebViewCallback() == this) {
+                ttsPlayer.setWebViewCallback(null);
+            }
             mMediaBrowserHelper.onStop();
         }
         super.onStop();

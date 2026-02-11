@@ -86,11 +86,12 @@ public class TextUtil {
         }
 
         // Remove trailing delimiter
-        if (content.length() >= delimiter.length()) {
-            content.setLength(content.length() - delimiter.length());
+        String result = content.toString();
+        if (result.endsWith(delimiter)) {
+            result = result.substring(0, result.length() - delimiter.length());
         }
 
-        return content.toString();
+        return result;
     }
 
     private void appendSentences(StringBuilder sb, String text, String delimiter, BreakIterator iterator) {

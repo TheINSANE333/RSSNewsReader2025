@@ -73,6 +73,7 @@ public class TtsPlayer extends PlayerAdapter implements TtsPlayerListener {
     private boolean isSettingUpNewArticle = false;
     private MediaPlayer mediaPlayer;
     private String currentUtteranceID = null;
+    private String lastContent = null;
     private boolean hasSpokenAfterSetup = false;
     private PlaybackUiListener playbackUiListener;
     private int currentExtractProgress = 0;
@@ -240,6 +241,12 @@ public class TtsPlayer extends PlayerAdapter implements TtsPlayerListener {
         }
 
         if (content != null) {
+            if (!content.equals(lastContent)) {
+                Log.d(TAG, "Content changed, resetting sentence counter to 0");
+                entryRepository.updateSentCount(0, currentId);
+            }
+            lastContent = content;
+
             new Thread(() -> {
                 extractToTts(content, language);
 
@@ -389,7 +396,7 @@ public class TtsPlayer extends PlayerAdapter implements TtsPlayerListener {
                 } else {
                     Log.d(TAG, "TTS ready, but paused manually or no content. Waiting for user to resume.");
                 }
-            }, 200);
+            }, 500);
         });
     }
 
@@ -666,6 +673,12 @@ public class TtsPlayer extends PlayerAdapter implements TtsPlayerListener {
 
     public void setWebViewCallback(WebViewListener listener) {
         this.webViewCallback = listener;
+        if (listener != null && isSpeaking()) {
+            if (sentenceCounter >= 0 && sentenceCounter < sentences.size()) {
+                String sentence = sentences.get(sentenceCounter);
+                listener.highlightText(sentence);
+            }
+        }
     }
 
     public WebViewListener getWebViewCallback() {

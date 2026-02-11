@@ -74,6 +74,7 @@ public class WebViewViewModel extends ViewModel {
         entryRepository.updateContent(null, id);
         entryRepository.updateSentCountByLink(0, id);
         entryRepository.updatePriority(1, id);
+        clearViewData();
     }
 
     public void clearLiveEntryCache(long id) {
@@ -135,6 +136,7 @@ public class WebViewViewModel extends ViewModel {
 
     public String getStyle(boolean isNightMode) {
         String textColor = isNightMode ? "#E2E2E6" : "#1B1B1F";
+        String highlightColor = isNightMode ? "#FFD700" : "#FFFF00"; // Gold or Yellow
         return "<style>\n" +
                 "    @font-face {\n" +
                 "        font-family: open_sans;\n" +
@@ -145,6 +147,11 @@ public class WebViewViewModel extends ViewModel {
                 "        text-align: justify;\n" +
                 "        font-size: 0.875em;\n" +
                 "        color: " + textColor + ";\n" +
+                "    }\n" +
+                "    .tts-highlight {\n" +
+                "        background-color: " + highlightColor + " !important;\n" +
+                "        color: black !important;\n" +
+                "        border-radius: 2px;\n" +
                 "    }\n" +
                 "</style>";
     }

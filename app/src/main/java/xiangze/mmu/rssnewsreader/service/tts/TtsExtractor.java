@@ -260,6 +260,10 @@ public class TtsExtractor {
         this.webViewCallback = callback;
     }
 
+    public WebViewListener getWebViewCallback() {
+        return webViewCallback;
+    }
+
     public void prioritize() {
         Date newPlaylistDate = playlistRepository.getLatestPlaylistCreatedDate();
 
