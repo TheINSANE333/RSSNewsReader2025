@@ -224,9 +224,9 @@ public class EntryItemAdapter extends ListAdapter<EntryInfo, EntryItemAdapter.En
                     && (entryInfo.getOriginalHtml() == null ||
                     !entryInfo.getSummarizedHtml().equals(entryInfo.getOriginalHtml()));
 
-            Log.d("CHECK STATS", "Original: " + entryInfo.getOriginalHtml());
-            Log.d("CHECK STATS", "Translated: " + entryInfo.getTranslatedHtml());
-            Log.d("CHECK STATS", "Summarized: " + entryInfo.getSummarizedHtml());
+//            Log.d("CHECK STATS", "Original: " + entryInfo.getOriginalHtml());
+//            Log.d("CHECK STATS", "Translated: " + entryInfo.getTranslatedHtml());
+//            Log.d("CHECK STATS", "Summarized: " + entryInfo.getSummarizedHtml());
 
             statusView.setText("");
 

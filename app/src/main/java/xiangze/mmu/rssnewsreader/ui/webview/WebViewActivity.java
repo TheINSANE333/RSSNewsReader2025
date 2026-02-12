@@ -940,10 +940,10 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
         Entry entry = entryRepository.getEntryById(currentId);
         boolean hasPlainText = entry != null && entry.getContent() != null && !entry.getContent().trim().isEmpty();
 
-        Log.d("REFRESH BUTTON", "original: " + originalHtml);
-        Log.d("REFRESH BUTTON", "translated: " + translatedHtml);
-        Log.d("REFRESH BUTTON", "summarized: " + summarizedHtml);
-        Log.d("REFRESH BUTTON", "plainText: " + hasPlainText);
+//        Log.d("REFRESH BUTTON", "original: " + originalHtml);
+//        Log.d("REFRESH BUTTON", "translated: " + translatedHtml);
+//        Log.d("REFRESH BUTTON", "summarized: " + summarizedHtml);
+//        Log.d("REFRESH BUTTON", "plainText: " + hasPlainText);
 
         // 1. Update Translation Buttons
         if (hasOriginal && hasTranslated) {
