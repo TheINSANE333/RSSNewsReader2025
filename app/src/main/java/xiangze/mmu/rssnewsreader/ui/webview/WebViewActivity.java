@@ -1052,15 +1052,30 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
                             String htmlFromDb = entry.getHtml();
                             if (htmlFromDb == null) htmlFromDb = entry.getOriginalHtml();
 
-                            // Use LiveData value from ViewModel to detect if we are currently showing a fallback
+                            // Use LiveData value from ViewModel to detect if we are currently showing a fallback or partial content
                             String currentViewModelHtml = webViewViewModel.getOriginalHtmlLiveData().getValue();
-                            boolean isShowingFallback = (currentViewModelHtml == null || currentViewModelHtml.isEmpty());
+                            boolean isShowingFallback = (currentViewModelHtml == null || currentViewModelHtml.trim().isEmpty());
+                            
+                            // Allow update if we were showing nothing, or if the new content is significantly larger (indicating a full unlock)
+                            boolean shouldUpdate = isShowingFallback;
+                            if (!isShowingFallback && htmlFromDb != null) {
+                                int currentLen = currentViewModelHtml.length();
+                                int newLen = htmlFromDb.length();
+                                if (newLen > currentLen + 1000) { // Significant increase suggests full article unlocked
+                                    shouldUpdate = true;
+                                    Log.d(TAG, "Content significantly increased (" + currentLen + " -> " + newLen + "). Updating view.");
+                                }
+                            }
 
-                            if (htmlFromDb != null && isShowingFallback) {
+                            if (htmlFromDb != null && shouldUpdate) {
                                 Log.d(TAG, "Regular extraction synced. Switching to extracted view.");
 
                                 // 1. Notify user
-                                makeSnackbar("Article extracted. Switching to reader view...");
+                                if (isShowingFallback) {
+                                    makeSnackbar("Article extracted. Switching to reader view...");
+                                } else {
+                                    makeSnackbar("Full article unlocked.");
+                                }
 
                                 // 2. Update ViewModel which triggers the LiveData observer to load HTML
                                 webViewViewModel.updateOriginalHtml(htmlFromDb, currentId);
@@ -1072,8 +1087,11 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
                                 String lang = getLanguageForCurrentView(currentId, false, "en");
                                 ttsPlayer.extract(currentId, feedId, entry.getContent(), lang);
 
-                                // Stop observing this entry as we have transitioned
-                                autoProcessingObserver.removeObserver(this);
+                                // If we've reached a likely "full" state, we can stop observing, 
+                                // otherwise keep observing for further improvements (like late-loading images or text)
+                                if (htmlFromDb.length() > 2000) {
+                                     autoProcessingObserver.removeObserver(this);
+                                }
                             }
                         } else {
                             // Already in a processed view, or waiting for more data. 
@@ -1975,6 +1993,10 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
         ttsPlayer.setWebViewConnected(false);
         ttsPlayer.setUiControlPlayback(false);
 
+        if (extractionRunnable != null) {
+            extractionHandler.removeCallbacks(extractionRunnable);
+        }
+
         if (webView != null && currentId != 0) {
             sharedPreferencesRepository.setScrollX(currentId, webView.getScrollX());
             sharedPreferencesRepository.setScrollY(currentId, webView.getScrollY());
@@ -2055,6 +2077,15 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
                 if (currentId != ttsPlaylist.getPlayingId()) {
                     ttsPlaylist.updatePlayingId(currentId);
                 }
+                // Extraction moved to onPageFinished for better timing
+            }
+        }
+
+        @Override
+        public void onPageFinished(WebView view, String url) {
+            super.onPageFinished(view, url);
+            Log.d(TAG, "WebClient: onPageFinished triggered for: " + url);
+            if (content == null || content.trim().isEmpty()) {
                 triggerManualExtraction(view);
             }
         }
@@ -2087,33 +2118,83 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
             Log.d(TAG, "ReadingWebClient: onPageCommitVisible - loadingWebView hidden.");
             webView.animate().alpha(1.0f).setDuration(800).setStartDelay(400).start();
             webViewViewModel.setLoadingState(false);
+        }
 
+        @Override
+        public void onPageFinished(WebView view, String url) {
+            super.onPageFinished(view, url);
+            Log.d(TAG, "ReadingWebClient: onPageFinished triggered for: " + url);
             if (content == null || content.trim().isEmpty()) {
                 triggerManualExtraction(view);
             }
         }
     }
 
-    private void triggerManualExtraction(WebView view) {
-        if (currentId <= 0 || currentLink == null) return;
+    private final Handler extractionHandler = new Handler(Looper.getMainLooper());
+    private Runnable extractionRunnable;
 
-        Log.d(TAG, "Triggering manual extraction for: " + currentLink);
-        view.evaluateJavascript("(function() {return document.getElementsByTagName('html')[0].outerHTML;})();", value -> {
-            JsonReader reader = new JsonReader(new StringReader(value));
-            reader.setLenient(true);
-            try {
-                if (reader.peek() == JsonToken.STRING) {
-                    String extractedHtml = reader.nextString();
-                    if (extractedHtml != null) {
-                        EntryInfo info = webViewViewModel.getEntryInfoById(currentId);
-                        String title = (info != null) ? info.getEntryTitle() : "";
-                        ttsExtractor.processExtraction(currentId, currentLink, title, extractedHtml);
-                    }
+    private void triggerManualExtraction(WebView view) {
+        if (extractionRunnable != null) {
+            extractionHandler.removeCallbacks(extractionRunnable);
+        }
+        triggerManualExtraction(view, 1);
+    }
+
+    private void triggerManualExtraction(WebView view, int attempt) {
+        if (currentId <= 0 || currentLink == null || isFinishing() || isDestroyed()) return;
+
+        Log.d(TAG, "Triggering manual extraction (attempt " + attempt + ") for: " + currentLink);
+
+        // 1. Always scroll to trigger potential lazy loading/unlocking
+        view.evaluateJavascript("window.scrollTo(0, document.body.scrollHeight);", null);
+
+        // 2. Wait a bit for the scroll to trigger JS events before checking status
+        extractionRunnable = () -> {
+            if (isFinishing() || isDestroyed()) return;
+
+            String checkJs = "(function() { " +
+                    "var locked = !!document.querySelector('.paywall, .subscription-wall, #paywall, .premium-content, .locked-article, .teaser-content, .read-more-content, .membership-paywall, .paywall-container, .subscription-required, .membership-required'); " +
+                    "return document.readyState + '|' + locked; " +
+                    "})();";
+
+            view.evaluateJavascript(checkJs, value -> {
+                if (isFinishing() || isDestroyed()) return;
+                
+                String res = (value != null) ? value.replace("\"", "") : "";
+                String[] parts = res.split("\\|");
+                String readyState = parts.length > 0 ? parts[0] : "";
+                boolean isLocked = parts.length > 1 && Boolean.parseBoolean(parts[1]);
+
+                if (isLocked && attempt < 12 && readyState.contains("complete")) {
+                    Log.d(TAG, "Content seems LOCKED (attempt " + attempt + "). Retrying in 2.5s...");
+                    extractionRunnable = () -> triggerManualExtraction(view, attempt + 1);
+                    extractionHandler.postDelayed(extractionRunnable, 2500);
+                } else {
+                    // Final extraction
+                    view.evaluateJavascript("(function() {return document.getElementsByTagName('html')[0].outerHTML;})();", htmlValue -> {
+                        if (isFinishing() || isDestroyed()) return;
+                        
+                        JsonReader reader = new JsonReader(new StringReader(htmlValue));
+                        reader.setLenient(true);
+                        try {
+                            if (reader.peek() == JsonToken.STRING) {
+                                String extractedHtml = reader.nextString();
+                                if (extractedHtml != null) {
+                                    EntryInfo info = webViewViewModel.getEntryInfoById(currentId);
+                                    String title = (info != null) ? info.getEntryTitle() : "";
+                                    ttsExtractor.processExtraction(currentId, currentLink, title, extractedHtml);
+                                }
+                            }
+                        } catch (Exception e) {
+                            Log.e(TAG, "Manual extraction failed", e);
+                        }
+                    });
                 }
-            } catch (Exception e) {
-                Log.e(TAG, "Manual extraction failed", e);
-            }
-        });
+            });
+        };
+        
+        // Short delay after scroll before running the check
+        extractionHandler.postDelayed(extractionRunnable, 3000);
     }
 
     private class MediaBrowserConnection extends MediaBrowserHelper {

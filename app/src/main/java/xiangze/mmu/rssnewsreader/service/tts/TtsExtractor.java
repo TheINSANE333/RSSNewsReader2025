@@ -97,10 +97,10 @@ public class TtsExtractor {
             public void run() {
                 webView = new WebView(context);
                 webView.setWebViewClient(new WebClient());
-                webView.clearCache(true);
+//                webView.clearCache(true);
                 WebSettings settings = webView.getSettings();
                 settings.setJavaScriptEnabled(true);
-//                settings.setDomStorageEnabled(true);
+                settings.setDomStorageEnabled(true);
                 settings.setDatabaseEnabled(true);
                 settings.setLoadsImagesAutomatically(true);
                 settings.setBlockNetworkImage(false);
@@ -111,10 +111,10 @@ public class TtsExtractor {
                 settings.setLoadWithOverviewMode(true);
                 
                 // Tricking sites to think it's a real browser on a standard screen
-                webView.layout(0, 0, 1080, 1920); 
+//                webView.layout(0, 0, 1080, 1920);
                 
-                settings.setUserAgentString("Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/116.0.0.0 Mobile Safari/537.36");
-                settings.setMediaPlaybackRequiresUserGesture(false);
+//                settings.setUserAgentString("Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/116.0.0.0 Mobile Safari/537.36");
+//                settings.setMediaPlaybackRequiresUserGesture(false);
 
                 webView.setWebChromeClient(new WebChromeClient() {
                     @Override
@@ -396,7 +396,8 @@ public class TtsExtractor {
                  return;
              }
 
-             view.evaluateJavascript("(function() {return document.getElementsByTagName('html')[0].outerHTML;})();", value -> {
+             // One last scroll to ensure all lazy content is triggered
+             view.evaluateJavascript("(function() { window.scrollTo(0, document.body.scrollHeight); return document.getElementsByTagName('html')[0].outerHTML; })();", value -> {
                 if (!executionToken.equals(currentLoadToken) || hasProcessedCurrentToken) {
                     Log.d(TAG, "Ignoring JS callback. Token mismatch.");
                     return;
@@ -440,6 +441,7 @@ public class TtsExtractor {
             return;
         }
 
+        Handler handler = new Handler(Looper.getMainLooper());
         try {
             // 1. Parse with Readability4J
             Readability4JExtended readability4J = new Readability4JExtended(link, html);
@@ -559,13 +561,11 @@ public class TtsExtractor {
                 final String processingTitle = title;
 
                 if (processingId == lastSuccessfullyProcessedId) {
-                    Log.e(TAG, "LOOP DETECTED on ID " + processingId + ". Aborting.");
-                    if (webViewCallback != null) {
-                        webViewCallback.makeSnackbar("Queue stopped: Loop detected.");
-                        webViewCallback.finishedSetup();
-                    }
+                    Log.e(TAG, "LOOP DETECTED on ID " + processingId + ". Skipping this entry.");
                     extractionInProgress = false;
                     currentIdInProgress = -1;
+                    // Try to find another entry instead of stopping
+                    handler.postDelayed(this::extractAllEntries, 1000);
                     return;
                 }
 
@@ -597,18 +597,19 @@ public class TtsExtractor {
                 }
 
                 // 5. Chain: Identify -> Translate/Summarize
-                Handler handler = new Handler(Looper.getMainLooper());
-
                 sourceLangSingle
                         .subscribeOn(Schedulers.io())
                         .observeOn(AndroidSchedulers.mainThread())
                         .subscribe(detectedLang -> {
-                            currentLanguage = detectedLang;
+                            // Localize the language for this specific processing chain
+                            final String localizedLang = detectedLang; 
+                            currentLanguage = detectedLang; // Sync back for legacy compatibility
+                            
                             String targetLang = sharedPreferencesRepository.getDefaultTranslationLanguage();
-                            boolean isSameLanguage = detectedLang.equalsIgnoreCase(targetLang);
+                            boolean isSameLanguage = localizedLang.equalsIgnoreCase(targetLang);
 
                             if (shouldTranslate && !isSameLanguage) {
-                                textUtil.translateHtmlAllAtOnce(detectedLang, targetLang, doc.html(), processingTitle, processingId, progress -> {})
+                                textUtil.translateHtmlAllAtOnce(localizedLang, targetLang, doc.html(), processingTitle, processingId, progress -> {})
                                         .subscribeOn(Schedulers.io())
                                         .observeOn(AndroidSchedulers.mainThread())
                                         .subscribe(translatedHtml -> {
@@ -623,7 +624,7 @@ public class TtsExtractor {
                                         }, error -> handleError(error, processingId));
 
                             } else if (shouldSummarize) {
-                                textUtil.summarizeHtmlAllAtOnce(detectedLang, targetLang, doc.html(), length, processingId, processingTitle, progress -> {})
+                                textUtil.summarizeHtmlAllAtOnce(localizedLang, targetLang, doc.html(), length, processingId, processingTitle, progress -> {})
                                         .subscribeOn(Schedulers.io())
                                         .observeOn(AndroidSchedulers.mainThread())
                                         .subscribe(summarizedHtml -> {
@@ -669,8 +670,6 @@ public class TtsExtractor {
 
     public void setCurrentLanguage(String lang, boolean lock) {
         Log.d("TtsExtractor", "[setCurrentLanguage] REQUESTED lang = " + lang + ", lock = " + lock + " | current = " + currentLanguage + ", isLocked = " + isLockedByTtsPlayer);
-
-        Log.d("TtsExtractor", Log.getStackTraceString(new Throwable()));
 
         if (!isLockedByTtsPlayer || lock) {
             Log.d("TtsExtractor", "Language set to: " + lang + " | lock=" + lock);
