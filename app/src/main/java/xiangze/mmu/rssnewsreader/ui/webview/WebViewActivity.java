@@ -106,7 +106,6 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
     private String bookmark;
     private boolean isPlaying;
     private boolean isReadingMode;
-    private boolean showOfflineButton;
     private boolean clearHistory;
     private MenuItem toggleTranslationButton;
     private MenuItem toggleSummarizationButton;
@@ -861,8 +860,7 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
 
 
     private void loadFromBrowserMode(EntryInfo entryInfo) {
-        browserButton.setVisible(false);
-        offlineButton.setVisible(true);
+        refreshButtonVisibility();
         webView.loadUrl(entryInfo.getEntryLink());
     }
 
@@ -938,9 +936,14 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
         boolean hasTranslated = translatedHtml != null && !translatedHtml.trim().isEmpty();
         boolean hasSummarized = summarizedHtml != null && !summarizedHtml.trim().isEmpty();
 
+        // Check for plain text content as well
+        Entry entry = entryRepository.getEntryById(currentId);
+        boolean hasPlainText = entry != null && entry.getContent() != null && !entry.getContent().trim().isEmpty();
+
         Log.d("REFRESH BUTTON", "original: " + originalHtml);
         Log.d("REFRESH BUTTON", "translated: " + translatedHtml);
         Log.d("REFRESH BUTTON", "summarized: " + summarizedHtml);
+        Log.d("REFRESH BUTTON", "plainText: " + hasPlainText);
 
         // 1. Update Translation Buttons
         if (hasOriginal && hasTranslated) {
@@ -974,6 +977,20 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
             Log.d("REFRESH BUTTON", "Set toggle summarize button to invisible");
             // Reset Summarize button to priority
             summarizationButton.setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS);
+        }
+
+        // 3. Update Browser/Offline Buttons
+        boolean isWebViewMode = sharedPreferencesRepository.getWebViewMode(currentId);
+        boolean hasContent = hasOriginal || hasTranslated || hasSummarized || hasPlainText;
+
+        if (isWebViewMode) {
+            browserButton.setVisible(false);
+            // Only show offline button if we have extracted content to show
+            offlineButton.setVisible(hasContent);
+        } else {
+            // Reader mode (or fallback to live URL)
+            browserButton.setVisible(hasContent);
+            offlineButton.setVisible(false);
         }
     }
 
@@ -1287,9 +1304,8 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
             shareCurrentLink();
             return true;
         } else if (itemId == R.id.openInBrowser) {
-            browserButton.setVisible(false);
-            offlineButton.setVisible(true);
             sharedPreferencesRepository.setWebViewMode(currentId, true);
+            refreshButtonVisibility();
             webView.loadUrl(currentLink);
             hideFakeLoading();
             return true;
@@ -1298,8 +1314,7 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
             EntryInfo entryInfo = webViewViewModel.getLastVisitedEntry();
             String rebuiltHtml = rebuildHtml(entryInfo);
             loadEntryContent();
-            offlineButton.setVisible(false);
-            browserButton.setVisible(true);
+            refreshButtonVisibility();
             hideFakeLoading();
             return true;
         } else if (itemId == R.id.reload) {
@@ -1712,7 +1727,6 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
         loading.setProgress(0);
         translationButton.setVisible(false);
         summarizationButton.setVisible(false);
-        showOfflineButton = false;
 
         MediaMetadataCompat metadata = ttsPlaylist.getCurrentMetadata();
 
@@ -1735,9 +1749,6 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
         if (isWebViewMode) {
             webView.loadUrl(currentLink);
             Log.d(TAG, "Restoring web view mode: " + currentLink);
-            browserButton.setVisible(false);
-            offlineButton.setVisible(true);
-            showOfflineButton = false;
         } else {
             String entryTitle = metadata.getString(MediaMetadataCompat.METADATA_KEY_DISPLAY_SUBTITLE);
             String feedTitle = metadata.getString(MediaMetadataCompat.METADATA_KEY_DISPLAY_TITLE);
@@ -1765,14 +1776,13 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
                 loadHtmlIntoWebView(htmlToLoad);
             }
 
-            offlineButton.setVisible(false);
             reloadButton.setVisible(true);
             bookmarkButton.setVisible(true);
             translationButton.setVisible(true);
             summarizationButton.setVisible(true);
-            browserButton.setVisible(true);
             highlightTextButton.setVisible(true);
         }
+        refreshButtonVisibility();
     }
 
     @Override
@@ -1868,9 +1878,7 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
                 bookmarkButton.setVisible(true);
                 translationButton.setVisible(true);
                 highlightTextButton.setVisible(true);
-                if (showOfflineButton) {
-                    offlineButton.setVisible(true);
-                }
+                refreshButtonVisibility();
             }
         });
     }
@@ -2262,15 +2270,12 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
             reloadButton.setVisible(false);
             bookmarkButton.setVisible(false);
             highlightTextButton.setVisible(false);
-            showOfflineButton = false;
 
             // 4. Extract other Metadata fields
             content = metadata.getString("content");
             bookmark = metadata.getString("bookmark");
             currentLink = metadata.getString("link");
             feedId = metadata.getLong("feedId");
-
-            refreshButtonVisibility();
 
             // 5. Update Bookmark Icon
             if (bookmark == null || bookmark.equals("N")) {
@@ -2304,20 +2309,13 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
             if (isWebViewMode) {
                 webView.loadUrl(currentLink);
                 Log.d(TAG, "Restoring web view mode: " + currentLink);
-                browserButton.setVisible(false);
-                offlineButton.setVisible(true);
-                showOfflineButton = false;
             } else if (htmlToLoad != null) {
                 loadHtmlIntoWebView(htmlToLoad);
-                browserButton.setVisible(true);
-                offlineButton.setVisible(false);
-                showOfflineButton = false;
             } else {
                 webView.loadUrl(currentLink);
                 Log.d(TAG, "Fallback: loading live URL - " + currentLink);
-                browserButton.setVisible(false);
-                showOfflineButton = true;
             }
+            refreshButtonVisibility();
 
             // 8. TTS Bridge
             if (ttsPlayer.isWebViewConnected()) {
