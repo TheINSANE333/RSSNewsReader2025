@@ -1789,6 +1789,8 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
     public void highlightText(String searchText) {
         if (!isReadingMode && sharedPreferencesRepository.getHighlightText()) {
             String text = searchText.trim();
+            if (text.length() < 2) return;
+            
             // Robust escaping for JS string
             String escapedText = text.replace("\\", "\\\\")
                                      .replace("'", "\\'")
@@ -1802,8 +1804,10 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
                     "  try {" +
                     "    var text = '" + escapedText + "';" +
                     "    if (!text) return;" +
+                    "    window.ttsHighlightId = (window.ttsHighlightId || 0) + 1;" +
+                    "    var myId = window.ttsHighlightId;" +
                     "    " +
-                    "    function clean(s) { return s.replace(/[.,!?;:\"'\\s]+$/, '').trim(); }" +
+                    "    function clean(s) { return s.replace(/^[.,!?;:\"'\\s]+/, '').replace(/[.,!?;:\"'\\s]+$/, '').trim(); }" +
                     "    var cleanSearchText = clean(text);" +
                     "    if (!cleanSearchText) return;" +
                     "    " +
@@ -1811,47 +1815,74 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
                     "      var highlights = document.querySelectorAll('.tts-highlight');" +
                     "      highlights.forEach(function(el) {" +
                     "        var parent = el.parentNode;" +
-                    "        parent.replaceChild(document.createTextNode(el.textContent), el);" +
-                    "        parent.normalize();" +
+                    "        if (parent) {" +
+                    "          var textNode = document.createTextNode(el.textContent);" +
+                    "          parent.replaceChild(textNode, el);" +
+                    "          parent.normalize();" +
+                    "        }" +
                     "      });" +
                     "    }" +
                     "    " +
                     "    var attempts = 0;" +
                     "    function tryHighlight() {" +
-                    "      if (document.readyState !== 'complete' && attempts < 5) {" +
+                    "      if (window.ttsHighlightId !== myId) return;" +
+                    "      " +
+                    "      if (document.readyState !== 'complete' && attempts < 3) {" +
                     "        attempts++;" +
                     "        setTimeout(tryHighlight, 500);" +
                     "        return;" +
                     "      }" +
+                    "      " +
                     "      removeHighlights();" +
-                    "      var walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, null, false);" +
+                    "      " +
+                    "      var nodes = [];" +
+                    "      var fullText = '';" +
+                    "      var walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, {" +
+                    "        acceptNode: function(node) {" +
+                    "          var p = node.parentNode;" +
+                    "          if (!p) return NodeFilter.FILTER_REJECT;" +
+                    "          var tag = p.tagName.toUpperCase();" +
+                    "          if (tag === 'SCRIPT' || tag === 'STYLE' || tag === 'NOSCRIPT') return NodeFilter.FILTER_REJECT;" +
+                    "          return NodeFilter.FILTER_ACCEPT;" +
+                    "        }" +
+                    "      }, false);" +
+                    "      " +
                     "      var node;" +
-                    "      var found = false;" +
                     "      while(node = walker.nextNode()) {" +
-                    "        var nodeText = node.nodeValue;" +
-                    "        var idx = nodeText.indexOf(text);" +
-                    "        var matchLen = text.length;" +
-                    "        " +
-                    "        if (idx === -1) {" +
-                    "           idx = nodeText.indexOf(cleanSearchText);" +
-                    "           matchLen = cleanSearchText.length;" +
-                    "        }" +
-                    "        " +
-                    "        if (idx !== -1) {" +
-                    "          var range = document.createRange();" +
-                    "          range.setStart(node, idx);" +
-                    "          range.setEnd(node, idx + matchLen);" +
-                    "          var mark = document.createElement('mark');" +
-                    "          mark.className = 'tts-highlight';" +
-                    "          range.surroundContents(mark);" +
-                    "          mark.scrollIntoView({behavior: \"smooth\", block: \"center\"});" +
-                    "          found = true;" +
-                    "          break;" +
-                    "        }" +
+                    "        nodes.push({ node: node, start: fullText.length, end: fullText.length + node.nodeValue.length });" +
+                    "        fullText += node.nodeValue;" +
                     "      }" +
-                    "      if (!found && attempts < 10) {" +
+                    "      " +
+                    "      var index = fullText.indexOf(text);" +
+                    "      var matchLen = text.length;" +
+                    "      if (index === -1) {" +
+                    "        index = fullText.indexOf(cleanSearchText);" +
+                    "        matchLen = cleanSearchText.length;" +
+                    "      }" +
+                    "      " +
+                    "      if (index !== -1) {" +
+                    "        var matchEnd = index + matchLen;" +
+                    "        var firstMark = null;" +
+                    "        for (var i = 0; i < nodes.length; i++) {" +
+                    "          var m = nodes[i];" +
+                    "          if (m.end > index && m.start < matchEnd) {" +
+                    "            var offsetStart = Math.max(0, index - m.start);" +
+                    "            var offsetEnd = Math.min(m.node.nodeValue.length, matchEnd - m.start);" +
+                    "            var range = document.createRange();" +
+                    "            range.setStart(m.node, offsetStart);" +
+                    "            range.setEnd(m.node, offsetEnd);" +
+                    "            var mark = document.createElement('mark');" +
+                    "            mark.className = 'tts-highlight';" +
+                    "            try {" +
+                    "              range.surroundContents(mark);" +
+                    "              if (!firstMark) firstMark = mark;" +
+                    "            } catch(e) { console.warn('Highlight failed', e); }" +
+                    "          }" +
+                    "        }" +
+                    "        if (firstMark) firstMark.scrollIntoView({behavior: 'smooth', block: 'center'});" +
+                    "      } else if (attempts < 2) {" +
                     "        attempts++;" +
-                    "        setTimeout(tryHighlight, 1000);" +
+                    "        setTimeout(tryHighlight, 800);" +
                     "      }" +
                     "    }" +
                     "    tryHighlight();" +
