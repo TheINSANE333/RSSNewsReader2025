@@ -473,11 +473,17 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
 
                 List<Message> messages = new ArrayList<>();
 
+                String baseSystemPrompt = "Translate title and html to the target language. " +
+                        "Preserve all HTML exactly." +
+                        "Format your response exactly like this: [TITLE] <translated_title> [CONTENT] <translated_html_content>. ";
+                String customPrompt = sharedPreferencesRepository.getCustomTranslationPrompt();
+                if (customPrompt != null && !customPrompt.trim().isEmpty()) {
+                    baseSystemPrompt += "\n\nAdditional Instructions:\n" + customPrompt;
+                }
+
                 messages.add(new Message(
                     "system",
-                    "Translate title and html to the target language. " +
-                            "Preserve all HTML exactly." +
-                            "Format your response exactly like this: [TITLE] <translated_title> [CONTENT] <translated_html_content>. "
+                    baseSystemPrompt
                 ));
 
                 messages.add(new Message(
@@ -1218,13 +1224,17 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
                 runOnUiThread(() -> loading.setProgress(45));
 
                 // System Prompt
+                String baseSystemPrompt = "You are a helpful assistant designed to summarize web articles. " +
+                        "Provide a concise summary of the content in targeted language. " +
+                        "If the content is short, do not make it longer. ";
+                String customPrompt = sharedPreferencesRepository.getCustomSummarizationPrompt();
+                if (customPrompt != null && !customPrompt.trim().isEmpty()) {
+                    baseSystemPrompt += "\n\nAdditional Instructions:\n" + customPrompt;
+                }
+
                 messages.add(new Message(
                         "system",
-                        "You are a helpful assistant designed to summarize web articles. " +
-                                "Translate the title and provide a concise summary of the content in targeted language. " +
-                                "Format your response exactly like this: [TITLE] <translated_title> [CONTENT] <summary_text>. " +
-                                "If it's an opinion piece, tell the name and background of the writer. " +
-                                "If the content is short, do not make it longer. "
+                        baseSystemPrompt
                 ));
 
                 // User Prompt

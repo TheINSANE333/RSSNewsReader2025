@@ -255,6 +255,22 @@ public class SharedPreferencesRepository {
         return sharedPreferences.getString("ai_model", "meta-llama/llama-3.3-70b-instruct:free");
     }
 
+    public String getCustomTranslationPrompt() {
+        return sharedPreferences.getString("customTranslationPrompt", "");
+    }
+
+    public void setCustomTranslationPrompt(String prompt) {
+        editor.putString("customTranslationPrompt", prompt).apply();
+    }
+
+    public String getCustomSummarizationPrompt() {
+        return sharedPreferences.getString("customSummarizationPrompt", "");
+    }
+
+    public void setCustomSummarizationPrompt(String prompt) {
+        editor.putString("customSummarizationPrompt", prompt).apply();
+    }
+
     public Context getContext() {
         return context;
     }

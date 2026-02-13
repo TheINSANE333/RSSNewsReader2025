@@ -71,6 +71,11 @@
     <string name="auto_summarize_on">Automatically summarize articles to the default language</string>
     <string name="auto_summarize_off">Do not automatically summarize articles</string>
 
+    <string name="custom_translation_prompt_title">Custom Translation Prompt</string>
+    <string name="custom_translation_prompt_summary">Additional instructions for AI translation (appended to base prompt)</string>
+    <string name="custom_summarization_prompt_title">Custom Summarization Prompt</string>
+    <string name="custom_summarization_prompt_summary">Additional instructions for AI summarization (appended to base prompt)</string>
+
     <string name="share">Share</string>
     <string name="mark_as_read">Mark as read</string>
     <string name="mark_as_unread">Mark as unread</string>

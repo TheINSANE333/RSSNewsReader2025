@@ -107,6 +107,20 @@
             app:summary="@string/summarize_summary"
             app:title="@string/summarize_title" />
 
+        <EditTextPreference
+            app:icon="@drawable/ic_pencil"
+            app:key="customTranslationPrompt"
+            app:title="@string/custom_translation_prompt_title"
+            app:summary="@string/custom_translation_prompt_summary"
+            app:useSimpleSummaryProvider="true" />
+
+        <EditTextPreference
+            app:icon="@drawable/ic_pencil"
+            app:key="customSummarizationPrompt"
+            app:title="@string/custom_summarization_prompt_title"
+            app:summary="@string/custom_summarization_prompt_summary"
+            app:useSimpleSummaryProvider="true" />
+
     </PreferenceCategory>
 
     <PreferenceCategory
