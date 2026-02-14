@@ -177,6 +177,12 @@
             app:summary="Download the Qwen2.5 1.5B model file for local use."
             app:icon="@drawable/ic_import" />
 
+        <Preference
+            app:key="delete_local_model"
+            app:title="Delete Local Model"
+            app:summary="Delete the downloaded Qwen2.5 model file to free up space or fix corruption."
+            app:icon="@drawable/ic_cancel" />
+
         <EditTextPreference
             app:icon="@drawable/ic_chatbot"
             app:key="openrouter_api_key"

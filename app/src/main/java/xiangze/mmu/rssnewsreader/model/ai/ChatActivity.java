@@ -181,6 +181,12 @@ public class ChatActivity extends AppCompatActivity {
         return super.onOptionsItemSelected(item);
     }
 
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        LocalLlmManager.getInstance(this).close();
+    }
+
     private void showError(String errorMessage) {
         Toast.makeText(this, errorMessage, Toast.LENGTH_LONG).show();
         Log.e("ChatBot", errorMessage);

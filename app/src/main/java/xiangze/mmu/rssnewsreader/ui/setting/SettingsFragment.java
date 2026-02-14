@@ -20,6 +20,7 @@ import androidx.preference.PreferenceFragmentCompat;
 
 import xiangze.mmu.rssnewsreader.R;
 import xiangze.mmu.rssnewsreader.data.sharedpreferences.SharedPreferencesRepository;
+import xiangze.mmu.rssnewsreader.model.ai.LocalLlmManager;
 import xiangze.mmu.rssnewsreader.service.rss.RssWorkManager;
 import xiangze.mmu.rssnewsreader.service.tts.TtsPlayer;
 import xiangze.mmu.rssnewsreader.ui.main.MainActivity;
@@ -157,6 +158,41 @@ public class SettingsFragment extends PreferenceFragmentCompat {
                 return true;
             });
         }
+
+        Preference deleteModelPreference = findPreference("delete_local_model");
+        if (deleteModelPreference != null) {
+            deleteModelPreference.setOnPreferenceClickListener(preference -> {
+                showDeleteModelDialog();
+                return true;
+            });
+        }
+    }
+
+    private void showDeleteModelDialog() {
+        File extFile = new File(requireContext().getExternalFilesDir(null), "qwen2.5-1.5b.task");
+        File intFile = new File(requireContext().getFilesDir(), "qwen2.5-1.5b.task");
+
+        if (!extFile.exists() && !intFile.exists()) {
+            Toast.makeText(requireContext(), "No model file found to delete.", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        new android.app.AlertDialog.Builder(requireContext())
+                .setTitle("Delete Local Model")
+                .setMessage("Are you sure you want to delete the local model file? You will need to download it again to use the local chatbot.")
+                .setPositiveButton("Delete", (dialog, which) -> {
+                    boolean deleted = false;
+                    if (extFile.exists() && extFile.delete()) deleted = true;
+                    if (intFile.exists() && intFile.delete()) deleted = true;
+                    
+                    if (deleted) {
+                        Toast.makeText(requireContext(), "Model file(s) deleted successfully.", Toast.LENGTH_SHORT).show();
+                    } else {
+                        Toast.makeText(requireContext(), "Failed to delete model file(s).", Toast.LENGTH_SHORT).show();
+                    }
+                })
+                .setNegativeButton("Cancel", null)
+                .show();
     }
 
     private void showDownloadModelDialog() {
@@ -178,7 +214,8 @@ public class SettingsFragment extends PreferenceFragmentCompat {
         container.setPadding(padding, 0, padding, 0);
 
         final android.widget.EditText input = new android.widget.EditText(requireContext());
-        input.setHint("https://example.com/qwen2.5-1.5b.task");
+        input.setHint(LocalLlmManager.DEFAULT_MODEL_URL);
+        input.setText(LocalLlmManager.DEFAULT_MODEL_URL);
         input.setInputType(android.text.InputType.TYPE_CLASS_TEXT | android.text.InputType.TYPE_TEXT_FLAG_MULTI_LINE);
         input.setMaxLines(5);
         input.setHorizontallyScrolling(false);
@@ -201,21 +238,8 @@ public class SettingsFragment extends PreferenceFragmentCompat {
 
     private void downloadModel(String url) {
         try {
-            android.app.DownloadManager.Request request = new android.app.DownloadManager.Request(Uri.parse(url));
-            request.setTitle("Downloading Qwen2.5 Model");
-            request.setDescription("Downloading qwen2.5-1.5b.task...");
-            request.setNotificationVisibility(android.app.DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED);
-            request.setDestinationInExternalFilesDir(requireContext(), null, "qwen2.5-1.5b.task");
-            request.setAllowedOverMetered(true);
-            request.setAllowedOverRoaming(true);
-
-            android.app.DownloadManager manager = (android.app.DownloadManager) requireContext().getSystemService(android.content.Context.DOWNLOAD_SERVICE);
-            if (manager != null) {
-                manager.enqueue(request);
-                Toast.makeText(requireContext(), "Download started...", Toast.LENGTH_SHORT).show();
-            } else {
-                Toast.makeText(requireContext(), "DownloadManager not available", Toast.LENGTH_SHORT).show();
-            }
+            LocalLlmManager.getInstance(requireContext()).downloadModel(url);
+            Toast.makeText(requireContext(), "Download started...", Toast.LENGTH_SHORT).show();
         } catch (Exception e) {
             Toast.makeText(requireContext(), "Download failed: " + e.getMessage(), Toast.LENGTH_LONG).show();
         }
