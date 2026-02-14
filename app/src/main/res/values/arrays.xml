@@ -37,6 +37,7 @@
         <item>Mistral Nemo</item>
         <item>Mistral Small</item>
         <item>OpenAI GPT OSS 20B</item>
+        <item>Local Qwen2.5 (1.5B)</item>
     </string-array>
 
     <string-array name="ai_model_values">
@@ -44,6 +45,7 @@
         <item>mistralai/mistral-nemo</item>
         <item>mistralai/mistral-small-3.1-24b-instruct:free</item>
         <item>openai/gpt-oss-20b:free</item>
+        <item>local_qwen_2_5_1_5b</item>
     </string-array>
 
     <string-array name="translationMethod">

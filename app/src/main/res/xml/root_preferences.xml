@@ -171,6 +171,12 @@
             app:summary="@string/ai_model_summary"
             app:useSimpleSummaryProvider="true" />
 
+        <Preference
+            app:key="download_local_model"
+            app:title="Download Local Model (Qwen2.5)"
+            app:summary="Download the Qwen2.5 1.5B model file for local use."
+            app:icon="@drawable/ic_import" />
+
         <EditTextPreference
             app:icon="@drawable/ic_chatbot"
             app:key="openrouter_api_key"

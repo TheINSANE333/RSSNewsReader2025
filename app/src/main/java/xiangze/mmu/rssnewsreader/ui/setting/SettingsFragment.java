@@ -149,6 +149,76 @@ public class SettingsFragment extends PreferenceFragmentCompat {
                 return true;
             });
         }
+
+        Preference downloadModelPreference = findPreference("download_local_model");
+        if (downloadModelPreference != null) {
+            downloadModelPreference.setOnPreferenceClickListener(preference -> {
+                showDownloadModelDialog();
+                return true;
+            });
+        }
+    }
+
+    private void showDownloadModelDialog() {
+        File file = new File(requireContext().getExternalFilesDir(null), "qwen2.5-1.5b.task");
+        String message = "Please enter the direct download URL for the Qwen2.5 1.5B model (.task file).";
+        
+        if (file.exists()) {
+            message = "Model file already exists. Downloading again will overwrite it.\n\n" + message;
+        }
+
+        android.app.AlertDialog.Builder builder = new android.app.AlertDialog.Builder(requireContext());
+        builder.setTitle("Download Qwen2.5 Model");
+        builder.setMessage(message);
+
+        android.widget.LinearLayout container = new android.widget.LinearLayout(requireContext());
+        container.setOrientation(android.widget.LinearLayout.VERTICAL);
+        // Convert 20dp to pixels
+        int padding = (int) (20 * getResources().getDisplayMetrics().density);
+        container.setPadding(padding, 0, padding, 0);
+
+        final android.widget.EditText input = new android.widget.EditText(requireContext());
+        input.setHint("https://example.com/qwen2.5-1.5b.task");
+        input.setInputType(android.text.InputType.TYPE_CLASS_TEXT | android.text.InputType.TYPE_TEXT_FLAG_MULTI_LINE);
+        input.setMaxLines(5);
+        input.setHorizontallyScrolling(false);
+        
+        container.addView(input);
+        builder.setView(container);
+
+        builder.setPositiveButton("Download", (dialog, which) -> {
+            String url = input.getText().toString().trim();
+            if (!url.isEmpty()) {
+                downloadModel(url);
+            } else {
+                Toast.makeText(requireContext(), "URL cannot be empty", Toast.LENGTH_SHORT).show();
+            }
+        });
+        builder.setNegativeButton("Cancel", (dialog, which) -> dialog.cancel());
+
+        builder.show();
+    }
+
+    private void downloadModel(String url) {
+        try {
+            android.app.DownloadManager.Request request = new android.app.DownloadManager.Request(Uri.parse(url));
+            request.setTitle("Downloading Qwen2.5 Model");
+            request.setDescription("Downloading qwen2.5-1.5b.task...");
+            request.setNotificationVisibility(android.app.DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED);
+            request.setDestinationInExternalFilesDir(requireContext(), null, "qwen2.5-1.5b.task");
+            request.setAllowedOverMetered(true);
+            request.setAllowedOverRoaming(true);
+
+            android.app.DownloadManager manager = (android.app.DownloadManager) requireContext().getSystemService(android.content.Context.DOWNLOAD_SERVICE);
+            if (manager != null) {
+                manager.enqueue(request);
+                Toast.makeText(requireContext(), "Download started...", Toast.LENGTH_SHORT).show();
+            } else {
+                Toast.makeText(requireContext(), "DownloadManager not available", Toast.LENGTH_SHORT).show();
+            }
+        } catch (Exception e) {
+            Toast.makeText(requireContext(), "Download failed: " + e.getMessage(), Toast.LENGTH_LONG).show();
+        }
     }
 
     @Override
