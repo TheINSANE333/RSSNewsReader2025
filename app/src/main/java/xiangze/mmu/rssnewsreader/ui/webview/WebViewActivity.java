@@ -556,7 +556,7 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
         }).start();
     }
 
-    @SuppressLint("SetJavaScriptEnabled")
+    @SuppressLint( "SetJavaScriptEnabled" )
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -601,8 +601,13 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
             }
         });
 
-        isReadingMode = getIntent().getBooleanExtra("read", false);
-        currentId = getIntent().getLongExtra("entry_id", 0);
+        if (savedInstanceState != null) {
+            currentId = savedInstanceState.getLong("current_id");
+            isReadingMode = savedInstanceState.getBoolean("is_reading_mode");
+        } else {
+            isReadingMode = getIntent().getBooleanExtra("read", false);
+            currentId = getIntent().getLongExtra("entry_id", 0);
+        }
 
         if (currentId != 0) {
             ttsPlaylist.updatePlayingId(currentId);
@@ -627,6 +632,13 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
         initializeWebViewSettings();
         initializePlaybackModes();
         loadEntryContent();
+    }
+
+    @Override
+    protected void onSaveInstanceState(@NonNull Bundle outState) {
+        super.onSaveInstanceState(outState);
+        outState.putLong("current_id", currentId);
+        outState.putBoolean("is_reading_mode", isReadingMode);
     }
 
     @Override
