@@ -192,10 +192,38 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
             String selectedValue = entryValues[which].toString();
             sharedPreferencesRepository.setDefaultTranslationLanguage(selectedValue);
             targetLanguage = selectedValue;
-            translate();
+            showModelSelectionDialogForTranslation();
             dialog.dismiss();
         });
 
+        builder.show();
+    }
+
+    private void showModelSelectionDialogForTranslation() {
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setTitle("Choose Translation Model");
+
+        String[] models = getResources().getStringArray(R.array.ai_model);
+        String[] modelValues = getResources().getStringArray(R.array.ai_model_values);
+
+        builder.setItems(models, (dialog, which) -> {
+            String selectedModel = modelValues[which];
+            translate(selectedModel);
+        });
+        builder.show();
+    }
+
+    private void showModelSelectionDialogForSummarization() {
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setTitle("Choose Summarization Model");
+
+        String[] models = getResources().getStringArray(R.array.ai_model);
+        String[] modelValues = getResources().getStringArray(R.array.ai_model_values);
+
+        builder.setItems(models, (dialog, which) -> {
+            String selectedModel = modelValues[which];
+            summarize(selectedModel);
+        });
         builder.show();
     }
 
@@ -324,8 +352,7 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
     }
 
     @SuppressLint("CheckResult")
-    private void translate() {
-        String translationModel = sharedPreferencesRepository.getTranslationModel();
+    private void translate(String translationModel) {
         if (!new AiClient(this).hasKey(translationModel)) {
             showMissingKeyDialog();
             return;
@@ -385,11 +412,11 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
 
                 Log.d(TAG, "Translating from " + sourceLanguage + " to " + targetLanguage);
                 Log.d("ORIGINAL CONTENT FOR TRANSLATION", finalContent);
-                performAITranslation(sourceLanguage, targetLanguage, finalContent, entryInfo.getEntryTitle());
+                performAITranslation(sourceLanguage, targetLanguage, finalContent, entryInfo.getEntryTitle(), translationModel);
             },
             error -> {
                 Log.e(TAG, "Language identification failed, falling back to feedLanguage");
-                performAITranslation(feedLanguage, targetLanguage, finalContent, entryInfo.getEntryTitle());
+                performAITranslation(feedLanguage, targetLanguage, finalContent, entryInfo.getEntryTitle(), translationModel);
             }
         );
     }
@@ -451,7 +478,8 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
             String sourceLanguage,
             String targetLanguage,
             String content,
-            String title
+            String title,
+            String translationModel
     ) {
 
         Log.d(TAG, "Starting AI translation (Single Request Mode)");
@@ -510,7 +538,7 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
                     }
                 }, 15000);
 
-                String translatedHtml = translateChunkWithRetry(aiClient, messages, sharedPreferencesRepository.getTranslationModel());
+                String translatedHtml = translateChunkWithRetry(aiClient, messages, translationModel);
 
                 stopProgressSimulation();
 
@@ -1182,8 +1210,7 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
                 .show();
     }
 
-    private void summarize() {
-        String summarizationModel = sharedPreferencesRepository.getSummarizationModel();
+    private void summarize(String summarizationModel) {
         if (!new AiClient(this).hasKey(summarizationModel)) {
             showMissingKeyDialog();
             return;
@@ -1304,7 +1331,7 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
     @SuppressLint("NonConstantResourceId")
     private boolean handleOtherToolbarItems(int itemId) {
         if (itemId == R.id.summarize) {
-            summarize();
+            showModelSelectionDialogForSummarization();
             return true;
         } else if (itemId == R.id.chatbot) {
             startChat();
@@ -1312,8 +1339,9 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
         } else if (itemId == R.id.translate) {
             if (targetLanguage == null || targetLanguage.isEmpty()) {
                 showTranslationLanguageDialog(this);
+            } else {
+                showModelSelectionDialogForTranslation();
             }
-            translate();
             return true;
         } else if (itemId == R.id.zoomIn) {
             adjustTextZoom(true);

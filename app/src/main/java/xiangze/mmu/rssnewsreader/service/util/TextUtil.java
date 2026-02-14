@@ -511,21 +511,19 @@ public class TextUtil {
                         baseSystemPrompt
                 ));
 
-                // Build the prompt
-                messages.add(new Message(
-                        "user",
-                        String.format(
-                                "Please summarize the following article \n" +
-                                        "Target Language: %s\n" +
-                                        "Length: %s\n" +
-                                        "Title: %s\n" +
-                                        "Content:\n%s",
-                                targetLanguage,
-                                length,
-                                title,
-                                html
-                        )
-                ));
+                // Extract clean content to save tokens and improve focus (matching manual mode)
+                String cleanContent = extractHtmlContent(html, "--####--");
+
+                // Build the prompt (matching manual mode format)
+                String prompt = String.format(
+                        "Please summarize the following article titled \"%s\".\n" +
+                                "Target Language: %s\n" +
+                                "Length: %s\n" +
+                                "Content:\n%s",
+                        title, targetLanguage, length, cleanContent
+                );
+
+                messages.add(new Message("user", prompt));
 
                 // 3. Execute Blocking Request (Safe inside Single.create)
                 // Note: Ensure summarizeChunkWithRetry is accessible here
