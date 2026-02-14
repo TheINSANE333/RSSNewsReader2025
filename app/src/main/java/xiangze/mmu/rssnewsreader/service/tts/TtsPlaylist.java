@@ -37,9 +37,11 @@ public class TtsPlaylist {
 
     public List<MediaBrowserCompat.MediaItem> getMediaItems() {
         List<MediaBrowserCompat.MediaItem> result = new ArrayList<>();
-        result.add(
-                new MediaBrowserCompat.MediaItem(
-                        metadata.getDescription(), MediaBrowserCompat.MediaItem.FLAG_PLAYABLE));
+        if (metadata != null) {
+            result.add(
+                    new MediaBrowserCompat.MediaItem(
+                            metadata.getDescription(), MediaBrowserCompat.MediaItem.FLAG_PLAYABLE));
+        }
         return result;
     }
 
@@ -54,6 +56,7 @@ public class TtsPlaylist {
         Thread thread = new Thread(new Runnable() {
             @Override
             public void run() {
+                if (entryRepository == null) return;
                 if (playingId != 0) {
                     localEntryInfo[0] = entryRepository.getEntryInfoById(playingId);
                 } else {
@@ -65,10 +68,11 @@ public class TtsPlaylist {
 
                 if (localEntryInfo[0] == null) return;
 
-                localContent[0] = entryRepository.getContentById(localEntryInfo[0].getEntryId());
-                localHtml[0] = entryRepository.getHtmlById(localEntryInfo[0].getEntryId());
-                localTranslated[0] = entryRepository.getTranslatedTextById(localEntryInfo[0].getEntryId());
-                localSummarized[0] = entryRepository.getSummarizedTextById(localEntryInfo[0].getEntryId());
+                long entryId = localEntryInfo[0].getEntryId();
+                localContent[0] = entryRepository.getContentById(entryId);
+                localHtml[0] = entryRepository.getHtmlById(entryId);
+                localTranslated[0] = entryRepository.getTranslatedTextById(entryId);
+                localSummarized[0] = entryRepository.getSummarizedTextById(entryId);
 
                 try {
                     String imageUrl = localEntryInfo[0].getFeedImageUrl();

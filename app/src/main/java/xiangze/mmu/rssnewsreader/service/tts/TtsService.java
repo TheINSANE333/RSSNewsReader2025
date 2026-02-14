@@ -334,9 +334,12 @@ public class TtsService extends MediaBrowserServiceCompat {
 
             if (ttsPlaylist.skipNext()) {
                 preparedData = null;
-                sharedPreferencesRepository.setCurrentReadingEntryId(
-                        Long.parseLong(ttsPlaylist.getCurrentMetadata().getString(MediaMetadataCompat.METADATA_KEY_MEDIA_ID))
-                );
+                MediaMetadataCompat metadata = ttsPlaylist.getCurrentMetadata();
+                if (metadata != null) {
+                    sharedPreferencesRepository.setCurrentReadingEntryId(
+                            Long.parseLong(metadata.getString(MediaMetadataCompat.METADATA_KEY_MEDIA_ID))
+                    );
+                }
                 onPrepare();
             } else {
                 if (ttsPlayer != null) {
@@ -357,11 +360,12 @@ public class TtsService extends MediaBrowserServiceCompat {
 
             if (ttsPlaylist.skipPrevious()) {
                 preparedData = null;
-
-                sharedPreferencesRepository.setCurrentReadingEntryId(
-                        Long.parseLong(ttsPlaylist.getCurrentMetadata().getString(MediaMetadataCompat.METADATA_KEY_MEDIA_ID))
-                );
-
+                MediaMetadataCompat metadata = ttsPlaylist.getCurrentMetadata();
+                if (metadata != null) {
+                    sharedPreferencesRepository.setCurrentReadingEntryId(
+                            Long.parseLong(metadata.getString(MediaMetadataCompat.METADATA_KEY_MEDIA_ID))
+                    );
+                }
                 onPrepare();
             } else {
                 if (ttsPlayer != null) {
