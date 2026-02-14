@@ -22,8 +22,14 @@
     <string name="sync_header">Sync</string>
 
     <string name="ai_header">AI Settings</string>
+    <string name="translation_model_title">Translation Model</string>
+    <string name="translation_model_summary">Choose the AI model for translation</string>
+    <string name="summarization_model_title">Summarization Model</string>
+    <string name="summarization_model_summary">Choose the AI model for summarization</string>
+    <string name="chatbot_model_title">Chatbot Model</string>
+    <string name="chatbot_model_summary">Choose the AI model for the chatbot</string>
     <string name="ai_model_title">AI Model</string>
-    <string name="ai_model_summary">Choose the AI model for translation and summarization</string>
+    <string name="ai_model_summary">Choose the AI model for general tasks</string>
     <string name="openrouter_api_key_title">OpenRouter API Key</string>
     <string name="openrouter_api_key_summary">Enter your OpenRouter API key to use AI features (translation, summarization). If empty, the default key will be used.</string>
     <string name="get_openrouter_key_title">How to get a free OpenRouter key</string>

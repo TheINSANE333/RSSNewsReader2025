@@ -64,7 +64,11 @@ public class ChatActivity extends AppCompatActivity {
 
         aiClient = new AiClient(this);
 
-        if (!aiClient.hasKey()) {
+        xiangze.mmu.rssnewsreader.data.sharedpreferences.SharedPreferencesRepository sharedPreferencesRepository = 
+                new xiangze.mmu.rssnewsreader.data.sharedpreferences.SharedPreferencesRepository(this);
+        String chatModel = sharedPreferencesRepository.getChatbotModel();
+
+        if (!aiClient.hasKey(chatModel)) {
             new AlertDialog.Builder(this)
                     .setTitle("API Key Missing")
                     .setMessage("Please configure the OpenRouter API Key in Settings to use the Chatbot.")
@@ -140,7 +144,10 @@ public class ChatActivity extends AppCompatActivity {
             new Thread(() -> {
                 try {
                     Log.d("ChatBot", "Starting API call...");
-                    String response = aiClient.getChatResponse(messages);
+                    xiangze.mmu.rssnewsreader.data.sharedpreferences.SharedPreferencesRepository repo = 
+                            new xiangze.mmu.rssnewsreader.data.sharedpreferences.SharedPreferencesRepository(this);
+                    String chatModel = repo.getChatbotModel();
+                    String response = aiClient.getChatResponse(messages, chatModel);
                     Log.d("ChatBot", "API response received: " + response);
 
                     runOnUiThread(() -> {

@@ -252,14 +252,14 @@ public class TextUtil {
 //                "HTML Content:\n" + content;
 //    }
 
-    private String translateChunkWithRetry(AiClient aiClient, List<Message> messages) {
+    private String translateChunkWithRetry(AiClient aiClient, List<Message> messages, String model) {
 
         int maxRetries = 5;
         int delayMs = 30000;
 
         for (int attempt = 1; attempt <= maxRetries; attempt++) {
             try {
-                return aiClient.getChatResponse(messages);
+                return aiClient.getChatResponse(messages, model);
 
             } catch (Exception e) {
 
@@ -283,14 +283,14 @@ public class TextUtil {
         return null;
     }
 
-    private String summarizeChunkWithRetry(AiClient aiClient, List<Message> messages) {
+    private String summarizeChunkWithRetry(AiClient aiClient, List<Message> messages, String model) {
 
         int maxRetries = 5;
         int delayMs = 30000;
 
         for (int attempt = 1; attempt <= maxRetries; attempt++) {
             try {
-                return aiClient.getChatResponse(messages);
+                return aiClient.getChatResponse(messages, model);
 
             } catch (Exception e) {
 
@@ -436,7 +436,8 @@ public class TextUtil {
 
                 // 3. Execute Blocking Request (Safe inside Single.create)
                 // Note: Ensure translateChunkWithRetry is accessible here
-                String translatedHtml = translateChunkWithRetry(aiClient, messages);
+                String translationModel = sharedPreferencesRepository.getTranslationModel();
+                String translatedHtml = translateChunkWithRetry(aiClient, messages, translationModel);
 
                 // 4. Stop Progress & Validate
                 progressThread.interrupt();
@@ -528,7 +529,8 @@ public class TextUtil {
 
                 // 3. Execute Blocking Request (Safe inside Single.create)
                 // Note: Ensure summarizeChunkWithRetry is accessible here
-                String summarizedHtml = summarizeChunkWithRetry(aiClient, messages);
+                String summarizationModel = sharedPreferencesRepository.getSummarizationModel();
+                String summarizedHtml = summarizeChunkWithRetry(aiClient, messages, summarizationModel);
                 Log.d(TAG, "AI Summary Response: " + summarizedHtml);
 
                 // 4. Stop Progress & Validate

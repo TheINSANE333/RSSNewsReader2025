@@ -60,16 +60,17 @@ public class AiClient {
         service = retrofit.create(AiService.class);
     }
 
-    public boolean hasKey() {
-        String model = PreferenceManager.getDefaultSharedPreferences(context).getString("ai_model", "");
+    public boolean hasKey(String model) {
         if ("local_qwen_2_5_1_5b".equals(model)) {
             return true;
         }
         return userKey != null && !userKey.isEmpty();
     }
 
-    public String getChatResponse(List<Message> messages) throws IOException {
-        String model = PreferenceManager.getDefaultSharedPreferences(context).getString("ai_model", "meta-llama/llama-3.3-70b-instruct:free");
+    public String getChatResponse(List<Message> messages, String model) throws IOException {
+        if (model == null || model.isEmpty()) {
+            model = PreferenceManager.getDefaultSharedPreferences(context).getString("ai_model", "meta-llama/llama-3.3-70b-instruct:free");
+        }
 
         if ("local_qwen_2_5_1_5b".equals(model)) {
             try {
@@ -87,7 +88,7 @@ public class AiClient {
             }
         }
 
-        if (!hasKey()) {
+        if (!hasKey(model)) {
             throw new IOException("OpenRouter API key not configured! Please set it in Settings.");
         }
 

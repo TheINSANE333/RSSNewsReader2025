@@ -160,6 +160,21 @@ public class SharedPreferencesRepository {
         editor.apply();
     }
 
+    public void setTranslationModel(String aiModel) {
+        editor.putString("translation_model", aiModel);
+        editor.apply();
+    }
+
+    public void setSummarizationModel(String aiModel) {
+        editor.putString("summarization_model", aiModel);
+        editor.apply();
+    }
+
+    public void setChatbotModel(String aiModel) {
+        editor.putString("chatbot_model", aiModel);
+        editor.apply();
+    }
+
     public String getTranslationMethod() {
         return sharedPreferences.getString("translationMethod", "allAtOnce");
     }
@@ -253,6 +268,18 @@ public class SharedPreferencesRepository {
 
     public String getAiModel() {
         return sharedPreferences.getString("ai_model", "meta-llama/llama-3.3-70b-instruct:free");
+    }
+
+    public String getTranslationModel() {
+        return sharedPreferences.getString("translation_model", "meta-llama/llama-3.3-70b-instruct:free");
+    }
+
+    public String getSummarizationModel() {
+        return sharedPreferences.getString("summarization_model", "meta-llama/llama-3.3-70b-instruct:free");
+    }
+
+    public String getChatbotModel() {
+        return sharedPreferences.getString("chatbot_model", "meta-llama/llama-3.3-70b-instruct:free");
     }
 
     public String getCustomTranslationPrompt() {

@@ -325,7 +325,8 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
 
     @SuppressLint("CheckResult")
     private void translate() {
-        if (!new AiClient(this).hasKey()) {
+        String translationModel = sharedPreferencesRepository.getTranslationModel();
+        if (!new AiClient(this).hasKey(translationModel)) {
             showMissingKeyDialog();
             return;
         }
@@ -393,14 +394,14 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
         );
     }
 
-    private String translateChunkWithRetry(AiClient aiClient, List<Message> messages) {
+    private String translateChunkWithRetry(AiClient aiClient, List<Message> messages, String model) {
 
         int maxRetries = 5;
         int delayMs = 2500;
 
         for (int attempt = 1; attempt <= maxRetries; attempt++) {
             try {
-                return aiClient.getChatResponse(messages);
+                return aiClient.getChatResponse(messages, model);
 
             } catch (Exception e) {
 
@@ -509,7 +510,7 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
                     }
                 }, 15000);
 
-                String translatedHtml = translateChunkWithRetry(aiClient, messages);
+                String translatedHtml = translateChunkWithRetry(aiClient, messages, sharedPreferencesRepository.getTranslationModel());
 
                 stopProgressSimulation();
 
@@ -1182,7 +1183,8 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
     }
 
     private void summarize() {
-        if (!new AiClient(this).hasKey()) {
+        String summarizationModel = sharedPreferencesRepository.getSummarizationModel();
+        if (!new AiClient(this).hasKey(summarizationModel)) {
             showMissingKeyDialog();
             return;
         }
@@ -1264,7 +1266,7 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
 
                 // Execute Request
                 // Updated to use the method available in your AiClient
-                String summaryResult = aiClient.getChatResponse(messages);
+                String summaryResult = aiClient.getChatResponse(messages, summarizationModel);
                 Log.d(TAG, "AI Summary Response: " + summaryResult);
 
                 runOnUiThread(() -> loading.setProgress(80));

@@ -116,6 +116,9 @@ public class MainActivity extends AppCompatActivity {
                                             String autoSummarize = parser.getAttributeValue(null, "autoSummarize");
                                             String backgroundMusicFile = parser.getAttributeValue(null, "backgroundMusicFile");
                                             String aiModel = parser.getAttributeValue(null, "ai_model");
+                                            String translationModel = parser.getAttributeValue(null, "translation_model");
+                                            String summarizationModel = parser.getAttributeValue(null, "summarization_model");
+                                            String chatbotModel = parser.getAttributeValue(null, "chatbot_model");
                                             String openRouterApiKey = parser.getAttributeValue(null, "openrouter_api_key");
 
                                             Log.d(TAG, "onActivityResult: set defaultTranslationLanguage" + defaultTranslationLanguage);
@@ -168,6 +171,15 @@ public class MainActivity extends AppCompatActivity {
                                             }
                                             if (aiModel != null && !aiModel.isEmpty()) {
                                                 sharedPreferencesRepository.setAiModel(aiModel);
+                                            }
+                                            if (translationModel != null && !translationModel.isEmpty()) {
+                                                sharedPreferencesRepository.setTranslationModel(translationModel);
+                                            }
+                                            if (summarizationModel != null && !summarizationModel.isEmpty()) {
+                                                sharedPreferencesRepository.setSummarizationModel(summarizationModel);
+                                            }
+                                            if (chatbotModel != null && !chatbotModel.isEmpty()) {
+                                                sharedPreferencesRepository.setChatbotModel(chatbotModel);
                                             }
                                             if (openRouterApiKey != null && !openRouterApiKey.isEmpty()) {
                                                 sharedPreferencesRepository.setOpenRouterApiKey(openRouterApiKey);
@@ -273,6 +285,9 @@ public class MainActivity extends AppCompatActivity {
                             serializer.attribute(null, "autoSummarize", sharedPreferencesRepository.getAutoSummarize() ? "true" : "false");
                             serializer.attribute(null, "backgroundMusicFile", sharedPreferencesRepository.getBackgroundMusicFile());
                             serializer.attribute(null, "ai_model", sharedPreferencesRepository.getAiModel());
+                            serializer.attribute(null, "translation_model", sharedPreferencesRepository.getTranslationModel());
+                            serializer.attribute(null, "summarization_model", sharedPreferencesRepository.getSummarizationModel());
+                            serializer.attribute(null, "chatbot_model", sharedPreferencesRepository.getChatbotModel());
                             serializer.attribute(null, "openrouter_api_key", sharedPreferencesRepository.getOpenRouterApiKey());
                             serializer.endTag(null, "setting");
                             List<Feed> feeds = mainActivityViewModel.getAllStaticFeeds();

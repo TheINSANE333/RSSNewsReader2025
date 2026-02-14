@@ -161,14 +161,40 @@
             app:summary="@string/background_music_volume_summary"
             app:title="@string/background_music_volume" />
 
+    </PreferenceCategory>
+
+    <PreferenceCategory
+        android:layout="@layout/text_preference_category"
+        app:title="@string/ai_header">
+
         <ListPreference
             app:defaultValue="meta-llama/llama-3.3-70b-instruct:free"
             app:entries="@array/ai_model"
             app:entryValues="@array/ai_model_values"
             app:icon="@drawable/ic_chatbot"
-            app:key="ai_model"
-            app:title="@string/ai_model_title"
-            app:summary="@string/ai_model_summary"
+            app:key="translation_model"
+            app:title="@string/translation_model_title"
+            app:summary="@string/translation_model_summary"
+            app:useSimpleSummaryProvider="true" />
+
+        <ListPreference
+            app:defaultValue="meta-llama/llama-3.3-70b-instruct:free"
+            app:entries="@array/ai_model"
+            app:entryValues="@array/ai_model_values"
+            app:icon="@drawable/ic_chatbot"
+            app:key="summarization_model"
+            app:title="@string/summarization_model_title"
+            app:summary="@string/summarization_model_summary"
+            app:useSimpleSummaryProvider="true" />
+
+        <ListPreference
+            app:defaultValue="meta-llama/llama-3.3-70b-instruct:free"
+            app:entries="@array/ai_model"
+            app:entryValues="@array/ai_model_values"
+            app:icon="@drawable/ic_chatbot"
+            app:key="chatbot_model"
+            app:title="@string/chatbot_model_title"
+            app:summary="@string/chatbot_model_summary"
             app:useSimpleSummaryProvider="true" />
 
         <Preference
