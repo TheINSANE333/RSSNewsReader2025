@@ -210,6 +210,13 @@ public class TtsPlayer extends PlayerAdapter implements TtsPlayerListener {
     public void extract(long currentId, long feedId, String content, String language) {
         Log.d(TAG, "Switching to new article: ID=" + currentId);
 
+        String resolvedLanguage = (language != null && language.equals("Use Language Identifier")) ? null : language;
+        if (content != null && content.equals(this.lastContent) && currentId == this.currentId && 
+            (resolvedLanguage == null ? this.language == null : resolvedLanguage.equals(this.language))) {
+            Log.d(TAG, "Content, language, and ID are identical to last extraction, skipping redundant extraction.");
+            return;
+        }
+
         boolean wasSpeaking = tts != null && tts.isSpeaking();
         isPausedManually = !wasSpeaking && sharedPreferencesRepository.getIsPausedManually();
         sharedPreferencesRepository.setIsPausedManually(isPausedManually);

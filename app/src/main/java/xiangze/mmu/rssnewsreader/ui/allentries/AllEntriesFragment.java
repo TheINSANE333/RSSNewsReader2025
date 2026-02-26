@@ -374,8 +374,6 @@ public class AllEntriesFragment extends Fragment implements EntryItemAdapter.Ent
     }
 
     private void doWhenTranslationFinish(EntryInfo entryInfo, String translatedHtml, String targetLanguage) {
-        webViewViewModel.resetEntry(entryInfo.getEntryId());
-
         // Handle html
         Document doc = Jsoup.parse(translatedHtml);
         doc.head().append(webViewViewModel.getStyle(sharedPreferencesRepository.getNight()));
@@ -389,14 +387,14 @@ public class AllEntriesFragment extends Fragment implements EntryItemAdapter.Ent
                 ));
         String finalHtml = doc.html();
 
-        webViewViewModel.updateHtml(finalHtml, entryInfo.getEntryId());
-        entryRepository.updateHtml(finalHtml, entryInfo.getEntryId());
+        // Store result in Translated fields, NOT original html fields
+        webViewViewModel.updateTranslatedHtml(finalHtml, entryInfo.getEntryId());
+        entryRepository.updateTranslatedHtml(finalHtml, entryInfo.getEntryId());
 
         TextUtil textUtil = new TextUtil(sharedPreferencesRepository);
         final String translatedContent = textUtil.extractHtmlContent(finalHtml, "--####--");
 
         webViewViewModel.updateTranslated(translatedContent, entryInfo.getEntryId());
-        webViewViewModel.updateEntryTranslatedField(entryInfo.getEntryId(), translatedContent);
         entryRepository.updateTranslatedText(translatedContent, entryInfo.getEntryId());
 
         sharedPreferencesRepository.setIsTranslatedView(entryInfo.getEntryId(), true);
@@ -423,12 +421,17 @@ public class AllEntriesFragment extends Fragment implements EntryItemAdapter.Ent
     }
 
     private void translate(EntryInfo entryInfo) {
-        String html = webViewViewModel.getHtmlById(entryInfo.getEntryId());
-        if (html == null) return;
+        String html = webViewViewModel.getOriginalHtmlById(entryInfo.getEntryId());
+        if (html == null || html.trim().isEmpty()) {
+            html = webViewViewModel.getHtmlById(entryInfo.getEntryId());
+        }
+        
+        if (html == null || html.trim().isEmpty()) return;
+        final String sourceHtml = html; // Make it effectively final for lambdas
         Log.d(TAG, "translating title: " + entryInfo.getEntryTitle());
         // Identify source language
         TextUtil textUtil = new TextUtil(sharedPreferencesRepository);
-        String content = textUtil.extractHtmlContent(html, "--####--");
+        String content = textUtil.extractHtmlContent(sourceHtml, "--####--");
         String translationMethod = sharedPreferencesRepository.getTranslationMethod();
         String targetLanguage = sharedPreferencesRepository.getDefaultTranslationLanguage();
 
@@ -442,7 +445,7 @@ public class AllEntriesFragment extends Fragment implements EntryItemAdapter.Ent
             Disposable translateDisposable;
             Log.d(TAG, "translate: translation method: " + translationMethod);
             if (translationMethod.equals("lineByLine")) {
-                translateDisposable = textUtil.translateHtmlLineByLine(languageCode, targetLanguage, html, entryInfo.getEntryTitle(), entryInfo.getEntryId(), progress -> {
+                translateDisposable = textUtil.translateHtmlLineByLine(languageCode, targetLanguage, sourceHtml, entryInfo.getEntryTitle(), entryInfo.getEntryId(), progress -> {
                     requireActivity().runOnUiThread(() ->
                             Toast.makeText(requireContext(), progress + "% Translated for " + entryInfo.getEntryTitle(), Toast.LENGTH_SHORT).show()
                     );
@@ -450,7 +453,7 @@ public class AllEntriesFragment extends Fragment implements EntryItemAdapter.Ent
                     doWhenTranslationFinish(entryInfo, translatedHtml, targetLanguage);
                 });
             } else if (translationMethod.equals("paragraphByParagraph")) {
-                translateDisposable = textUtil.translateHtmlByParagraph(languageCode, targetLanguage, html, entryInfo.getEntryTitle(), entryInfo.getEntryId(), progress -> {
+                translateDisposable = textUtil.translateHtmlByParagraph(languageCode, targetLanguage, sourceHtml, entryInfo.getEntryTitle(), entryInfo.getEntryId(), progress -> {
                         requireActivity().runOnUiThread(() ->
                                 Toast.makeText(requireContext(), progress + "% Translated for " + entryInfo.getEntryTitle(), Toast.LENGTH_SHORT).show()
                         );
@@ -461,7 +464,7 @@ public class AllEntriesFragment extends Fragment implements EntryItemAdapter.Ent
                 });
 
             } else {
-                translateDisposable = textUtil.translateHtmlAllAtOnce(languageCode, targetLanguage, html, entryInfo.getEntryTitle(), entryInfo.getEntryId(), progress -> {
+                translateDisposable = textUtil.translateHtmlAllAtOnce(languageCode, targetLanguage, sourceHtml, entryInfo.getEntryTitle(), entryInfo.getEntryId(), progress -> {
                     requireActivity().runOnUiThread(() ->
                             Toast.makeText(requireContext(), progress + "% Translated for " + entryInfo.getEntryTitle(), Toast.LENGTH_SHORT).show()
                     );

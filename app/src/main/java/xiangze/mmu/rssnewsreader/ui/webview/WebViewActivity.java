@@ -736,7 +736,8 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
         doc.head().append(webViewViewModel.getStyle(sharedPreferencesRepository.getNight()));
 
         EntryInfo entryInfo = webViewViewModel.getEntryInfoById(currentId);
-        if (entryInfo != null && !doc.html().contains("class=\"entry-header\"")) {
+        // Use more robust element selection instead of string check
+        if (entryInfo != null && doc.selectFirst(".entry-header") == null) {
             doc.selectFirst("body").prepend(
                 webViewViewModel.getHtml(
                         entryInfo.getEntryTitle(),
@@ -749,10 +750,15 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
         }
 
         if (!isTranslatedView && !isSummarizedView) {
-            webViewViewModel.updateOriginalHtml(html, currentId);
+            // Avoid redundant updates if possible
+            String existingOriginal = webViewViewModel.getOriginalHtmlById(currentId);
+            if (existingOriginal == null || !existingOriginal.equals(html)) {
+                webViewViewModel.updateOriginalHtml(html, currentId);
+            }
         }
 
-        webView.loadDataWithBaseURL("file///android_res/", doc.html(), "text/html", "UTF-8", null);
+        webView.loadDataWithBaseURL("file:///android_res/", doc.html(), "text/html", "UTF-8", null);
+        webView.animate().alpha(1.0f).setDuration(300).start();
 
         webView.postDelayed(() -> {
             int scrollX = sharedPreferencesRepository.getScrollX(currentId);
@@ -1181,7 +1187,7 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
         doc.head().append(webViewViewModel.getStyle(sharedPreferencesRepository.getNight()));
 
         EntryInfo entryInfo = webViewViewModel.getEntryInfoById(currentId);
-        if (entryInfo != null && !doc.html().contains("class=\"entry-header\"")) {
+        if (entryInfo != null && doc.selectFirst(".entry-header") == null) {
             doc.selectFirst("body").prepend(
                     webViewViewModel.getHtml(
                             entryInfo.getEntryTitle(),
@@ -1193,7 +1199,8 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
             );
         }
 
-        webView.loadDataWithBaseURL("file///android_res/", doc.html(), "text/html", "UTF-8", null);
+        webView.loadDataWithBaseURL("file:///android_res/", doc.html(), "text/html", "UTF-8", null);
+        webView.animate().alpha(1.0f).setDuration(300).start();
     }
 
     private void startChat() {
