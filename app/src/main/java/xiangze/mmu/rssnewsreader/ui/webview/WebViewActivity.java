@@ -241,15 +241,23 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
             entryRepository.updateOriginalHtml(originalHtml, currentId);
             Log.d(TAG, "Original HTML backed up from method parameter.");
         }
-        String translatedTitle = translatedHtml.substring(
-            translatedHtml.indexOf("[TITLE]") + 7,
-            translatedHtml.indexOf("[CONTENT]")
-        ).trim();
 
-        entryInfo.setEntryTitle(translatedTitle);
-        Document doc = Jsoup.parse(translatedHtml.substring(
-            translatedHtml.indexOf("[CONTENT]") + 9
-        ).trim());
+        Document doc;
+        if (translatedHtml.contains("[TITLE]") && translatedHtml.contains("[CONTENT]") &&
+                translatedHtml.indexOf("[TITLE]") < translatedHtml.indexOf("[CONTENT]")) {
+            String translatedTitle = translatedHtml.substring(
+                translatedHtml.indexOf("[TITLE]") + 7,
+                translatedHtml.indexOf("[CONTENT]")
+            ).trim();
+
+            entryInfo.setEntryTitle(translatedTitle);
+            doc = Jsoup.parse(translatedHtml.substring(
+                translatedHtml.indexOf("[CONTENT]") + 9
+            ).trim());
+        } else {
+            doc = Jsoup.parse(translatedHtml);
+        }
+
         doc.head().append(webViewViewModel.getStyle(sharedPreferencesRepository.getNight()));
         Objects.requireNonNull(doc.selectFirst("body"))
                 .prepend(webViewViewModel.getHtml(
@@ -304,7 +312,8 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
         String summarizedTitle = entryInfo.getEntryTitle();
         String summarizedBody = summarizedHtml;
 
-        if (summarizedHtml.contains("[TITLE]") && summarizedHtml.contains("[CONTENT]")) {
+        if (summarizedHtml.contains("[TITLE]") && summarizedHtml.contains("[CONTENT]") &&
+                summarizedHtml.indexOf("[TITLE]") < summarizedHtml.indexOf("[CONTENT]")) {
             summarizedTitle = summarizedHtml.substring(
                     summarizedHtml.indexOf("[TITLE]") + 7,
                     summarizedHtml.indexOf("[CONTENT]")

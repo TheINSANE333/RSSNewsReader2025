@@ -110,7 +110,8 @@ public class AutoTranslator {
 
                         Log.d("AUTO TRANSLATOR", "TRANSLATED HTML for ID " + id + ": " + translatedHtml);
 
-                        if (translatedHtml == null || !translatedHtml.contains("[TITLE]") || !translatedHtml.contains("[CONTENT]")) {
+                        if (translatedHtml == null || !translatedHtml.contains("[TITLE]") || !translatedHtml.contains("[CONTENT]") ||
+                                translatedHtml.indexOf("[TITLE]") > translatedHtml.indexOf("[CONTENT]")) {
                             throw new IllegalStateException("Invalid translated format");
                         }
 

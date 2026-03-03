@@ -623,10 +623,10 @@ public class MainActivity extends AppCompatActivity {
     public void updateThemeSwitch() {
         boolean isNight = mainActivityViewModel.getNight();
         themeSwitch.setChecked(isNight);
-        if (isNight) {
-            AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_YES);
-        } else {
-            AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_NO);
+        int currentMode = AppCompatDelegate.getDefaultNightMode();
+        int expectedMode = isNight ? AppCompatDelegate.MODE_NIGHT_YES : AppCompatDelegate.MODE_NIGHT_NO;
+        if (currentMode != expectedMode) {
+            AppCompatDelegate.setDefaultNightMode(expectedMode);
         }
     }
 

@@ -99,7 +99,8 @@ public class AutoSummarizer {
                         String summarizedTitle = "Summary";
                         String summarizedBody = summaryText;
 
-                        if (summaryText.contains("[TITLE]") && summaryText.contains("[CONTENT]")) {
+                        if (summaryText.contains("[TITLE]") && summaryText.contains("[CONTENT]") && 
+                                summaryText.indexOf("[TITLE]") < summaryText.indexOf("[CONTENT]")) {
                             summarizedTitle = summaryText.substring(
                                     summaryText.indexOf("[TITLE]") + 7,
                                     summaryText.indexOf("[CONTENT]")

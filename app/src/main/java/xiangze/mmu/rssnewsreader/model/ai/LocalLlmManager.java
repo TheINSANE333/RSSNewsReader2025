@@ -102,11 +102,12 @@ public class LocalLlmManager {
 
             Log.d(TAG, "Initializing LlmInference with model: " + modelFile.getAbsolutePath());
             try {
-                LlmInference.LlmInferenceOptions options = LlmInference.LlmInferenceOptions.builder()
+                LlmInference.LlmInferenceOptions options = LlmInference.LlmInferenceOptions.builder()     
                         .setModelPath(modelFile.getAbsolutePath())
                         .setMaxTokens(4096)
+                        .setPreferredBackend(LlmInference.Backend.GPU)
+                        .setMaxTopK(40)
                         .build();
-
                 llmInference = LlmInference.createFromOptions(appContext, options);
                 currentModelId = modelId;
             } catch (Exception e) {
