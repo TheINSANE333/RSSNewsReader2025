@@ -344,6 +344,14 @@ public class TtsExtractor {
                      return;
                 }
                 Log.e(TAG, "[onReceivedError] Main frame error: " + error.getDescription() + " (" + error.getErrorCode() + ") for " + request.getUrl());
+                
+                if (error.getDescription() != null && error.getDescription().toString().contains("ERR_NAME_NOT_RESOLVED")) {
+                    Log.w(TAG, "Network error ERR_NAME_NOT_RESOLVED detected. Failing current extraction to trigger a retry.");
+                    if (extractionInProgress) {
+                        hasProcessedCurrentToken = true; // Prevent further processing for this load
+                        handleFailure(currentIdInProgress);
+                    }
+                }
             }
         }
 
@@ -437,6 +445,12 @@ public class TtsExtractor {
     public void processExtraction(long entryId, String link, String title, String html) {
         if (html == null || html.length() < 500) {
             Log.w(TAG, "HTML too short or null in processExtraction. Retrying...");
+            handleFailure(entryId);
+            return;
+        }
+
+        if (html.contains("ERR_NAME_NOT_RESOLVED")) {
+            Log.w(TAG, "HTML contains ERR_NAME_NOT_RESOLVED. Retrying extraction...");
             handleFailure(entryId);
             return;
         }
@@ -608,7 +622,36 @@ public class TtsExtractor {
                             String targetLang = sharedPreferencesRepository.getDefaultTranslationLanguage();
                             boolean isSameLanguage = localizedLang.equalsIgnoreCase(targetLang);
 
-                            if (shouldTranslate && !isSameLanguage) {
+                            boolean doTranslate = shouldTranslate && !isSameLanguage;
+                            boolean doSummarize = shouldSummarize;
+
+                            if (doTranslate && doSummarize) {
+                                Single.zip(
+                                        textUtil.translateHtmlAllAtOnce(localizedLang, targetLang, doc.html(), processingTitle, processingId, progress -> {}).subscribeOn(Schedulers.io()),
+                                        textUtil.summarizeHtmlAllAtOnce(localizedLang, targetLang, doc.html(), length, processingId, processingTitle, progress -> {}).subscribeOn(Schedulers.io()),
+                                        (translatedHtml, summarizedHtml) -> new String[]{translatedHtml, summarizedHtml}
+                                )
+                                .observeOn(AndroidSchedulers.mainThread())
+                                .subscribe(results -> {
+                                    String translatedHtml = results[0];
+                                    String summarizedHtml = results[1];
+
+                                    entryRepository.updateTranslatedHtml(translatedHtml, processingId);
+                                    String translatedContent = textUtil.extractHtmlContent(translatedHtml, delimiter);
+                                    entryRepository.updateTranslatedText(translatedContent, processingId);
+                                    entryRepository.updateTranslated(translatedContent, processingId);
+
+                                    entryRepository.updateSummarizedHtml(summarizedHtml, processingId);
+                                    String summarizedContent = textUtil.extractHtmlContent(summarizedHtml, delimiter);
+                                    entryRepository.updateSummarizedText(summarizedContent, processingId);
+                                    entryRepository.updateSummarized(summarizedContent, processingId);
+
+                                    if (processingId == currentIdInProgress) {
+                                        handler.postDelayed(this::finishAndMoveToNext, Math.max(WebClient.TRANSLATION_COOLDOWN_MS, WebClient.SUMMARIZATION_COOLDOWN_MS));
+                                    }
+                                }, error -> handleError(error, processingId));
+
+                            } else if (doTranslate) {
                                 textUtil.translateHtmlAllAtOnce(localizedLang, targetLang, doc.html(), processingTitle, processingId, progress -> {})
                                         .subscribeOn(Schedulers.io())
                                         .observeOn(AndroidSchedulers.mainThread())
@@ -623,7 +666,7 @@ public class TtsExtractor {
                                             }
                                         }, error -> handleError(error, processingId));
 
-                            } else if (shouldSummarize) {
+                            } else if (doSummarize) {
                                 textUtil.summarizeHtmlAllAtOnce(localizedLang, targetLang, doc.html(), length, processingId, processingTitle, progress -> {})
                                         .subscribeOn(Schedulers.io())
                                         .observeOn(AndroidSchedulers.mainThread())
@@ -634,7 +677,7 @@ public class TtsExtractor {
                                             entryRepository.updateSummarized(summarizedContent, processingId);
 
                                             if (processingId == currentIdInProgress) {
-                                                handler.postDelayed(this::finishAndMoveToNext, WebClient.TRANSLATION_COOLDOWN_MS);
+                                                handler.postDelayed(this::finishAndMoveToNext, WebClient.SUMMARIZATION_COOLDOWN_MS);
                                             }
                                         }, error -> handleError(error, processingId));
                             } else {

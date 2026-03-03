@@ -954,15 +954,6 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
             if (isTranslatedView) {
                 Log.d("CONTENT", "translated");
                 loadHtmlToWebView(translatedHtml);
-
-                Entry entry = entryRepository.getEntryById(currentId);
-                if (entry != null && entry.getTranslated() != null) {
-                    String lang = getLanguageForCurrentView(currentId, true, "en");
-                    ttsPlayer.extract(entry.getId(), entry.getFeedId(), entry.getTranslated(), lang);
-                    if (mMediaBrowserHelper != null && mMediaBrowserHelper.getTransportControls() != null) {
-                        mMediaBrowserHelper.getTransportControls().prepare();
-                    }
-                }
             }
         });
 
@@ -973,15 +964,6 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
             if (isSummarizedView) {
                 Log.d("CONTENT", "summarized");
                 loadHtmlToWebView(summarizedHtml);
-
-                Entry entry = entryRepository.getEntryById(currentId);
-                if (entry != null && entry.getSummarized() != null) {
-                    String lang = getLanguageForCurrentView(currentId, true, "en");
-                    ttsPlayer.extract(entry.getId(), entry.getFeedId(), entry.getSummarized(), lang);
-                    if (mMediaBrowserHelper != null && mMediaBrowserHelper.getTransportControls() != null) {
-                        mMediaBrowserHelper.getTransportControls().prepare();
-                    }
-                }
             }
         });
     }
@@ -1088,7 +1070,7 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
                             Log.d(TAG, "Original HTML restored from DB.");
                         }
 
-                        if (hasSummary && !isSummarizedView && !isTranslatedView) {
+                        if (hasSummary) {
                             String summarizedHtmlFromDb = entry.getSummarizedHtml();
                             String currentSummarizedInVm = webViewViewModel.getSummarizedHtmlLiveData().getValue();
 
@@ -1096,7 +1078,7 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
                             boolean userPrefOriginal = sharedPreferencesRepository.hasSummarizationToggle(currentId) &&
                                     !sharedPreferencesRepository.getIsSummarizedView(currentId);
 
-                            if (summarizedHtmlFromDb != null && (currentSummarizedInVm == null || currentSummarizedInVm.isEmpty()) && !userPrefOriginal) {
+                            if (summarizedHtmlFromDb != null && !userPrefOriginal && !isSummarizedView) {
                                 isSummarizedView = true;
                                 isTranslatedView = false;
                                 sharedPreferencesRepository.setIsSummarizedView(currentId, true);
@@ -1107,7 +1089,7 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
                                 refreshButtonVisibility();
                                 webViewViewModel.triggerEntryRefresh(currentId);
                             }
-                        } else if (hasTranslation && !isTranslatedView && !isSummarizedView) {
+                        } else if (hasTranslation) {
                             String translatedHtmlFromDb = entry.getTranslatedHtml();
                             String currentTranslatedInVm = webViewViewModel.getTranslatedHtmlLiveData().getValue();
 
@@ -1115,7 +1097,7 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
                             boolean userPrefOriginal = sharedPreferencesRepository.hasTranslationToggle(currentId) &&
                                     !sharedPreferencesRepository.getIsTranslatedView(currentId);
 
-                            if (translatedHtmlFromDb != null && (currentTranslatedInVm == null || currentTranslatedInVm.isEmpty()) && !userPrefOriginal) {
+                            if (translatedHtmlFromDb != null && !userPrefOriginal && !isTranslatedView) {
                                 isTranslatedView = true;
                                 isSummarizedView = false;
                                 sharedPreferencesRepository.setIsTranslatedView(currentId, true);
