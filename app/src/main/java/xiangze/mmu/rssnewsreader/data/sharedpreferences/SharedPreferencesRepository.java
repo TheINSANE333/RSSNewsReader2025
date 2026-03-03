@@ -298,6 +298,14 @@ public class SharedPreferencesRepository {
         editor.putString("customSummarizationPrompt", prompt).apply();
     }
 
+    public String getAbbreviationList() {
+        return sharedPreferences.getString("abbreviation_list", "Mr., Mrs., Ms., Dr., Prof., Sr., Jr., St., vs., etc., e.g., i.e., Fig., No., Rev.");
+    }
+
+    public void setAbbreviationList(String list) {
+        editor.putString("abbreviation_list", list).apply();
+    }
+
     public Context getContext() {
         return context;
     }

@@ -161,6 +161,14 @@
             app:summary="@string/background_music_volume_summary"
             app:title="@string/background_music_volume" />
 
+        <EditTextPreference
+            app:icon="@drawable/ic_pencil"
+            app:key="abbreviation_list"
+            app:title="@string/abbreviation_list_title"
+            app:summary="@string/abbreviation_list_summary"
+            app:useSimpleSummaryProvider="true"
+            app:defaultValue="Mr., Mrs., Ms., Dr., Prof., Sr., Jr., St., vs., etc., e.g., i.e., Fig., No., Rev." />
+
     </PreferenceCategory>
 
     <PreferenceCategory
@@ -199,14 +207,14 @@
 
         <Preference
             app:key="download_local_model"
-            app:title="Download Local Model (Qwen2.5)"
-            app:summary="Download the Qwen2.5 1.5B model file for local use."
+            app:title="Manage Local Model"
+            app:summary="Download or import a model file for local AI use."
             app:icon="@drawable/ic_import" />
 
         <Preference
             app:key="delete_local_model"
-            app:title="Delete Local Model"
-            app:summary="Delete the downloaded Qwen2.5 model file to free up space or fix corruption."
+            app:title="Delete Local Models"
+            app:summary="Delete downloaded model files to free up space."
             app:icon="@drawable/ic_cancel" />
 
         <EditTextPreference

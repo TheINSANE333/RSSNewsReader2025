@@ -498,7 +498,7 @@ public class TtsExtractor {
                                     String sentence = candidate.trim();
 
                                     // Check if the sentence ends with a common abbreviation
-                                    if (TextUtil.endsWithAbbreviation(sentence)) {
+                                    if (textUtil.endsWithAbbreviation(sentence)) {
                                         int nextEnd = sentenceIterator.next();
                                         if (nextEnd != BreakIterator.DONE) {
                                             end = nextEnd;

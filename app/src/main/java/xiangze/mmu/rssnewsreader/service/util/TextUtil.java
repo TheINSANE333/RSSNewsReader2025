@@ -120,15 +120,15 @@ public class TextUtil {
         }
     }
 
-    public static boolean endsWithAbbreviation(String text) {
+    public boolean endsWithAbbreviation(String text) {
         if (text.isEmpty() || !text.endsWith(".")) {
             return false;
         }
-        String[] abbreviations = {
-            "Mr.", "Mrs.", "Ms.", "Dr.", "Prof.", "Sr.", "Jr.", "St.", "vs.", "etc.", "e.g.", "i.e.", "Fig.", "No.", "Rev."
-        };
+        String abbreviationList = sharedPreferencesRepository.getAbbreviationList();
+        String[] abbreviations = abbreviationList.split(",");
         for (String abbr : abbreviations) {
-            if (text.endsWith(abbr)) {
+            String trimmedAbbr = abbr.trim();
+            if (!trimmedAbbr.isEmpty() && text.endsWith(trimmedAbbr)) {
                 return true;
             }
         }

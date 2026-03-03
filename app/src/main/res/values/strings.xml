@@ -82,6 +82,9 @@
     <string name="custom_summarization_prompt_title">Custom Summarization Prompt</string>
     <string name="custom_summarization_prompt_summary">Additional instructions for AI summarization (appended to base prompt)</string>
 
+    <string name="abbreviation_list_title">Custom Abbreviations</string>
+    <string name="abbreviation_list_summary">List of abbreviations (comma separated) to prevent sentence breaking (e.g., Dr., Ms., U.S.A.)</string>
+
     <string name="share">Share</string>
     <string name="mark_as_read">Mark as read</string>
     <string name="mark_as_unread">Mark as unread</string>

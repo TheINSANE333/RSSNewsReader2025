@@ -168,27 +168,57 @@ public class SettingsFragment extends PreferenceFragmentCompat {
         }
     }
 
-    private void showDeleteModelDialog() {
-        File extFile = new File(requireContext().getExternalFilesDir(null), "qwen2.5-1.5b.task");
-        File intFile = new File(requireContext().getFilesDir(), "qwen2.5-1.5b.task");
+    private String pendingModelId;
 
-        if (!extFile.exists() && !intFile.exists()) {
-            Toast.makeText(requireContext(), "No model file found to delete.", Toast.LENGTH_SHORT).show();
+    private final ActivityResultLauncher<String[]> importModelLauncher =
+            registerForActivityResult(new ActivityResultContracts.OpenDocument(), uri -> {
+                if (uri != null && pendingModelId != null) {
+                    importModel(uri, pendingModelId);
+                }
+            });
+
+    private void importModel(Uri uri, String modelId) {
+        String filename = LocalLlmManager.getInstance(requireContext()).getModelFilename(modelId);
+        File destFile = new File(requireContext().getExternalFilesDir(null), filename);
+        
+        try (InputStream is = requireContext().getContentResolver().openInputStream(uri);
+             OutputStream os = new FileOutputStream(destFile)) {
+            
+            if (is == null) throw new IOException("Failed to open input stream");
+            
+            byte[] buffer = new byte[8192];
+            int length;
+            while ((length = is.read(buffer)) > 0) {
+                os.write(buffer, 0, length);
+            }
+            
+            Toast.makeText(requireContext(), "Model imported successfully: " + filename, Toast.LENGTH_SHORT).show();
+        } catch (IOException e) {
+            Toast.makeText(requireContext(), "Failed to import model: " + e.getMessage(), Toast.LENGTH_LONG).show();
+        }
+    }
+
+    private void showDeleteModelDialog() {
+        File extQwen = new File(requireContext().getExternalFilesDir(null), "qwen2.5-1.5b.task");
+        File intQwen = new File(requireContext().getFilesDir(), "qwen2.5-1.5b.task");
+
+        if (!extQwen.exists() && !intQwen.exists()) {
+            Toast.makeText(requireContext(), "No model files found to delete.", Toast.LENGTH_SHORT).show();
             return;
         }
 
         new android.app.AlertDialog.Builder(requireContext())
-                .setTitle("Delete Local Model")
-                .setMessage("Are you sure you want to delete the local model file? You will need to download it again to use the local chatbot.")
+                .setTitle("Delete Local Models")
+                .setMessage("Are you sure you want to delete the Qwen model files?")
                 .setPositiveButton("Delete", (dialog, which) -> {
                     boolean deleted = false;
-                    if (extFile.exists() && extFile.delete()) deleted = true;
-                    if (intFile.exists() && intFile.delete()) deleted = true;
+                    if (extQwen.exists() && extQwen.delete()) deleted = true;
+                    if (intQwen.exists() && intQwen.delete()) deleted = true;
                     
                     if (deleted) {
-                        Toast.makeText(requireContext(), "Model file(s) deleted successfully.", Toast.LENGTH_SHORT).show();
+                        Toast.makeText(requireContext(), "Model files deleted successfully.", Toast.LENGTH_SHORT).show();
                     } else {
-                        Toast.makeText(requireContext(), "Failed to delete model file(s).", Toast.LENGTH_SHORT).show();
+                        Toast.makeText(requireContext(), "Failed to delete model files.", Toast.LENGTH_SHORT).show();
                     }
                 })
                 .setNegativeButton("Cancel", null)
@@ -196,26 +226,48 @@ public class SettingsFragment extends PreferenceFragmentCompat {
     }
 
     private void showDownloadModelDialog() {
-        File file = new File(requireContext().getExternalFilesDir(null), "qwen2.5-1.5b.task");
-        String message = "Please enter the direct download URL for the Qwen2.5 1.5B model (.task file).";
+        String modelId = LocalLlmManager.QWEN_MODEL_ID;
+        String modelName = "Qwen 2.5 1.5B";
+        
+        String[] options = {"Download from URL", "Import from Device (.task file)"};
+
+        new android.app.AlertDialog.Builder(requireContext())
+                .setTitle("Manage Qwen Model")
+                .setItems(options, (optionDialog, optionWhich) -> {
+                    if (options[optionWhich].contains("Download")) {
+                        showUrlInputDialog(modelId, modelName);
+                    } else {
+                        pendingModelId = modelId;
+                        importModelLauncher.launch(new String[]{"*/*"});
+                    }
+                })
+                .setNegativeButton("Cancel", null)
+                .show();
+    }
+
+    private void showUrlInputDialog(String modelId, String modelName) {
+        String filename = LocalLlmManager.getInstance(requireContext()).getModelFilename(modelId);
+        String defaultUrl = LocalLlmManager.getInstance(requireContext()).getDefaultUrl(modelId);
+        
+        File file = new File(requireContext().getExternalFilesDir(null), filename);
+        String message = "Please enter the direct download URL for the " + modelName + " model (.task file).";
         
         if (file.exists()) {
             message = "Model file already exists. Downloading again will overwrite it.\n\n" + message;
         }
 
         android.app.AlertDialog.Builder builder = new android.app.AlertDialog.Builder(requireContext());
-        builder.setTitle("Download Qwen2.5 Model");
+        builder.setTitle("Download " + modelName);
         builder.setMessage(message);
 
         android.widget.LinearLayout container = new android.widget.LinearLayout(requireContext());
         container.setOrientation(android.widget.LinearLayout.VERTICAL);
-        // Convert 20dp to pixels
         int padding = (int) (20 * getResources().getDisplayMetrics().density);
         container.setPadding(padding, 0, padding, 0);
 
         final android.widget.EditText input = new android.widget.EditText(requireContext());
-        input.setHint(LocalLlmManager.DEFAULT_MODEL_URL);
-        input.setText(LocalLlmManager.DEFAULT_MODEL_URL);
+        input.setHint(defaultUrl);
+        input.setText(defaultUrl);
         input.setInputType(android.text.InputType.TYPE_CLASS_TEXT | android.text.InputType.TYPE_TEXT_FLAG_MULTI_LINE);
         input.setMaxLines(5);
         input.setHorizontallyScrolling(false);
@@ -226,7 +278,7 @@ public class SettingsFragment extends PreferenceFragmentCompat {
         builder.setPositiveButton("Download", (dialog, which) -> {
             String url = input.getText().toString().trim();
             if (!url.isEmpty()) {
-                downloadModel(url);
+                downloadModel(url, modelId);
             } else {
                 Toast.makeText(requireContext(), "URL cannot be empty", Toast.LENGTH_SHORT).show();
             }
@@ -236,10 +288,10 @@ public class SettingsFragment extends PreferenceFragmentCompat {
         builder.show();
     }
 
-    private void downloadModel(String url) {
+    private void downloadModel(String url, String modelId) {
         try {
-            LocalLlmManager.getInstance(requireContext()).downloadModel(url);
-            Toast.makeText(requireContext(), "Download started...", Toast.LENGTH_SHORT).show();
+            LocalLlmManager.getInstance(requireContext()).downloadModel(url, modelId);
+            Toast.makeText(requireContext(), "Download started for " + modelId + "...", Toast.LENGTH_SHORT).show();
         } catch (Exception e) {
             Toast.makeText(requireContext(), "Download failed: " + e.getMessage(), Toast.LENGTH_LONG).show();
         }

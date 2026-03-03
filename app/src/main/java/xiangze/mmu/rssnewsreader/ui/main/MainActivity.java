@@ -120,6 +120,9 @@ public class MainActivity extends AppCompatActivity {
                                             String summarizationModel = parser.getAttributeValue(null, "summarization_model");
                                             String chatbotModel = parser.getAttributeValue(null, "chatbot_model");
                                             String openRouterApiKey = parser.getAttributeValue(null, "openrouter_api_key");
+                                            String abbreviationList = parser.getAttributeValue(null, "abbreviation_list");
+                                            String customTranslationPrompt = parser.getAttributeValue(null, "customTranslationPrompt");
+                                            String customSummarizationPrompt = parser.getAttributeValue(null, "customSummarizationPrompt");
 
                                             Log.d(TAG, "onActivityResult: set defaultTranslationLanguage" + defaultTranslationLanguage);
                                             if (jobPeriodic != null && !jobPeriodic.isEmpty()) {
@@ -183,6 +186,15 @@ public class MainActivity extends AppCompatActivity {
                                             }
                                             if (openRouterApiKey != null && !openRouterApiKey.isEmpty()) {
                                                 sharedPreferencesRepository.setOpenRouterApiKey(openRouterApiKey);
+                                            }
+                                            if (abbreviationList != null && !abbreviationList.isEmpty()) {
+                                                sharedPreferencesRepository.setAbbreviationList(abbreviationList);
+                                            }
+                                            if (customTranslationPrompt != null && !customTranslationPrompt.isEmpty()) {
+                                                sharedPreferencesRepository.setCustomTranslationPrompt(customTranslationPrompt);
+                                            }
+                                            if (customSummarizationPrompt != null && !customSummarizationPrompt.isEmpty()) {
+                                                sharedPreferencesRepository.setCustomSummarizationPrompt(customSummarizationPrompt);
                                             }
                                         } else if (eventType == XmlPullParser.START_TAG && parser.getName().equals("outline")) {
                                             String title = parser.getAttributeValue(null, "text");
@@ -289,6 +301,9 @@ public class MainActivity extends AppCompatActivity {
                             serializer.attribute(null, "summarization_model", sharedPreferencesRepository.getSummarizationModel());
                             serializer.attribute(null, "chatbot_model", sharedPreferencesRepository.getChatbotModel());
                             serializer.attribute(null, "openrouter_api_key", sharedPreferencesRepository.getOpenRouterApiKey());
+                            serializer.attribute(null, "abbreviation_list", sharedPreferencesRepository.getAbbreviationList());
+                            serializer.attribute(null, "customTranslationPrompt", sharedPreferencesRepository.getCustomTranslationPrompt());
+                            serializer.attribute(null, "customSummarizationPrompt", sharedPreferencesRepository.getCustomSummarizationPrompt());
                             serializer.endTag(null, "setting");
                             List<Feed> feeds = mainActivityViewModel.getAllStaticFeeds();
                             @SuppressLint("SimpleDateFormat") SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");

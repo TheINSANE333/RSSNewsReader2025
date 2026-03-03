@@ -82,7 +82,7 @@ public class AiClient {
                 }
                 promptBuilder.append("<|im_start|>assistant\n");
 
-                return LocalLlmManager.getInstance(context).generateResponse(context, promptBuilder.toString());
+                return LocalLlmManager.getInstance(context).generateResponse(context, promptBuilder.toString(), model);
             } catch (Exception e) {
                 throw new IOException(e.getMessage(), e);
             }
