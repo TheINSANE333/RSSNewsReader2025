@@ -29,6 +29,7 @@ import javax.inject.Provider;
 
 import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers;
 import io.reactivex.rxjava3.annotations.NonNull;
+import io.reactivex.rxjava3.core.Completable;
 import io.reactivex.rxjava3.core.CompletableObserver;
 import io.reactivex.rxjava3.core.Flowable;
 import io.reactivex.rxjava3.disposables.Disposable;
@@ -158,21 +159,23 @@ public class FeedRepository {
     public void addNewFeed(RssFeed feed) {
         String language = "Use Language Identifier";
         StringBuilder sampleText = new StringBuilder();
-        if (feed.getTitle() != null) sampleText.append(feed.getTitle()).append(" ");
-        if (feed.getDescription() != null) sampleText.append(feed.getDescription()).append(" ");
+        if (feed.getTitle() != null) sampleText.append(feed.getTitle()).append(". ");
 
-        // Take up to 3 items to get enough text
+        // Take up to 20 items to get enough text for accurate language detection
         int count = 0;
         for (RssItem item : feed.getRssItems()) {
-            if (count++ >= 3) break;
-            if (item.getTitle() != null) sampleText.append(item.getTitle()).append(" ");
-            if (item.getDescription() != null) sampleText.append(item.getDescription()).append(" ");
+            if (count++ >= 20) break;
+            if (item.getTitle() != null) sampleText.append(item.getTitle()).append(". ");
         }
 
-        String textToIdentify = sampleText.toString().trim();
+        String textToIdentify = android.text.Html.fromHtml(sampleText.toString(), android.text.Html.FROM_HTML_MODE_LEGACY)
+                .toString()
+                .replaceAll("(?i)https?://[^\\s]+", "")
+                .trim();
         if (!textToIdentify.isEmpty()) {
             try {
-                String detected = textUtil.identifyLanguageRx(textToIdentify).blockingGet();
+                // Using 5% confidence since titles are short and don't form full sentences
+                String detected = textUtil.identifyLanguageRx(textToIdentify, 0.05f).blockingGet();
                 if (detected != null && !detected.equals("und")) {
                     language = detected;
                     Log.d(TAG, "Detected language for feed: " + language);
@@ -318,7 +321,44 @@ public class FeedRepository {
     }
 
     public void updateFeedSettings(String title, String desc, String language, boolean autoSummarize, boolean autoTranslate, String link) {
-        feedDao.updateFeedSettings(title, desc, language, autoSummarize, autoTranslate, link);
+        Completable.fromAction(() -> {
+            String finalLanguage = language;
+            if (finalLanguage == null || finalLanguage.equals("Use Language Identifier")) {
+                long feedId = feedDao.getIdByLink(link);
+                StringBuilder sampleText = new StringBuilder();
+                if (title != null) sampleText.append(title).append(". ");
+
+                if (feedId > 0) {
+                    List<Entry> entries = entryRepository.getStaticEntries(feedId);
+                    int count = 0;
+                    // Take up to 20 items to get enough text for accurate language detection
+                    for (Entry entry : entries) {
+                        if (count++ >= 20) break;
+                        if (entry.getTitle() != null) sampleText.append(entry.getTitle()).append(". ");
+                    }
+                }
+
+                String textToIdentify = android.text.Html.fromHtml(sampleText.toString(), android.text.Html.FROM_HTML_MODE_LEGACY)
+                        .toString()
+                        .replaceAll("(?i)https?://[^\\s]+", "")
+                        .trim();
+                if (!textToIdentify.isEmpty()) {
+                    try {
+                        // Using 5% confidence since titles are short and don't form full sentences
+                        String detected = textUtil.identifyLanguageRx(textToIdentify, 0.05f).blockingGet();
+                        if (detected != null && !detected.equals("und")) {
+                            finalLanguage = detected;
+                            Log.d(TAG, "Detected language for feed update: " + finalLanguage);
+                        }
+                    } catch (Exception e) {
+                        Log.e(TAG, "Failed to identify feed language on update", e);
+                    }
+                }
+            }
+            feedDao.updateFeedSettings(title, desc, finalLanguage, autoSummarize, autoTranslate, link);
+        })
+        .subscribeOn(Schedulers.io())
+        .subscribe();
     }
 
     public float getTtsSpeechRateById(long id) {

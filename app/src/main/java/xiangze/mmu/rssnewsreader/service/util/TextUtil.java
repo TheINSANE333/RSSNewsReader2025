@@ -652,7 +652,10 @@ public class TextUtil {
 
     public Single<String> identifyLanguageRx(String sentence) {
         float confidenceThreshold = (float) sharedPreferencesRepository.getConfidenceThreshold() / 100;
+        return identifyLanguageRx(sentence, confidenceThreshold);
+    }
 
+    public Single<String> identifyLanguageRx(String sentence, float confidenceThreshold) {
         LanguageIdentificationOptions options = new LanguageIdentificationOptions.Builder()
                 .setConfidenceThreshold(confidenceThreshold)
                 .build();
