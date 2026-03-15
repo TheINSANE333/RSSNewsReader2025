@@ -214,6 +214,18 @@ public class SharedPreferencesRepository {
                 .apply();
     }
 
+    public void removeTranslatedViewToggle(long entryId) {
+        sharedPreferences.edit()
+                .remove(KEY_TOGGLE_STATE_PREFIX + entryId)
+                .apply();
+    }
+
+    public void removeSummarizedViewToggle(long entryId) {
+        sharedPreferences.edit()
+                .remove(KEY_TOGGLE_STATE_PREFIX2 + entryId)
+                .apply();
+    }
+
     public boolean getIsTranslatedView(long entryId) {
         return sharedPreferences.getBoolean(KEY_TOGGLE_STATE_PREFIX + entryId,false);
     }

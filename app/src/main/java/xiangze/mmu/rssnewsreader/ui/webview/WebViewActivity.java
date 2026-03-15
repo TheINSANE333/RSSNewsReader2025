@@ -1996,8 +1996,8 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
         webViewViewModel.clearLiveEntryCache(currentId);
         
         // Reset view states to ensure we see the fresh original content
-        sharedPreferencesRepository.setIsTranslatedView(currentId, false);
-        sharedPreferencesRepository.setIsSummarizedView(currentId, false);
+        sharedPreferencesRepository.removeTranslatedViewToggle(currentId);
+        sharedPreferencesRepository.removeSummarizedViewToggle(currentId);
 
         if (!isReadingMode) {
             if (mMediaBrowserHelper != null && mMediaBrowserHelper.getTransportControls() != null) {
@@ -2089,8 +2089,6 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
         if (webView != null && currentId != 0) {
             sharedPreferencesRepository.setScrollX(currentId, webView.getScrollX());
             sharedPreferencesRepository.setScrollY(currentId, webView.getScrollY());
-            sharedPreferencesRepository.setIsTranslatedView(currentId, isTranslatedView);
-            sharedPreferencesRepository.setIsSummarizedView(currentId, isSummarizedView);
         }
 
         MediaControllerCompat mediaController = mMediaBrowserHelper.getMediaController();
