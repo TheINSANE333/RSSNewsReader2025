@@ -641,10 +641,39 @@ public class TtsExtractor {
                                     entryRepository.updateTranslatedText(translatedContent, processingId);
                                     entryRepository.updateTranslated(translatedContent, processingId);
 
-                                    entryRepository.updateSummarizedHtml(summarizedHtml, processingId);
-                                    String summarizedContent = textUtil.extractHtmlContent(summarizedHtml, delimiter);
+                                    summarizedHtml = summarizedHtml
+                                            .replaceAll("(?s)^\\s*```[a-zA-Z]*\\n?", "")
+                                            .replaceAll("(?s)\\n?```\\s*$", "");
+
+                                    String summarizedTitle = processingTitle != null && !processingTitle.isEmpty() ? processingTitle : "Summary";
+                                    String summarizedBody = summarizedHtml;
+
+                                    if (summarizedHtml.contains("[TITLE]") && summarizedHtml.contains("[CONTENT]") &&
+                                            summarizedHtml.indexOf("[TITLE]") < summarizedHtml.indexOf("[CONTENT]")) {
+                                        summarizedTitle = summarizedHtml.substring(
+                                                summarizedHtml.indexOf("[TITLE]") + 7,
+                                                summarizedHtml.indexOf("[CONTENT]")
+                                        ).trim();
+                                        summarizedBody = summarizedHtml.substring(
+                                                summarizedHtml.indexOf("[CONTENT]") + 9
+                                        ).trim();
+                                    }
+
+                                    org.jsoup.nodes.Document summarizedDoc = org.jsoup.Jsoup.parse(summarizedBody);
+                                    org.jsoup.nodes.Element titleElement = summarizedDoc.body().prependElement("p");
+                                    titleElement.addClass("summarized-title");
+                                    titleElement.text(summarizedTitle);
+
+                                    String finalSummarizedHtml = summarizedDoc.html();
+
+                                    entryRepository.updateSummarizedHtml(finalSummarizedHtml, processingId);
+                                    String summarizedContent = textUtil.extractHtmlContent(finalSummarizedHtml, delimiter);
                                     entryRepository.updateSummarizedText(summarizedContent, processingId);
                                     entryRepository.updateSummarized(summarizedContent, processingId);
+
+                                    if (!sharedPreferencesRepository.hasSummarizationToggle(processingId)) {
+                                        sharedPreferencesRepository.setIsSummarizedView(processingId, true);
+                                    }
 
                                     if (processingId == currentIdInProgress) {
                                         handler.postDelayed(this::finishAndMoveToNext, Math.max(WebClient.TRANSLATION_COOLDOWN_MS, WebClient.SUMMARIZATION_COOLDOWN_MS));
@@ -671,8 +700,33 @@ public class TtsExtractor {
                                         .subscribeOn(Schedulers.io())
                                         .observeOn(AndroidSchedulers.mainThread())
                                         .subscribe(summarizedHtml -> {
-                                            entryRepository.updateSummarizedHtml(summarizedHtml, processingId);
-                                            String summarizedContent = textUtil.extractHtmlContent(summarizedHtml, delimiter);
+                                            summarizedHtml = summarizedHtml
+                                                    .replaceAll("(?s)^\\s*```[a-zA-Z]*\\n?", "")
+                                                    .replaceAll("(?s)\\n?```\\s*$", "");
+                                                    
+                                            String summarizedTitle = processingTitle != null && !processingTitle.isEmpty() ? processingTitle : "Summary";
+                                            String summarizedBody = summarizedHtml;
+                                            
+                                            if (summarizedHtml.contains("[TITLE]") && summarizedHtml.contains("[CONTENT]") &&
+                                                    summarizedHtml.indexOf("[TITLE]") < summarizedHtml.indexOf("[CONTENT]")) {
+                                                summarizedTitle = summarizedHtml.substring(
+                                                        summarizedHtml.indexOf("[TITLE]") + 7,
+                                                        summarizedHtml.indexOf("[CONTENT]")
+                                                ).trim();
+                                                summarizedBody = summarizedHtml.substring(
+                                                        summarizedHtml.indexOf("[CONTENT]") + 9
+                                                ).trim();
+                                            }
+                                            
+                                            org.jsoup.nodes.Document summarizedDoc = org.jsoup.Jsoup.parse(summarizedBody);
+                                            org.jsoup.nodes.Element titleElement = summarizedDoc.body().prependElement("p");
+                                            titleElement.addClass("summarized-title");
+                                            titleElement.text(summarizedTitle);
+                                            
+                                            String finalSummarizedHtml = summarizedDoc.html();
+
+                                            entryRepository.updateSummarizedHtml(finalSummarizedHtml, processingId);
+                                            String summarizedContent = textUtil.extractHtmlContent(finalSummarizedHtml, delimiter);
                                             entryRepository.updateSummarizedText(summarizedContent, processingId);
                                             entryRepository.updateSummarized(summarizedContent, processingId);
 
