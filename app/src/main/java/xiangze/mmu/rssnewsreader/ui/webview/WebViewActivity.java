@@ -246,13 +246,13 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
         if (translatedHtml.contains("[TITLE]") && translatedHtml.contains("[CONTENT]") &&
                 translatedHtml.indexOf("[TITLE]") < translatedHtml.indexOf("[CONTENT]")) {
             String translatedTitle = translatedHtml.substring(
-                translatedHtml.indexOf("[TITLE]") + 7,
-                translatedHtml.indexOf("[CONTENT]")
+                    translatedHtml.indexOf("[TITLE]") + 7,
+                    translatedHtml.indexOf("[CONTENT]")
             ).trim();
 
             entryInfo.setEntryTitle(translatedTitle);
             doc = Jsoup.parse(translatedHtml.substring(
-                translatedHtml.indexOf("[CONTENT]") + 9
+                    translatedHtml.indexOf("[CONTENT]") + 9
             ).trim());
         } else {
             doc = Jsoup.parse(translatedHtml);
@@ -405,28 +405,28 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
         loading.setProgress(40);
 
         textUtil.identifyLanguageRx(finalContent).subscribe(
-            identifiedLanguage -> {
-                String sourceLanguage = (userConfiguredLang != null && !userConfiguredLang.isEmpty())
-                        ? feedLanguage : identifiedLanguage;
+                identifiedLanguage -> {
+                    String sourceLanguage = (userConfiguredLang != null && !userConfiguredLang.isEmpty())
+                            ? feedLanguage : identifiedLanguage;
 
-                if (sourceLanguage != null && sourceLanguage.equalsIgnoreCase(targetLanguage)) {
-                    runOnUiThread(() -> {
-                        loading.clearAnimation();
-                        loading.setVisibility(View.INVISIBLE);
-                        webView.animate().alpha(1.0f).setDuration(300).start();
-                        makeSnackbar("Article is already in " + Locale.forLanguageTag(targetLanguage).getDisplayLanguage());
-                    });
-                    return;
+                    if (sourceLanguage != null && sourceLanguage.equalsIgnoreCase(targetLanguage)) {
+                        runOnUiThread(() -> {
+                            loading.clearAnimation();
+                            loading.setVisibility(View.INVISIBLE);
+                            webView.animate().alpha(1.0f).setDuration(300).start();
+                            makeSnackbar("Article is already in " + Locale.forLanguageTag(targetLanguage).getDisplayLanguage());
+                        });
+                        return;
+                    }
+
+                    Log.d(TAG, "Translating from " + sourceLanguage + " to " + targetLanguage);
+                    Log.d("ORIGINAL CONTENT FOR TRANSLATION", finalContent);
+                    performAITranslation(sourceLanguage, targetLanguage, finalContent, entryInfo.getEntryTitle(), translationModel);
+                },
+                error -> {
+                    Log.e(TAG, "Language identification failed, falling back to feedLanguage");
+                    performAITranslation(feedLanguage, targetLanguage, finalContent, entryInfo.getEntryTitle(), translationModel);
                 }
-
-                Log.d(TAG, "Translating from " + sourceLanguage + " to " + targetLanguage);
-                Log.d("ORIGINAL CONTENT FOR TRANSLATION", finalContent);
-                performAITranslation(sourceLanguage, targetLanguage, finalContent, entryInfo.getEntryTitle(), translationModel);
-            },
-            error -> {
-                Log.e(TAG, "Language identification failed, falling back to feedLanguage");
-                performAITranslation(feedLanguage, targetLanguage, finalContent, entryInfo.getEntryTitle(), translationModel);
-            }
         );
     }
 
@@ -520,18 +520,18 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
                 }
 
                 messages.add(new Message(
-                    "system",
-                    baseSystemPrompt
+                        "system",
+                        baseSystemPrompt
                 ));
 
                 messages.add(new Message(
-                    "user",
-                    String.format(
-                            "Target Language: %s\nTitle: %s\nContent: %s",
-                            targetLanguage,
-                            title,
-                            content
-                    )
+                        "user",
+                        String.format(
+                                "Target Language: %s\nTitle: %s\nContent: %s",
+                                targetLanguage,
+                                title,
+                                content
+                        )
                 ));
 
                 /* Stage 2: Prompt Prepared */
@@ -748,13 +748,13 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
         // Use more robust element selection instead of string check
         if (entryInfo != null && doc.selectFirst(".entry-header") == null) {
             doc.selectFirst("body").prepend(
-                webViewViewModel.getHtml(
-                        entryInfo.getEntryTitle(),
-                        entryInfo.getFeedTitle(),
-                        entryInfo.getEntryPublishedDate(),
-                        entryInfo.getFeedImageUrl(),
-                        sharedPreferencesRepository.getNight()
-                )
+                    webViewViewModel.getHtml(
+                            entryInfo.getEntryTitle(),
+                            entryInfo.getFeedTitle(),
+                            entryInfo.getEntryPublishedDate(),
+                            entryInfo.getFeedImageUrl(),
+                            sharedPreferencesRepository.getNight()
+                    )
             );
         }
 
@@ -838,34 +838,21 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
             webViewViewModel.updateOriginalHtml(entry.getOriginalHtml(), currentId);
         }
 
-        // 4. Resolve view state safely (Preference > Priority: Summary > Translation > Original)
-        if (sharedPreferencesRepository.hasSummarizationToggle(currentId) ||
-                sharedPreferencesRepository.hasTranslationToggle(currentId)) {
-            // USE SAVED PREFERENCE
-            isSummarizedView = sharedPreferencesRepository.getIsSummarizedView(currentId) && hasSummary;
-            isTranslatedView = !isSummarizedView && sharedPreferencesRepository.getIsTranslatedView(currentId) && hasTranslation;
+        // 4. Resolve view state safely (Priority: Summary > Translation > Original)
+        if (hasSummary) {
+            isSummarizedView = true;
+            isTranslatedView = false;
+        } else if (hasTranslation) {
+            isSummarizedView = false;
+            isTranslatedView = true;
         } else {
-            // NO PREFERENCE: Use Data Priority
-            if (hasSummary) {
-                isSummarizedView = true;
-                isTranslatedView = false;
-            } else if (hasTranslation) {
-                isSummarizedView = false;
-                isTranslatedView = true;
-            } else {
-                isSummarizedView = false;
-                isTranslatedView = false;
-            }
+            isSummarizedView = false;
+            isTranslatedView = false;
         }
 
-        // Ensure preferences are in sync with reality ONLY if there's a positive state to save
-        // or if a preference already existed (to lock in a 'false' choice).
-        if (sharedPreferencesRepository.hasSummarizationToggle(currentId) || isSummarizedView) {
-            sharedPreferencesRepository.setIsSummarizedView(currentId, isSummarizedView);
-        }
-        if (sharedPreferencesRepository.hasTranslationToggle(currentId) || isTranslatedView) {
-            sharedPreferencesRepository.setIsTranslatedView(currentId, isTranslatedView);
-        }
+        // Ensure preferences are in sync with reality
+        sharedPreferencesRepository.setIsSummarizedView(currentId, isSummarizedView);
+        sharedPreferencesRepository.setIsTranslatedView(currentId, isTranslatedView);
 
         Log.d(TAG, "Resolved View State -> Summarized: " + isSummarizedView + ", Translated: " + isTranslatedView);
 
@@ -1044,13 +1031,13 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
         }
 
         autoProcessingObserver = webViewViewModel.getEntryEntityById(entryId);
-        
+
         if (checkAutoProcessed == null) {
             checkAutoProcessed = new Observer<Entry>() {
                 @Override
                 public void onChanged(Entry entry) {
                     if (entry == null) return;
-                    
+
                     // Crucial: Ignore updates for entries that are no longer current
                     if (entry.getId() != currentId) {
                         Log.d(TAG, "Ignored update for ID " + entry.getId() + " because currentId is " + currentId);
@@ -1074,11 +1061,7 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
                             String summarizedHtmlFromDb = entry.getSummarizedHtml();
                             String currentSummarizedInVm = webViewViewModel.getSummarizedHtmlLiveData().getValue();
 
-                            // 1. If user explicitly chose original view, respect it.
-                            boolean userPrefOriginal = sharedPreferencesRepository.hasSummarizationToggle(currentId) &&
-                                    !sharedPreferencesRepository.getIsSummarizedView(currentId);
-
-                            if (summarizedHtmlFromDb != null && !userPrefOriginal && !isSummarizedView) {
+                            if (summarizedHtmlFromDb != null && !isSummarizedView && !summarizedHtmlFromDb.equals(currentSummarizedInVm)) {
                                 isSummarizedView = true;
                                 isTranslatedView = false;
                                 sharedPreferencesRepository.setIsSummarizedView(currentId, true);
@@ -1086,18 +1069,28 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
                                 webViewViewModel.updateSummarizedHtml(summarizedHtmlFromDb, currentId);
                                 Log.d(TAG, "Summarized HTML synced from auto processing.");
 
+                                webView.animate().alpha(0f).setDuration(150).withEndAction(() -> {
+                                    loadHtmlIntoWebView(summarizedHtmlFromDb);
+                                }).start();
+
                                 refreshButtonVisibility();
                                 webViewViewModel.triggerEntryRefresh(currentId);
+
+                                // Handle TTS
+                                String summarized = entry.getSummarized();
+                                if (summarized != null) {
+                                    String lang = getLanguageForCurrentView(currentId, true, "en");
+                                    ttsPlayer.extract(currentId, feedId, summarized, lang);
+                                    if (mMediaBrowserHelper != null && mMediaBrowserHelper.getTransportControls() != null) {
+                                        mMediaBrowserHelper.getTransportControls().prepare();
+                                    }
+                                }
                             }
                         } else if (hasTranslation) {
                             String translatedHtmlFromDb = entry.getTranslatedHtml();
                             String currentTranslatedInVm = webViewViewModel.getTranslatedHtmlLiveData().getValue();
 
-                            // 1. If user explicitly chose original view, respect it.
-                            boolean userPrefOriginal = sharedPreferencesRepository.hasTranslationToggle(currentId) &&
-                                    !sharedPreferencesRepository.getIsTranslatedView(currentId);
-
-                            if (translatedHtmlFromDb != null && !userPrefOriginal && !isTranslatedView) {
+                            if (translatedHtmlFromDb != null && !isTranslatedView && !translatedHtmlFromDb.equals(currentTranslatedInVm)) {
                                 isTranslatedView = true;
                                 isSummarizedView = false;
                                 sharedPreferencesRepository.setIsTranslatedView(currentId, true);
@@ -1116,7 +1109,7 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
                             // Use LiveData value from ViewModel to detect if we are currently showing a fallback or partial content
                             String currentViewModelHtml = webViewViewModel.getOriginalHtmlLiveData().getValue();
                             boolean isShowingFallback = (currentViewModelHtml == null || currentViewModelHtml.trim().isEmpty());
-                            
+
                             // Allow update if we were showing nothing, or if the new content is significantly larger (indicating a full unlock)
                             boolean shouldUpdate = isShowingFallback;
                             if (!isShowingFallback && htmlFromDb != null) {
@@ -1147,23 +1140,17 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
                                 // 4. Start TTS immediately
                                 String lang = getLanguageForCurrentView(currentId, false, "en");
                                 ttsPlayer.extract(currentId, feedId, entry.getContent(), lang);
-
-                                // If we've reached a likely "full" state, we can stop observing, 
-                                // otherwise keep observing for further improvements (like late-loading images or text)
-                                if (htmlFromDb.length() > 2000) {
-                                     autoProcessingObserver.removeObserver(this);
-                                }
                             }
                         } else {
-                            // Already in a processed view, or waiting for more data. 
+                            // Already in a processed view, or waiting for more data.
                             refreshButtonVisibility();
                         }
                     }
                 }
             };
         }
-        
-        // Use observe (with lifecycle) if possible, but since we manage it manually and it might persist 
+
+        // Use observe (with lifecycle) if possible, but since we manage it manually and it might persist
         // across some states, observeForever is okay IF we strictly unsubscribe.
         // Given we are in an Activity, observe(this, ...) is much safer to avoid leaks.
         autoProcessingObserver.observe(this, checkAutoProcessed);
@@ -1457,7 +1444,7 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
             if (originalHtml == null || originalHtml.trim().isEmpty()) {
                 originalHtml = webViewViewModel.getHtmlById(currentId);
             }
-            
+
             // Safety: if both are missing, use the entry's stored HTML directly
             Entry entry = webViewViewModel.getEntryById(currentId);
             if (entry != null) {
@@ -1840,16 +1827,16 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
         if (!isReadingMode && sharedPreferencesRepository.getHighlightText()) {
             String text = searchText.trim();
             if (text.length() < 2) return;
-            
+
             // Robust escaping for JS string
             String escapedText = text.replace("\\", "\\\\")
-                                     .replace("'", "\\'")
-                                     .replace("\"", "\\\"")
-                                     .replace("\n", "\\n")
-                                     .replace("\r", "\\r");
-            
+                    .replace("'", "\\'")
+                    .replace("\"", "\\\"")
+                    .replace("\n", "\\n")
+                    .replace("\r", "\\r");
+
             Log.d(TAG, "Highlighting text via JS: " + escapedText);
-            
+
             String js = "(function() {" +
                     "  try {" +
                     "    var text = '" + escapedText + "';" +
@@ -1940,7 +1927,7 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
                     "    console.error('Highlight error:', e);" +
                     "  }" +
                     "})();";
-            
+
             runOnUiThread(() -> webView.evaluateJavascript(js, null));
         }
     }
@@ -1994,7 +1981,7 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
 
         webViewViewModel.resetEntry(currentId);
         webViewViewModel.clearLiveEntryCache(currentId);
-        
+
         // Reset view states to ensure we see the fresh original content
         sharedPreferencesRepository.removeTranslatedViewToggle(currentId);
         sharedPreferencesRepository.removeSummarizedViewToggle(currentId);
@@ -2246,7 +2233,7 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
 
             view.evaluateJavascript(checkJs, value -> {
                 if (isFinishing() || isDestroyed()) return;
-                
+
                 String res = (value != null) ? value.replace("\"", "") : "";
                 String[] parts = res.split("\\|");
                 String readyState = parts.length > 0 ? parts[0] : "";
@@ -2260,7 +2247,7 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
                     // Final extraction
                     view.evaluateJavascript("(function() {return document.getElementsByTagName('html')[0].outerHTML;})();", htmlValue -> {
                         if (isFinishing() || isDestroyed()) return;
-                        
+
                         JsonReader reader = new JsonReader(new StringReader(htmlValue));
                         reader.setLenient(true);
                         try {
@@ -2279,7 +2266,7 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
                 }
             });
         };
-        
+
         // Short delay after scroll before running the check
         extractionHandler.postDelayed(extractionRunnable, 3000);
     }
