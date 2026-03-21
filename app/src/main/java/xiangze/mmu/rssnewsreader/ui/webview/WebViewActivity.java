@@ -838,21 +838,34 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
             webViewViewModel.updateOriginalHtml(entry.getOriginalHtml(), currentId);
         }
 
-        // 4. Resolve view state safely (Priority: Summary > Translation > Original)
-        if (hasSummary) {
-            isSummarizedView = true;
-            isTranslatedView = false;
-        } else if (hasTranslation) {
-            isSummarizedView = false;
-            isTranslatedView = true;
+        // 4. Resolve view state safely (Preference > Priority: Summary > Translation > Original)
+        if (sharedPreferencesRepository.hasSummarizationToggle(currentId) ||
+                sharedPreferencesRepository.hasTranslationToggle(currentId)) {
+            // USE SAVED PREFERENCE
+            isSummarizedView = sharedPreferencesRepository.getIsSummarizedView(currentId) && hasSummary;
+            isTranslatedView = !isSummarizedView && sharedPreferencesRepository.getIsTranslatedView(currentId) && hasTranslation;
         } else {
-            isSummarizedView = false;
-            isTranslatedView = false;
+            // NO PREFERENCE: Use Data Priority
+            if (hasSummary) {
+                isSummarizedView = true;
+                isTranslatedView = false;
+            } else if (hasTranslation) {
+                isSummarizedView = false;
+                isTranslatedView = true;
+            } else {
+                isSummarizedView = false;
+                isTranslatedView = false;
+            }
         }
 
-        // Ensure preferences are in sync with reality
-        sharedPreferencesRepository.setIsSummarizedView(currentId, isSummarizedView);
-        sharedPreferencesRepository.setIsTranslatedView(currentId, isTranslatedView);
+        // Ensure preferences are in sync with reality ONLY if there's a positive state to save
+        // or if a preference already existed (to lock in a 'false' choice).
+        if (sharedPreferencesRepository.hasSummarizationToggle(currentId) || isSummarizedView) {
+            sharedPreferencesRepository.setIsSummarizedView(currentId, isSummarizedView);
+        }
+        if (sharedPreferencesRepository.hasTranslationToggle(currentId) || isTranslatedView) {
+            sharedPreferencesRepository.setIsTranslatedView(currentId, isTranslatedView);
+        }
 
         Log.d(TAG, "Resolved View State -> Summarized: " + isSummarizedView + ", Translated: " + isTranslatedView);
 
@@ -1061,7 +1074,11 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
                             String summarizedHtmlFromDb = entry.getSummarizedHtml();
                             String currentSummarizedInVm = webViewViewModel.getSummarizedHtmlLiveData().getValue();
 
-                            if (summarizedHtmlFromDb != null && !isSummarizedView) {
+                            // 1. If user explicitly chose original view, respect it.
+                            boolean userPrefOriginal = sharedPreferencesRepository.hasSummarizationToggle(currentId) &&
+                                    !sharedPreferencesRepository.getIsSummarizedView(currentId);
+
+                            if (summarizedHtmlFromDb != null && !userPrefOriginal && !isSummarizedView) {
                                 isSummarizedView = true;
                                 isTranslatedView = false;
                                 sharedPreferencesRepository.setIsSummarizedView(currentId, true);
@@ -1069,28 +1086,18 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
                                 webViewViewModel.updateSummarizedHtml(summarizedHtmlFromDb, currentId);
                                 Log.d(TAG, "Summarized HTML synced from auto processing.");
 
-                                webView.animate().alpha(0f).setDuration(150).withEndAction(() -> {
-                                    loadHtmlIntoWebView(summarizedHtmlFromDb);
-                                }).start();
-
                                 refreshButtonVisibility();
                                 webViewViewModel.triggerEntryRefresh(currentId);
-                                
-                                // Handle TTS
-                                String summarized = entry.getSummarized();
-                                if (summarized != null) {
-                                    String lang = getLanguageForCurrentView(currentId, true, "en");
-                                    ttsPlayer.extract(currentId, feedId, summarized, lang);
-                                    if (mMediaBrowserHelper != null && mMediaBrowserHelper.getTransportControls() != null) {
-                                        mMediaBrowserHelper.getTransportControls().prepare();
-                                    }
-                                }
                             }
                         } else if (hasTranslation) {
                             String translatedHtmlFromDb = entry.getTranslatedHtml();
                             String currentTranslatedInVm = webViewViewModel.getTranslatedHtmlLiveData().getValue();
 
-                            if (translatedHtmlFromDb != null && !isTranslatedView) {
+                            // 1. If user explicitly chose original view, respect it.
+                            boolean userPrefOriginal = sharedPreferencesRepository.hasTranslationToggle(currentId) &&
+                                    !sharedPreferencesRepository.getIsTranslatedView(currentId);
+
+                            if (translatedHtmlFromDb != null && !userPrefOriginal && !isTranslatedView) {
                                 isTranslatedView = true;
                                 isSummarizedView = false;
                                 sharedPreferencesRepository.setIsTranslatedView(currentId, true);
@@ -1140,6 +1147,12 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
                                 // 4. Start TTS immediately
                                 String lang = getLanguageForCurrentView(currentId, false, "en");
                                 ttsPlayer.extract(currentId, feedId, entry.getContent(), lang);
+
+                                // If we've reached a likely "full" state, we can stop observing, 
+                                // otherwise keep observing for further improvements (like late-loading images or text)
+                                if (htmlFromDb.length() > 2000) {
+                                     autoProcessingObserver.removeObserver(this);
+                                }
                             }
                         } else {
                             // Already in a processed view, or waiting for more data. 
