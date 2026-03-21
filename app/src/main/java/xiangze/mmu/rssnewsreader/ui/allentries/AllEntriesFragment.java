@@ -653,7 +653,7 @@ public class AllEntriesFragment extends Fragment implements EntryItemAdapter.Ent
                     if (!new xiangze.mmu.rssnewsreader.model.ai.AiClient(requireContext()).hasKey(translationModel)) {
                         new androidx.appcompat.app.AlertDialog.Builder(requireContext())
                                 .setTitle("API Key Missing")
-                                .setMessage("Bulk AI Translation requires OpenRouter API Key. Please configure it in Settings.")
+                                .setMessage("Bulk AI Translation requires groq API Key. Please configure it in Settings.")
                                 .setPositiveButton("OK", null)
                                 .show();
                         return;

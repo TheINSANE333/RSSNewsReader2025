@@ -701,7 +701,7 @@
                         android:id="@+id/titleTextView12"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="@string/help_openrouter_key"
+                        android:text="@string/help_groq_key"
                         android:layout_weight="1"
                         android:textSize="16sp"
                         android:textStyle="bold"/>
@@ -726,7 +726,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="@string/help_openrouter_key_desc"
+                        android:text="@string/help_groq_key_desc"
                         android:autoLink="web"
                         android:justificationMode="inter_word"
                         android:textSize="14sp" />

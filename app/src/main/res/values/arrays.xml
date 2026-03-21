@@ -33,18 +33,18 @@
     </string-array>
 
     <string-array name="ai_model">
-        <item>Llama 3.3 70B Instruct (Free)</item>
-        <item>Mistral Nemo</item>
-        <item>Mistral Small</item>
-        <item>OpenAI GPT OSS 20B</item>
+        <item>Groq: Llama 3.3 70B Versatile</item>
+        <item>Groq: Llama 3.1 8B Instant</item>
+        <item>Groq: Mixtral 8x7B</item>
+        <item>Groq: Gemma 2 9B IT</item>
         <item>Local Qwen2.5 (1.5B)</item>
     </string-array>
 
     <string-array name="ai_model_values">
-        <item>meta-llama/llama-3.3-70b-instruct:free</item>
-        <item>mistralai/mistral-nemo</item>
-        <item>mistralai/mistral-small-3.1-24b-instruct:free</item>
-        <item>openai/gpt-oss-20b:free</item>
+        <item>llama-3.3-70b-versatile</item>
+        <item>llama-3.1-8b-instant</item>
+        <item>mixtral-8x7b-32768</item>
+        <item>gemma2-9b-it</item>
         <item>local_qwen_2_5_1_5b</item>
     </string-array>
 

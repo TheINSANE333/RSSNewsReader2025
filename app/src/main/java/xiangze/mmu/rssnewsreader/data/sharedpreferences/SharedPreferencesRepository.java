@@ -150,8 +150,8 @@ public class SharedPreferencesRepository {
         editor.apply();
     }
 
-    public void setOpenRouterApiKey(String apiKey) {
-        editor.putString("openrouter_api_key", apiKey);
+    public void setGroqApiKey(String apiKey) {
+        editor.putString("groq_api_key", apiKey);
         editor.apply();
     }
 
@@ -274,24 +274,24 @@ public class SharedPreferencesRepository {
         return sharedPreferences.getLong(KEY_CURRENT_READING_ENTRY_ID, -1);
     }
 
-    public String getOpenRouterApiKey() {
-        return sharedPreferences.getString("openrouter_api_key", "");
+    public String getGroqApiKey() {
+        return sharedPreferences.getString("groq_api_key", "");
     }
 
     public String getAiModel() {
-        return sharedPreferences.getString("ai_model", "meta-llama/llama-3.3-70b-instruct:free");
+        return sharedPreferences.getString("ai_model", "llama-3.3-70b-versatile");
     }
 
     public String getTranslationModel() {
-        return sharedPreferences.getString("translation_model", "meta-llama/llama-3.3-70b-instruct:free");
+        return sharedPreferences.getString("translation_model", "llama-3.3-70b-versatile");
     }
 
     public String getSummarizationModel() {
-        return sharedPreferences.getString("summarization_model", "meta-llama/llama-3.3-70b-instruct:free");
+        return sharedPreferences.getString("summarization_model", "llama-3.3-70b-versatile");
     }
 
     public String getChatbotModel() {
-        return sharedPreferences.getString("chatbot_model", "meta-llama/llama-3.3-70b-instruct:free");
+        return sharedPreferences.getString("chatbot_model", "llama-3.3-70b-versatile");
     }
 
     public String getCustomTranslationPrompt() {

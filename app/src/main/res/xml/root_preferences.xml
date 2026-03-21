@@ -219,16 +219,16 @@
 
         <EditTextPreference
             app:icon="@drawable/ic_chatbot"
-            app:key="openrouter_api_key"
-            app:summary="@string/openrouter_api_key_summary"
-            app:title="@string/openrouter_api_key_title"
+            app:key="groq_api_key"
+            app:summary="@string/groq_api_key_summary"
+            app:title="@string/groq_api_key_title"
             app:useSimpleSummaryProvider="true" />
 
         <Preference
             app:icon="@drawable/ic_help"
-            app:key="get_openrouter_key"
-            app:summary="@string/get_openrouter_key_summary"
-            app:title="@string/get_openrouter_key_title" />
+            app:key="get_groq_key"
+            app:summary="@string/get_groq_key_summary"
+            app:title="@string/get_groq_key_title" />
 
     </PreferenceCategory>
 

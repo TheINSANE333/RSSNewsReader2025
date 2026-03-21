@@ -119,7 +119,7 @@ public class MainActivity extends AppCompatActivity {
                                             String translationModel = parser.getAttributeValue(null, "translation_model");
                                             String summarizationModel = parser.getAttributeValue(null, "summarization_model");
                                             String chatbotModel = parser.getAttributeValue(null, "chatbot_model");
-                                            String openRouterApiKey = parser.getAttributeValue(null, "openrouter_api_key");
+                                            String groqApiKey = parser.getAttributeValue(null, "groq_api_key");
                                             String abbreviationList = parser.getAttributeValue(null, "abbreviation_list");
                                             String customTranslationPrompt = parser.getAttributeValue(null, "customTranslationPrompt");
                                             String customSummarizationPrompt = parser.getAttributeValue(null, "customSummarizationPrompt");
@@ -184,8 +184,8 @@ public class MainActivity extends AppCompatActivity {
                                             if (chatbotModel != null && !chatbotModel.isEmpty()) {
                                                 sharedPreferencesRepository.setChatbotModel(chatbotModel);
                                             }
-                                            if (openRouterApiKey != null && !openRouterApiKey.isEmpty()) {
-                                                sharedPreferencesRepository.setOpenRouterApiKey(openRouterApiKey);
+                                            if (groqApiKey != null && !groqApiKey.isEmpty()) {
+                                                sharedPreferencesRepository.setGroqApiKey(groqApiKey);
                                             }
                                             if (abbreviationList != null && !abbreviationList.isEmpty()) {
                                                 sharedPreferencesRepository.setAbbreviationList(abbreviationList);
@@ -300,7 +300,7 @@ public class MainActivity extends AppCompatActivity {
                             serializer.attribute(null, "translation_model", sharedPreferencesRepository.getTranslationModel());
                             serializer.attribute(null, "summarization_model", sharedPreferencesRepository.getSummarizationModel());
                             serializer.attribute(null, "chatbot_model", sharedPreferencesRepository.getChatbotModel());
-                            serializer.attribute(null, "openrouter_api_key", sharedPreferencesRepository.getOpenRouterApiKey());
+                            serializer.attribute(null, "groq_api_key", sharedPreferencesRepository.getGroqApiKey());
                             serializer.attribute(null, "abbreviation_list", sharedPreferencesRepository.getAbbreviationList());
                             serializer.attribute(null, "customTranslationPrompt", sharedPreferencesRepository.getCustomTranslationPrompt());
                             serializer.attribute(null, "customSummarizationPrompt", sharedPreferencesRepository.getCustomSummarizationPrompt());

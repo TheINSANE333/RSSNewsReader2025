@@ -18,7 +18,7 @@ import retrofit2.Retrofit;
 import retrofit2.converter.gson.GsonConverterFactory;
 
 public class AiClient {
-    private static final String BASE_URL = "https://openrouter.ai/api/v1/";
+    private static final String BASE_URL = "https://api.groq.com/openai/v1/";
     private final String userKey;
     private static final String SITE_URL = "https://github.com/TheINSANE333/RSSNewsReader2025"; // Replace with your app/site URL
     private static final String SITE_NAME = "RSS News Reader 2025"; // Replace with your app name
@@ -28,7 +28,7 @@ public class AiClient {
 
     public AiClient(Context context) {
         this.context = context;
-        this.userKey = PreferenceManager.getDefaultSharedPreferences(context).getString("openrouter_api_key", "");
+        this.userKey = PreferenceManager.getDefaultSharedPreferences(context).getString("groq_api_key", "");
 
         OkHttpClient okHttpClient = new OkHttpClient.Builder()
                 .connectTimeout(300, TimeUnit.SECONDS)
@@ -69,7 +69,7 @@ public class AiClient {
 
     public String getChatResponse(List<Message> messages, String model) throws IOException {
         if (model == null || model.isEmpty()) {
-            model = PreferenceManager.getDefaultSharedPreferences(context).getString("ai_model", "meta-llama/llama-3.3-70b-instruct:free");
+            model = PreferenceManager.getDefaultSharedPreferences(context).getString("ai_model", "llama-3.3-70b-versatile");
         }
 
         if ("local_qwen_2_5_1_5b".equals(model)) {
@@ -89,10 +89,10 @@ public class AiClient {
         }
 
         if (!hasKey(model)) {
-            throw new IOException("OpenRouter API key not configured! Please set it in Settings.");
+            throw new IOException("groq API key not configured! Please set it in Settings.");
         }
 
-        ChatRequest request = new ChatRequest(model, messages, 0.0, 100000);
+        ChatRequest request = new ChatRequest(model, messages, 0.0, 8192);
 
         retrofit2.Response<ChatResponse> response = service.chatCompletion(request).execute();
 
@@ -110,10 +110,10 @@ public class AiClient {
 
             switch (errorCode) {
                 case 401:
-                    errorMessage = "Invalid OpenRouter API Key";
+                    errorMessage = "Invalid groq API Key";
                     break;
                 case 402:
-                    errorMessage = "Payment Required - Check your OpenRouter credits";
+                    errorMessage = "Payment Required - Check your groq credits";
                     break;
                 case 429:
                     errorMessage = "Rate Limit Exceeded - Too many requests";
@@ -123,10 +123,10 @@ public class AiClient {
                     try {
                         if (response.errorBody() != null) {
                             String errorBody = response.errorBody().string();
-                            errorMessage = "OpenRouter Error " + errorCode + ": " + errorBody;
+                            errorMessage = "groq Error " + errorCode + ": " + errorBody;
                         }
                     } catch (IOException e) {
-                        errorMessage = "OpenRouter Error " + errorCode + ": " + response.message();
+                        errorMessage = "groq Error " + errorCode + ": " + response.message();
                     }
             }
 

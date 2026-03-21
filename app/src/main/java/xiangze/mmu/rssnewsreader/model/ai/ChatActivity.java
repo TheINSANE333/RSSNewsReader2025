@@ -71,7 +71,7 @@ public class ChatActivity extends AppCompatActivity {
         if (!aiClient.hasKey(chatModel)) {
             new AlertDialog.Builder(this)
                     .setTitle("API Key Missing")
-                    .setMessage("Please configure the OpenRouter API Key in Settings to use the Chatbot.")
+                    .setMessage("Please configure the groq API Key in Settings to use the Chatbot.")
                     .setPositiveButton("OK", (dialog, which) -> dialog.dismiss())
                     .show();
         }

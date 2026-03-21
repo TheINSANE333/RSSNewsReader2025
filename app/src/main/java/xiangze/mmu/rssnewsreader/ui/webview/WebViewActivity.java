@@ -1190,7 +1190,7 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
     private void showMissingKeyDialog() {
         new AlertDialog.Builder(this)
                 .setTitle("API Key Missing")
-                .setMessage("Please configure the OpenRouter API Key in Settings to use AI features.")
+                .setMessage("Please configure the groq API Key in Settings to use AI features.")
                 .setPositiveButton("OK", (dialog, which) -> dialog.dismiss())
                 .show();
     }

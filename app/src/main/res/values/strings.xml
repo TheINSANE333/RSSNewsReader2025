@@ -30,13 +30,13 @@
     <string name="chatbot_model_summary">Choose the AI model for the chatbot</string>
     <string name="ai_model_title">AI Model</string>
     <string name="ai_model_summary">Choose the AI model for general tasks</string>
-    <string name="openrouter_api_key_title">OpenRouter API Key</string>
-    <string name="openrouter_api_key_summary">Enter your OpenRouter API key to use AI features (translation, summarization). If empty, the default key will be used.</string>
-    <string name="get_openrouter_key_title">How to get a free OpenRouter key</string>
-    <string name="get_openrouter_key_summary">Click here to open OpenRouter website and sign up for a key</string>
+    <string name="groq_api_key_title">Groq API Key</string>
+    <string name="groq_api_key_summary">Enter your Groq API Key to use AI features (translation, summarization). If empty, the default key will be used.</string>
+    <string name="get_groq_key_title">How to get a free groq key</string>
+    <string name="get_groq_key_summary">Click here to open groq website and sign up for a key</string>
 
-    <string name="help_openrouter_key">How to obtain a free OpenRouter key?</string>
-    <string name="help_openrouter_key_desc">1. Visit https://openrouter.ai/\n2. Sign up for an account (Google or GitHub)\n3. Go to \'Keys\' section\n4. Create a new key\n5. Copy the key and paste it into the \'OpenRouter API Key\' field in Settings.</string>
+    <string name="help_groq_key">How to obtain a free groq key?</string>
+    <string name="help_groq_key_desc">1. Visit https://console.groq.com/\n2. Sign up for an account (Google or GitHub)\n3. Go to \'Keys\' section\n4. Create a new key\n5. Copy the key and paste it into the \'Groq API Key\' field in Settings.</string>
 
     <string name="jobPeriodic_title">Update interval</string>
     <string name="confidence_threshold_title" formatted="false">Confidence threshold (%)</string>
