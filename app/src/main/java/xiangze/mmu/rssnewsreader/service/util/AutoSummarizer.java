@@ -22,6 +22,8 @@ public class AutoSummarizer {
     private final SharedPreferencesRepository prefs;
     private final android.content.Context context;
     private final String delimiter = "--####--";
+    public static final java.util.Set<Long> processingIds = java.util.Collections.synchronizedSet(new java.util.HashSet<>());
+    public static final java.util.Set<Long> failedSessionIds = java.util.Collections.synchronizedSet(new java.util.HashSet<>());
 
     @Inject
     SharedPreferencesRepository sharedPreferencesRepository;
@@ -31,6 +33,14 @@ public class AutoSummarizer {
         this.entryRepository = entryRepository;
         this.textUtil = textUtil;
         this.prefs = prefs;
+    }
+
+    public static boolean isProcessing(long id) {
+        return processingIds.contains(id);
+    }
+
+    public static boolean hasFailed(long id) {
+        return failedSessionIds.contains(id);
     }
 
     /**
@@ -50,20 +60,33 @@ public class AutoSummarizer {
                     return;
                 }
 
-                while (true) {
-                    List<Entry> unsummarizedEntries = entryRepository.getUnsummarizedEntries();
-                    if (unsummarizedEntries.isEmpty()) break;
+                List<Entry> unsummarizedEntries = entryRepository.getUnsummarizedEntries();
+                for (Entry entry : unsummarizedEntries) {
+                    if (!prefs.getAutoSummarize()) {
+                        Log.d(TAG, "Auto-summarize disabled during batch.");
+                        break;
+                    }
 
-                    Entry entry = unsummarizedEntries.get(0);
                     long id = entry.getId();
                     String title = entry.getTitle();
 
+                    // Check if already being processed by another thread or failed in this session
+                    if (processingIds.contains(id) || failedSessionIds.contains(id)) {
+                        Log.d(TAG, "Skipping ID " + id + " (In-progress or failed session)");
+                        continue;
+                    }
+
                     try {
-                        // 1. Check if already summarized (Double check to save quota)
+                        processingIds.add(id);
+
+                        // Double check summarized marker
                         String existingSummarized = entry.getSummarizedHtml();
                         if (existingSummarized != null && existingSummarized.contains("summarized-title")) {
-                            Log.d(TAG, "Skipping ID " + id + " - Already contains summarized marker.");
+                            Log.d(TAG, "Skipping ID " + id + " - Already summarized.");
                             continue;
+                        } else if (existingSummarized != null && !existingSummarized.trim().isEmpty()) {
+                            Log.d(TAG, "ID " + id + " has invalid summarized_html. Resetting.");
+                            entryRepository.resetSummarized(id);
                         }
 
                         // Use original HTML as source for summarization
@@ -156,12 +179,16 @@ public class AutoSummarizer {
                     } catch (Exception e) {
                         Log.e(TAG, "CRITICAL ERROR summarizing ID " + id + ": " + e.getMessage());
                         
+                        failedSessionIds.add(id);
+
                         androidx.core.content.ContextCompat.getMainExecutor(context).execute(() -> {
                             android.widget.Toast.makeText(context, "Summarization failed for: " + title, android.widget.Toast.LENGTH_SHORT).show();
                         });
 
-                        Log.e(TAG, "Stopping entire batch summarization due to error.");
-                        break;
+                        Log.e(TAG, "Continuing to next article in batch.");
+                        continue;
+                    } finally {
+                        processingIds.remove(id);
                     }
                 }
             } catch (Exception fatal) {

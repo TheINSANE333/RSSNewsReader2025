@@ -46,6 +46,18 @@ public class EntryItemAdapter extends ListAdapter<EntryInfo, EntryItemAdapter.En
         this.autoSummarizeEnabled = autoSummarizeEnabled;
     }
 
+    private static boolean hasTranslation(EntryInfo e) {
+        String orig  = e.getOriginalHtml();
+        String trans = e.getTranslatedHtml();
+        return !TextUtils.isEmpty(trans) && (orig == null || !trans.equals(orig));
+    }
+
+    private static boolean hasSummarization(EntryInfo e) {
+        String orig  = e.getOriginalHtml();
+        String sum = e.getSummarizedHtml();
+        return !TextUtils.isEmpty(sum) && (orig == null || !sum.equals(orig));
+    }
+
     private static final DiffUtil.ItemCallback<EntryInfo> DIFF_CALLBACK = new DiffUtil.ItemCallback<EntryInfo>() {
         @Override
         public boolean areItemsTheSame(@NonNull EntryInfo oldItem, @NonNull EntryInfo newItem) {
@@ -57,6 +69,9 @@ public class EntryItemAdapter extends ListAdapter<EntryInfo, EntryItemAdapter.En
             boolean oldTranslated = hasTranslation(oldE);
             boolean newTranslated = hasTranslation(newE);
 
+            boolean oldSummarized = hasSummarization(oldE);
+            boolean newSummarized = hasSummarization(newE);
+
             boolean oldExtracted = !TextUtils.isEmpty(oldE.getContent());
             boolean newExtracted = !TextUtils.isEmpty(newE.getContent());
 
@@ -65,19 +80,8 @@ public class EntryItemAdapter extends ListAdapter<EntryInfo, EntryItemAdapter.En
 
             return sameBookmark && sameVisited &&
                     (oldTranslated == newTranslated) &&
+                    (oldSummarized == newSummarized) &&
                     (oldExtracted  == newExtracted);
-        }
-
-        private boolean hasTranslation(EntryInfo e) {
-            String orig  = e.getOriginalHtml();
-            String trans = e.getTranslatedHtml();
-            return trans != null && orig != null && !trans.equals(orig);
-        }
-
-        private boolean hasSummarization(EntryInfo e) {
-            String orig  = e.getOriginalHtml();
-            String sum = e.getSummarizedHtml();
-            return sum != null && orig != null && !sum.equals(orig);
         }
     };
 
@@ -217,12 +221,8 @@ public class EntryItemAdapter extends ListAdapter<EntryInfo, EntryItemAdapter.En
             String content = entryInfo.getContent();
             int priority = entryInfo.getPriority();
             boolean hasOriginalHtml   = !TextUtils.isEmpty(entryInfo.getOriginalHtml());
-            boolean hasTranslatedHtml = !TextUtils.isEmpty(entryInfo.getTranslatedHtml())
-                    && (entryInfo.getOriginalHtml() == null ||
-                    !entryInfo.getTranslatedHtml().equals(entryInfo.getOriginalHtml()));
-            boolean hasSummarizedHtml = !TextUtils.isEmpty(entryInfo.getSummarizedHtml())
-                    && (entryInfo.getOriginalHtml() == null ||
-                    !entryInfo.getSummarizedHtml().equals(entryInfo.getOriginalHtml()));
+            boolean hasTranslatedHtml = hasTranslation(entryInfo);
+            boolean hasSummarizedHtml = hasSummarization(entryInfo);
 
 //            Log.d("CHECK STATS", "Original: " + entryInfo.getOriginalHtml());
 //            Log.d("CHECK STATS", "Translated: " + entryInfo.getTranslatedHtml());

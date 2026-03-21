@@ -39,8 +39,10 @@ import androidx.lifecycle.LiveData;
 import androidx.lifecycle.Observer;
 import androidx.lifecycle.ViewModelProvider;
 
+import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers;
 import io.reactivex.rxjava3.core.Single;
 import io.reactivex.rxjava3.disposables.CompositeDisposable;
+import io.reactivex.rxjava3.schedulers.Schedulers;
 import xiangze.mmu.rssnewsreader.R;
 import xiangze.mmu.rssnewsreader.data.ai.Message;
 import xiangze.mmu.rssnewsreader.data.sharedpreferences.SharedPreferencesRepository;
@@ -52,6 +54,8 @@ import xiangze.mmu.rssnewsreader.service.tts.TtsPlayer;
 import xiangze.mmu.rssnewsreader.service.tts.TtsPlaylist;
 import xiangze.mmu.rssnewsreader.service.tts.TtsService;
 import xiangze.mmu.rssnewsreader.databinding.ActivityWebviewBinding;
+import xiangze.mmu.rssnewsreader.service.util.AutoSummarizer;
+import xiangze.mmu.rssnewsreader.service.util.AutoTranslator;
 import xiangze.mmu.rssnewsreader.service.util.TextUtil;
 import xiangze.mmu.rssnewsreader.ui.feed.ReloadDialog;
 import xiangze.mmu.rssnewsreader.data.entry.Entry;
@@ -227,14 +231,10 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
         builder.show();
     }
 
-    private void doWhenTranslationFinish(EntryInfo entryInfo, String originalHtml, String translatedHtml) {
+    private void doWhenTranslationFinish(EntryInfo entryInfo, String originalHtml, String translationRaw) {
         loading.clearAnimation();
         loading.setVisibility(View.INVISIBLE);
         webView.animate().alpha(1.0f).setDuration(800).start();
-
-        translatedHtml = translatedHtml
-                .replaceAll("(?s)^\\s*```[a-zA-Z]*\\n?", "") // Removes the opening ```html
-                .replaceAll("(?s)\\n?```\\s*$", "");        // Removes the closing ```
 
         if (webViewViewModel.getOriginalHtmlById(currentId) == null && originalHtml != null) {
             webViewViewModel.updateOriginalHtml(originalHtml, currentId);
@@ -242,59 +242,32 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
             Log.d(TAG, "Original HTML backed up from method parameter.");
         }
 
-        Document doc;
-        if (translatedHtml.contains("[TITLE]") && translatedHtml.contains("[CONTENT]") &&
-                translatedHtml.indexOf("[TITLE]") < translatedHtml.indexOf("[CONTENT]")) {
-            String translatedTitle = translatedHtml.substring(
-                    translatedHtml.indexOf("[TITLE]") + 7,
-                    translatedHtml.indexOf("[CONTENT]")
-            ).trim();
+        TextUtil.AiResponse aiRes = textUtil.parseAiResponse(translationRaw, entryInfo.getEntryTitle());
 
-            entryInfo.setEntryTitle(translatedTitle);
-            doc = Jsoup.parse(translatedHtml.substring(
-                    translatedHtml.indexOf("[CONTENT]") + 9
-            ).trim());
-        } else {
-            doc = Jsoup.parse(translatedHtml);
-        }
-
-        doc.head().append(webViewViewModel.getStyle(sharedPreferencesRepository.getNight()));
-        Objects.requireNonNull(doc.selectFirst("body"))
-                .prepend(webViewViewModel.getHtml(
-                        entryInfo.getEntryTitle(),
-                        entryInfo.getFeedTitle(),
-                        entryInfo.getEntryPublishedDate(),
-                        entryInfo.getFeedImageUrl(),
-                        sharedPreferencesRepository.getNight()
-                ));
-        String finalHtml = doc.html();
-
-        webViewViewModel.updateTranslatedHtml(finalHtml, currentId);
-        entryRepository.updateTranslatedHtml(finalHtml, currentId);
-
-        String translatedContent = textUtil.extractHtmlContent(finalHtml, "--####--");
-        webViewViewModel.updateTranslated(translatedContent, currentId);
-        webViewViewModel.updateEntryTranslatedField(currentId, translatedContent);
-        entryRepository.updateTranslatedText(translatedContent, currentId);
-
-        isSummarizedView = false;
-        sharedPreferencesRepository.setIsSummarizedView(currentId, false);
-
-        isTranslatedView = true;
-        sharedPreferencesRepository.setIsTranslatedView(currentId, true);
+        // Wrap result in HTML with marker and header
+        String finalHtml = textUtil.formatAiResponseToHtml(
+                aiRes.title,
+                aiRes.content,
+                entryInfo.getFeedTitle(),
+                entryInfo.getEntryPublishedDate(),
+                entryInfo.getFeedImageUrl(),
+                sharedPreferencesRepository.getNight(),
+                "translated-title"
+        );
 
         webView.loadDataWithBaseURL("file///android_res/", finalHtml, "text/html", "UTF-8", null);
 
         toggleTranslationButton.setVisible(true);
 
         webViewViewModel.updateTranslatedHtml(finalHtml, currentId);
+        String translatedContent = textUtil.extractHtmlContent(finalHtml, "--####--");
         webViewViewModel.setTranslatedTextReady(currentId, translatedContent);
 
         Log.d(TAG, "FINAL translatedContent passed to TTS: " + translatedContent);
         Log.d(TAG, "FINAL currentId: " + currentId + ", isTranslatedView: " + isTranslatedView);
     }
 
-    private void doWhenSummarizationFinish(EntryInfo entryInfo, String originalHtml, String summarizedHtml) {
+    private void doWhenSummarizationFinish(EntryInfo entryInfo, String originalHtml, String summaryRaw) {
         loading.clearAnimation();
         loading.setVisibility(View.INVISIBLE);
         webView.animate().alpha(1.0f).setDuration(800).start();
@@ -305,35 +278,18 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
             Log.d(TAG, "Original HTML backed up from method parameter.");
         }
 
-        summarizedHtml = summarizedHtml
-                .replaceAll("(?s)^\\s*```[a-zA-Z]*\\n?", "") // Removes the opening ```html
-                .replaceAll("(?s)\\n?```\\s*$", "");        // Removes the closing ```
+        TextUtil.AiResponse aiRes = textUtil.parseAiResponse(summaryRaw, entryInfo.getEntryTitle());
 
-        String summarizedTitle = entryInfo.getEntryTitle();
-        String summarizedBody = summarizedHtml;
-
-        if (summarizedHtml.contains("[TITLE]") && summarizedHtml.contains("[CONTENT]") &&
-                summarizedHtml.indexOf("[TITLE]") < summarizedHtml.indexOf("[CONTENT]")) {
-            summarizedTitle = summarizedHtml.substring(
-                    summarizedHtml.indexOf("[TITLE]") + 7,
-                    summarizedHtml.indexOf("[CONTENT]")
-            ).trim();
-            summarizedBody = summarizedHtml.substring(
-                    summarizedHtml.indexOf("[CONTENT]") + 9
-            ).trim();
-        }
-
-        Document doc = Jsoup.parse(summarizedBody);
-        doc.head().append(webViewViewModel.getStyle(sharedPreferencesRepository.getNight()));
-        Objects.requireNonNull(doc.selectFirst("body"))
-                .prepend(webViewViewModel.getHtml(
-                        summarizedTitle,
-                        entryInfo.getFeedTitle(),
-                        entryInfo.getEntryPublishedDate(),
-                        entryInfo.getFeedImageUrl(),
-                        sharedPreferencesRepository.getNight()
-                ));
-        String finalHtml = doc.html();
+        // Use unified formatter to include marker and header
+        String finalHtml = textUtil.formatAiResponseToHtml(
+                aiRes.title,
+                aiRes.content,
+                entryInfo.getFeedTitle(),
+                entryInfo.getEntryPublishedDate(),
+                entryInfo.getFeedImageUrl(),
+                sharedPreferencesRepository.getNight(),
+                "summarized-title"
+        );
 
         webViewViewModel.updateSummarizedHtml(finalHtml, currentId);
         entryRepository.updateSummarizedHtml(finalHtml, currentId);
@@ -352,12 +308,15 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
         webView.loadDataWithBaseURL("file///android_res/", finalHtml, "text/html", "UTF-8", null);
 
         toggleSummarizationButton.setVisible(true);
+        refreshButtonVisibility();
+        webViewViewModel.triggerEntryRefresh(currentId);
 
-        webViewViewModel.updateSummarizedHtml(finalHtml, currentId);
-        webViewViewModel.setSummarizedTextReady(currentId, summarizedContent);
-
-        Log.d(TAG, "FINAL summarizedContent passed to TTS: " + summarizedContent);
-        Log.d(TAG, "FINAL currentId: " + currentId + ", isSummarizedView: " + isSummarizedView);
+        // TTS
+        String lang = getLanguageForCurrentView(currentId, true, "en");
+        ttsPlayer.extract(currentId, feedId, summarizedContent, lang);
+        if (mMediaBrowserHelper != null && mMediaBrowserHelper.getTransportControls() != null) {
+            mMediaBrowserHelper.getTransportControls().prepare();
+        }
     }
 
     @SuppressLint("CheckResult")
@@ -367,6 +326,20 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
             return;
         }
 
+        // 1. Check if already translated or processing
+        if (AutoTranslator.isProcessing(currentId)) {
+            makeSnackbar("Translation is already in progress...");
+            return;
+        }
+
+        String translatedHtml = webViewViewModel.getTranslatedHtmlById(currentId);
+        if (translatedHtml != null && !translatedHtml.trim().isEmpty() && translatedHtml.contains("translated-title")) {
+            makeSnackbar("Article is already translated. Toggling view...");
+            handleOtherToolbarItems(R.id.toggleTranslation);
+            return;
+        }
+
+        // 2. Data Retrieval
         String content = webViewViewModel.getOriginalHtmlById(currentId);
         if (content == null || content.trim().isEmpty()) {
             content = webViewViewModel.getHtmlById(currentId);
@@ -377,221 +350,42 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
             return;
         }
 
-        final String finalContent = content;
+        final String sourceHtml = content;
+        EntryInfo entryInfo = webViewViewModel.getEntryInfoById(currentId);
+        if (entryInfo == null) {
+            makeSnackbar("Entry info could not be loaded.");
+            return;
+        }
 
         animateToolbarIcon(R.id.translate);
         loading.startAnimation(android.view.animation.AnimationUtils.loadAnimation(this, R.anim.pulse));
         webView.animate().alpha(0.5f).setDuration(300).start();
 
-        Log.d(TAG, "translate: html\n" + webViewViewModel.getHtmlById(currentId));
+        // 3. Execution
         makeSnackbar("Translation in progress");
         loading.setVisibility(View.VISIBLE);
-        loading.setProgress(10);
+        loading.setProgress(0);
 
-        EntryInfo entryInfo = webViewViewModel.getEntryInfoById(currentId);
-        if (entryInfo == null) {
-            makeSnackbar("Entry info could not be loaded.");
-            loading.setVisibility(View.INVISIBLE);
-            return;
-        }
+        String targetLanguage = sharedPreferencesRepository.getDefaultTranslationLanguage();
 
-        if (webViewViewModel.getOriginalHtmlById(currentId) == null) {
-            webViewViewModel.updateOriginalHtml(finalContent, currentId);
-            Log.d(TAG, "Original HTML backed up before translation.");
-        }
+        AutoTranslator.processingIds.add(currentId);
 
-        String feedLanguage = entryInfo.getFeedLanguage();
-        String userConfiguredLang = sharedPreferencesRepository.getDefaultTranslationLanguage();
-        loading.setProgress(40);
-
-        textUtil.identifyLanguageRx(finalContent).subscribe(
-                identifiedLanguage -> {
-                    String sourceLanguage = (userConfiguredLang != null && !userConfiguredLang.isEmpty())
-                            ? feedLanguage : identifiedLanguage;
-
-                    if (sourceLanguage != null && sourceLanguage.equalsIgnoreCase(targetLanguage)) {
-                        runOnUiThread(() -> {
-                            loading.clearAnimation();
-                            loading.setVisibility(View.INVISIBLE);
-                            webView.animate().alpha(1.0f).setDuration(300).start();
-                            makeSnackbar("Article is already in " + Locale.forLanguageTag(targetLanguage).getDisplayLanguage());
-                        });
-                        return;
-                    }
-
-                    Log.d(TAG, "Translating from " + sourceLanguage + " to " + targetLanguage);
-                    Log.d("ORIGINAL CONTENT FOR TRANSLATION", finalContent);
-                    performAITranslation(sourceLanguage, targetLanguage, finalContent, entryInfo.getEntryTitle(), translationModel);
-                },
-                error -> {
-                    Log.e(TAG, "Language identification failed, falling back to feedLanguage");
-                    performAITranslation(feedLanguage, targetLanguage, finalContent, entryInfo.getEntryTitle(), translationModel);
-                }
-        );
-    }
-
-    private String translateChunkWithRetry(AiClient aiClient, List<Message> messages, String model) {
-
-        int maxRetries = 5;
-        int delayMs = 2500;
-
-        for (int attempt = 1; attempt <= maxRetries; attempt++) {
-            try {
-                return aiClient.getChatResponse(messages, model);
-
-            } catch (Exception e) {
-
-                boolean isRateLimit =
-                        e.getMessage() != null &&
-                                (e.getMessage().contains("429") ||
-                                        e.getMessage().toLowerCase().contains("rate"));
-
-                if (isRateLimit && attempt < maxRetries) {
-
-                    Log.e(TAG, "Rate limit hit, retry " + attempt);
-
-                    try { Thread.sleep(delayMs); } catch (InterruptedException ignored) {}
-
-                } else {
-                    throw new RuntimeException(e);
-                }
-            }
-        }
-
-        return null;
-    }
-
-    private void startProgressSimulation(int start, int max, int stepDelayMs) {
-        isRequestRunning = true;
-
-        new Thread(() -> {
-            int progress = start;
-            while (isRequestRunning && progress < max) {
-                progress++;
-                int value = progress;
-
-                runOnUiThread(() -> loading.setProgress(value));
-
-                try {
-                    Thread.sleep(stepDelayMs);
-                } catch (InterruptedException ignored) {}
-            }
-        }).start();
-    }
-
-    private void stopProgressSimulation() {
-        isRequestRunning = false;
-    }
-
-    private void performAITranslation(
-            String sourceLanguage,
-            String targetLanguage,
-            String content,
-            String title,
-            String translationModel
-    ) {
-
-        Log.d(TAG, "Starting AI translation (Single Request Mode)");
-
-        final String originalHtml = content;
-
-        runOnUiThread(() -> {
-            loading.setVisibility(View.VISIBLE);
-            loading.setIndeterminate(false);
-            loading.setProgress(0);
-        });
-
-        new Thread(() -> {
-
-            AiClient aiClient = new AiClient(this);
-
-            try {
-                /* Stage 1: Initialization */
-                runOnUiThread(() -> loading.setProgress(10));
-
-                List<Message> messages = new ArrayList<>();
-
-                String baseSystemPrompt = "Translate title and html to the target language. " +
-                        "Preserve all HTML exactly." +
-                        "Format your response exactly like this: [TITLE] <translated_title> [CONTENT] <translated_html_content>. ";
-                String customPrompt = sharedPreferencesRepository.getCustomTranslationPrompt();
-                if (customPrompt != null && !customPrompt.trim().isEmpty()) {
-                    baseSystemPrompt += "\n\nAdditional Instructions:\n" + customPrompt;
-                }
-
-                messages.add(new Message(
-                        "system",
-                        baseSystemPrompt
-                ));
-
-                messages.add(new Message(
-                        "user",
-                        String.format(
-                                "Target Language: %s\nTitle: %s\nContent: %s",
-                                targetLanguage,
-                                title,
-                                content
-                        )
-                ));
-
-                /* Stage 2: Prompt Prepared */
-                runOnUiThread(() -> loading.setProgress(25));
-
-                /* Stage 3: Network Request */
-                startProgressSimulation(25, 85, 300);
-
-                // Optional stall fallback → indeterminate
-                new Handler(Looper.getMainLooper()).postDelayed(() -> {
-                    if (isRequestRunning) {
-                        loading.setIndeterminate(true);
-                    }
-                }, 15000);
-
-                String translatedHtml = translateChunkWithRetry(aiClient, messages, translationModel);
-
-                stopProgressSimulation();
-
-                runOnUiThread(() -> {
-                    loading.setIndeterminate(false);
-                    loading.setProgress(90);
-                });
-
-                /* Stage 4: Validation */
-                if (translatedHtml == null || translatedHtml.trim().isEmpty()) {
-                    throw new Exception("AI returned empty response.");
-                }
-
-                final String finalHtml = translatedHtml;
-
-                /* Stage 5: Apply Result */
-                runOnUiThread(() -> {
-                    loading.setProgress(100);
-                    loading.setVisibility(View.GONE);
-
-                    Log.d(TAG, "Translation complete, " + finalHtml);
-
-                    doWhenTranslationFinish(
-                            webViewViewModel.getLastVisitedEntry(),
-                            originalHtml,
-                            finalHtml
-                    );
-
-                    makeSnackbar("Translation completed successfully");
-                });
-
-            } catch (Exception e) {
-
-                Log.e(TAG, "Translation error", e);
-                stopProgressSimulation();
-
-                runOnUiThread(() -> {
-                    loading.setIndeterminate(false);
-                    loading.setVisibility(View.GONE);
-                    makeSnackbar("Translation failed: " + e.getMessage());
-                });
-            }
-
-        }).start();
+        compositeDisposable.add(textUtil.identifyLanguageRx(sourceHtml)
+                .flatMap(sourceLang -> textUtil.translateHtmlAllAtOnce(sourceLang, targetLanguage, sourceHtml, entryInfo.getEntryTitle(), currentId, progress -> {
+                    runOnUiThread(() -> loading.setProgress(progress));
+                }))
+                .subscribeOn(Schedulers.io())
+                .observeOn(AndroidSchedulers.mainThread())
+                .doFinally(() -> {
+                    AutoTranslator.processingIds.remove(currentId);
+                    hideFakeLoading();
+                })
+                .subscribe(translatedResult -> {
+                    doWhenTranslationFinish(entryInfo, sourceHtml, translatedResult);
+                }, error -> {
+                    Log.e(TAG, "Translation error", error);
+                    makeSnackbar("Translation failed: " + error.getMessage());
+                }));
     }
 
     @SuppressLint( "SetJavaScriptEnabled" )
@@ -761,7 +555,9 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
         if (!isTranslatedView && !isSummarizedView) {
             // Avoid redundant updates if possible
             String existingOriginal = webViewViewModel.getOriginalHtmlById(currentId);
-            if (existingOriginal == null || !existingOriginal.equals(html)) {
+            boolean isProcessed = html.contains("summarized-title") || html.contains("translated-title");
+            
+            if (!isProcessed && (existingOriginal == null || !existingOriginal.equals(html))) {
                 webViewViewModel.updateOriginalHtml(html, currentId);
             }
         }
@@ -1201,7 +997,20 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
             return;
         }
 
-        // 1. Data Retrieval
+        // 1. Check if already summarized or processing
+        if (AutoSummarizer.isProcessing(currentId)) {
+            makeSnackbar("Summarization is already in progress...");
+            return;
+        }
+
+        String summarizedHtml = webViewViewModel.getSummarizedHtmlById(currentId);
+        if (summarizedHtml != null && !summarizedHtml.trim().isEmpty() && summarizedHtml.contains("summarized-title")) {
+            makeSnackbar("Article is already summarized. Toggling view...");
+            handleOtherToolbarItems(R.id.toggleSummarization);
+            return;
+        }
+
+        // 2. Data Retrieval
         String htmlStr = webViewViewModel.getOriginalHtmlById(currentId);
         if (htmlStr == null || htmlStr.trim().isEmpty()) {
             htmlStr = webViewViewModel.getHtmlById(currentId);
@@ -1212,105 +1021,43 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
             return;
         }
 
-        final String html = htmlStr;
-
-        animateToolbarIcon(R.id.summarize);
-        loading.startAnimation(android.view.animation.AnimationUtils.loadAnimation(this, R.anim.pulse));
-        webView.animate().alpha(0.5f).setDuration(300).start();
-
+        final String sourceHtml = htmlStr;
         EntryInfo entryInfo = webViewViewModel.getEntryInfoById(currentId);
-
         if (entryInfo == null) {
             makeSnackbar("Entry info could not be loaded.");
             return;
         }
 
-        Log.d(TAG, "Summarize: html length: " + (html != null ? html.length() : 0));
+        animateToolbarIcon(R.id.summarize);
+        loading.startAnimation(android.view.animation.AnimationUtils.loadAnimation(this, R.anim.pulse));
+        webView.animate().alpha(0.5f).setDuration(300).start();
 
-        // 2. Prepare UI
+        // 3. Execution
         makeSnackbar("Summarization in progress");
         loading.setVisibility(View.VISIBLE);
         loading.setProgress(0);
 
-        // 3. Prepare Data for AI
-        // We clean the HTML here to extract only text, saving tokens and improving AI focus
-        TextUtil textUtil = new TextUtil(sharedPreferencesRepository);
-        String cleanContent = (html != null) ? textUtil.extractHtmlContent(html, "--####--") : "";
-
-        String title = entryInfo.getEntryTitle();
         String targetLanguage = sharedPreferencesRepository.getDefaultTranslationLanguage();
-        loading.setProgress(20);
+        int length = sharedPreferencesRepository.getSummaryLength();
 
-        // 4. Background Execution
-        new Thread(() -> {
-            AiClient aiClient = new AiClient(this);
+        AutoSummarizer.processingIds.add(currentId);
 
-            try {
-                List<Message> messages = new ArrayList<>();
-                runOnUiThread(() -> loading.setProgress(45));
-
-                // System Prompt
-                String baseSystemPrompt = "You are a helpful assistant designed to summarize web articles. " +
-                        "Provide a concise summary of the content in targeted language. " +
-                        "If the content is short, do not make it longer. ";
-                String customPrompt = sharedPreferencesRepository.getCustomSummarizationPrompt();
-                if (customPrompt != null && !customPrompt.trim().isEmpty()) {
-                    baseSystemPrompt += "\n\nAdditional Instructions:\n" + customPrompt;
-                }
-
-                messages.add(new Message(
-                        "system",
-                        baseSystemPrompt
-                ));
-
-                // User Prompt
-                String prompt = String.format(
-                        "Please summarize the following article titled \"%s\".\n" +
-                                "Target Language: %s\n" +
-                                "Length: %s\n" +
-                                "Content:\n%s",
-                        title, targetLanguage, summaryLength, cleanContent
-                );
-
-                messages.add(new Message("user", prompt));
-
-                runOnUiThread(() -> loading.setProgress(55));
-
-                // Execute Request
-                // Updated to use the method available in your AiClient
-                String summaryResult = aiClient.getChatResponse(messages, summarizationModel);
-                Log.d(TAG, "AI Summary Response: " + summaryResult);
-
-                runOnUiThread(() -> loading.setProgress(80));
-
-                // Validation
-                if (summaryResult == null || summaryResult.trim().isEmpty()) {
-                    throw new Exception("AI returned empty response.");
-                }
-
-                // 5. Update UI (Main Thread)
-                runOnUiThread(() -> {
-                    Log.d(TAG, "Summarization complete, length: " + summaryResult.length());
-                    loading.setProgress(100);
-                    loading.setVisibility(View.GONE);
-
-                    // Open ChatActivity to display the result
-                    runOnUiThread(() -> {
-                        doWhenSummarizationFinish(entryInfo, html, summaryResult);
-                    });
-
-                });
-
-            } catch (Exception e) {
-                Log.e(TAG, "Summarization error: " + e.getMessage(), e);
-
-                runOnUiThread(() -> {
-                    loading.setVisibility(View.GONE);
-                    makeSnackbar("Summarization failed: " + e.getMessage());
-                });
-            }
-
-        }).start();
+        compositeDisposable.add(textUtil.identifyLanguageRx(sourceHtml)
+                .flatMap(sourceLang -> textUtil.summarizeHtmlAllAtOnce(sourceLang, targetLanguage, sourceHtml, length, currentId, entryInfo.getEntryTitle(), progress -> {
+                    runOnUiThread(() -> loading.setProgress(progress));
+                }))
+                .subscribeOn(Schedulers.io())
+                .observeOn(AndroidSchedulers.mainThread())
+                .doFinally(() -> {
+                    AutoSummarizer.processingIds.remove(currentId);
+                    hideFakeLoading();
+                })
+                .subscribe(summaryResult -> {
+                    doWhenSummarizationFinish(entryInfo, sourceHtml, summaryResult);
+                }, error -> {
+                    Log.e(TAG, "Summarization error", error);
+                    makeSnackbar("Summarization failed: " + error.getMessage());
+                }));
     }
 
     @SuppressLint("NonConstantResourceId")
@@ -1499,13 +1246,18 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
         Document doc = Jsoup.parse(html);
         doc.head().append(webViewViewModel.getStyle(sharedPreferencesRepository.getNight()));
 
+        String titleClass = null;
+        if (isSummarizedView) titleClass = "summarized-title";
+        else if (isTranslatedView) titleClass = "translated-title";
+
         Objects.requireNonNull(doc.selectFirst("body")).prepend(
                 webViewViewModel.getHtml(
                         entryInfo.getEntryTitle(),
                         entryInfo.getFeedTitle(),
                         entryInfo.getEntryPublishedDate(),
                         entryInfo.getFeedImageUrl(),
-                        sharedPreferencesRepository.getNight()
+                        sharedPreferencesRepository.getNight(),
+                        titleClass
                 )
         );
 
@@ -1735,7 +1487,6 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
         setupMediaPlaybackButtons();
 
         mMediaBrowserHelper = new MediaBrowserConnection(this);
-        mMediaBrowserHelper.registerCallback(new MediaBrowserListener());
 
         switchReadModeButton.setVisible(true);
     }
@@ -2078,10 +1829,12 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
             sharedPreferencesRepository.setScrollY(currentId, webView.getScrollY());
         }
 
-        MediaControllerCompat mediaController = mMediaBrowserHelper.getMediaController();
-        if (mediaController != null) {
-            mediaController.unregisterCallback(mediaControllerCallback);
-            Log.d(TAG, "MediaController callback unregistered");
+        if (mMediaBrowserHelper != null) {
+            MediaControllerCompat mediaController = mMediaBrowserHelper.getMediaController();
+            if (mediaController != null) {
+                mediaController.unregisterCallback(mediaControllerCallback);
+                Log.d(TAG, "MediaController callback unregistered");
+            }
         }
 
         super.onPause();
@@ -2096,7 +1849,7 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
 
         Log.d(TAG, "onResume: isSpeaking=" + ttsPlayer.isSpeaking() + ", isPausedManually=" + ttsPlayer.isPausedManually());
 
-        if (!isReadingMode) {
+        if (!isReadingMode && mMediaBrowserHelper != null) {
             mMediaBrowserHelper.onStart();
             MediaControllerCompat mediaController = mMediaBrowserHelper.getMediaController();
             if (mediaController != null) {
@@ -2140,7 +1893,9 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
             if (content != null && !content.trim().isEmpty()) {
                 if (currentId != ttsPlaylist.getPlayingId()) {
                     ttsPlaylist.updatePlayingId(currentId);
-                    mMediaBrowserHelper.getTransportControls().sendCustomAction("autoPlay", null);
+                    if (mMediaBrowserHelper != null && mMediaBrowserHelper.getTransportControls() != null) {
+                        mMediaBrowserHelper.getTransportControls().sendCustomAction("autoPlay", null);
+                    }
                 }
                 functionButtons.setVisibility(View.VISIBLE);
                 functionButtons.setAlpha(1.0f);
@@ -2204,200 +1959,54 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
         }
     }
 
+    private void updatePlayPauseButtonIcon(boolean isPlaying) {
+        if (playPauseButton != null) {
+            playPauseButton.setIconResource(isPlaying ? R.drawable.ic_pause : R.drawable.ic_play);
+        }
+    }
+
+    private void triggerManualExtraction(WebView view) {
+        view.evaluateJavascript("(function() { return document.getElementsByTagName('html')[0].outerHTML; })();", value -> {
+            JsonReader reader = new JsonReader(new StringReader(value));
+            reader.setLenient(true);
+            try {
+                if (reader.peek() == JsonToken.STRING) {
+                    String extractedHtml = reader.nextString();
+                    if (extractedHtml != null && extractedHtml.length() >= 500) {
+                        ttsExtractor.processExtraction(currentId, currentLink, null, extractedHtml);
+                    }
+                }
+            } catch (Exception e) {
+                Log.e(TAG, "Manual extraction JS callback error", e);
+            }
+        });
+    }
+
     private final Handler extractionHandler = new Handler(Looper.getMainLooper());
     private Runnable extractionRunnable;
 
-    private void triggerManualExtraction(WebView view) {
-        if (extractionRunnable != null) {
-            extractionHandler.removeCallbacks(extractionRunnable);
-        }
-        triggerManualExtraction(view, 1);
-    }
-
-    private void triggerManualExtraction(WebView view, int attempt) {
-        if (currentId <= 0 || currentLink == null || isFinishing() || isDestroyed()) return;
-
-        Log.d(TAG, "Triggering manual extraction (attempt " + attempt + ") for: " + currentLink);
-
-        // 1. Always scroll to trigger potential lazy loading/unlocking
-        view.evaluateJavascript("window.scrollTo(0, document.body.scrollHeight);", null);
-
-        // 2. Wait a bit for the scroll to trigger JS events before checking status
-        extractionRunnable = () -> {
-            if (isFinishing() || isDestroyed()) return;
-
-            String checkJs = "(function() { " +
-                    "var locked = !!document.querySelector('.paywall, .subscription-wall, #paywall, .premium-content, .locked-article, .teaser-content, .read-more-content, .membership-paywall, .paywall-container, .subscription-required, .membership-required'); " +
-                    "return document.readyState + '|' + locked; " +
-                    "})();";
-
-            view.evaluateJavascript(checkJs, value -> {
-                if (isFinishing() || isDestroyed()) return;
-
-                String res = (value != null) ? value.replace("\"", "") : "";
-                String[] parts = res.split("\\|");
-                String readyState = parts.length > 0 ? parts[0] : "";
-                boolean isLocked = parts.length > 1 && Boolean.parseBoolean(parts[1]);
-
-                if (isLocked && attempt < 12 && readyState.contains("complete")) {
-                    Log.d(TAG, "Content seems LOCKED (attempt " + attempt + "). Retrying in 2.5s...");
-                    extractionRunnable = () -> triggerManualExtraction(view, attempt + 1);
-                    extractionHandler.postDelayed(extractionRunnable, 2500);
-                } else {
-                    // Final extraction
-                    view.evaluateJavascript("(function() {return document.getElementsByTagName('html')[0].outerHTML;})();", htmlValue -> {
-                        if (isFinishing() || isDestroyed()) return;
-
-                        JsonReader reader = new JsonReader(new StringReader(htmlValue));
-                        reader.setLenient(true);
-                        try {
-                            if (reader.peek() == JsonToken.STRING) {
-                                String extractedHtml = reader.nextString();
-                                if (extractedHtml != null) {
-                                    EntryInfo info = webViewViewModel.getEntryInfoById(currentId);
-                                    String title = (info != null) ? info.getEntryTitle() : "";
-                                    ttsExtractor.processExtraction(currentId, currentLink, title, extractedHtml);
-                                }
-                            }
-                        } catch (Exception e) {
-                            Log.e(TAG, "Manual extraction failed", e);
-                        }
-                    });
-                }
-            });
-        };
-
-        // Short delay after scroll before running the check
-        extractionHandler.postDelayed(extractionRunnable, 3000);
+    private class MediaBrowserListener extends MediaControllerCompat.Callback {
+        // No longer needed if we use MediaBrowserConnection.onConnected
     }
 
     private class MediaBrowserConnection extends MediaBrowserHelper {
-        private MediaBrowserConnection(Context context) {
+        public MediaBrowserConnection(Context context) {
             super(context, TtsService.class);
+        }
+
+        @Override
+        protected void onConnected(@NonNull MediaControllerCompat mediaController) {
+            mediaController.registerCallback(mediaControllerCallback);
+            if (mediaController.getPlaybackState() != null) {
+                isPlaying = mediaController.getPlaybackState().getState() == PlaybackStateCompat.STATE_PLAYING;
+                updatePlayPauseButtonIcon(isPlaying);
+            }
         }
 
         @Override
         protected void onChildrenLoaded(@NonNull String parentId, @NonNull List<MediaBrowserCompat.MediaItem> children) {
             super.onChildrenLoaded(parentId, children);
-
-            final MediaControllerCompat mediaController = getMediaController();
-            if (mediaController != null) {
-                ttsPlayer.setWebViewCallback(WebViewActivity.this);
-                ttsPlayer.setWebViewConnected(true);
-                mediaController.getTransportControls().prepare();
-            }
         }
-    }
-
-    private class MediaBrowserListener extends MediaControllerCompat.Callback {
-        @Override
-        public void onPlaybackStateChanged(PlaybackStateCompat state) {
-            super.onPlaybackStateChanged(state);
-            isPlaying = state != null && state.getState() == PlaybackStateCompat.STATE_PLAYING;
-            updatePlayPauseButtonIcon(isPlaying);
-        }
-
-        @Override
-        public void onMetadataChanged(MediaMetadataCompat metadata) {
-            // 1. Safety check: Exit if metadata is null
-            if (metadata == null) {
-                return;
-            }
-
-            // 2. Extract Media ID String and check before parsing
-            String mediaIdStr = metadata.getString(MediaMetadataCompat.METADATA_KEY_MEDIA_ID);
-            if (mediaIdStr == null || mediaIdStr.isEmpty()) {
-                Log.d(TAG, "onMetadataChanged: Received empty Media ID, skipping UI update.");
-                return;
-            }
-
-            // Now it is safe to parse
-            try {
-                if (currentId != Long.parseLong(mediaIdStr)) {
-                    webViewViewModel.clearViewData();
-                }
-                currentId = Long.parseLong(mediaIdStr);
-                // Update observer to the new ID immediately
-                subscribeToEntry(currentId);
-            } catch (NumberFormatException e) {
-                Log.e(TAG, "onMetadataChanged: Error parsing Media ID: " + mediaIdStr, e);
-                return;
-            }
-
-            // 3. Update UI visibility and state
-            clearHistory = true;
-            runOnUiThread(() -> {
-                loading.setVisibility(View.VISIBLE);
-                loading.setProgress(10);
-            });
-
-            functionButtons.setVisibility(View.VISIBLE);
-            functionButtons.setAlpha(0.5f);
-            reloadButton.setVisible(false);
-            bookmarkButton.setVisible(false);
-            highlightTextButton.setVisible(false);
-
-            // 4. Extract other Metadata fields
-            content = metadata.getString("content");
-            bookmark = metadata.getString("bookmark");
-            currentLink = metadata.getString("link");
-            feedId = metadata.getLong("feedId");
-
-            // 5. Update Bookmark Icon
-            if (bookmark == null || bookmark.equals("N")) {
-                bookmarkButton.setIcon(R.drawable.ic_bookmark_outline);
-            } else {
-                bookmarkButton.setIcon(R.drawable.ic_bookmark_filled);
-            }
-
-            // 6. Logic for Content View (Summary / Translation / Original)
-            isTranslatedView = sharedPreferencesRepository.getIsTranslatedView(currentId);
-            isSummarizedView = sharedPreferencesRepository.getIsSummarizedView(currentId);
-
-            String htmlToLoad = isSummarizedView
-                    ? webViewViewModel.getSummarizedHtmlById(currentId)
-                    : isTranslatedView
-                    ? webViewViewModel.getTranslatedHtmlById(currentId)
-                    : webViewViewModel.getOriginalHtmlById(currentId);
-
-            if (htmlToLoad == null || htmlToLoad.trim().isEmpty()) {
-                htmlToLoad = webViewViewModel.getHtmlById(currentId);
-            }
-
-            // Fallback to the HTML bundled in metadata if DB returns null
-            if (htmlToLoad == null) {
-                htmlToLoad = metadata.getString("html");
-            }
-
-            // 7. WebView Loading Logic
-            boolean isWebViewMode = sharedPreferencesRepository.getWebViewMode(currentId);
-
-            if (isWebViewMode) {
-                webView.loadUrl(currentLink);
-                Log.d(TAG, "Restoring web view mode: " + currentLink);
-            } else if (htmlToLoad != null) {
-                loadHtmlIntoWebView(htmlToLoad);
-            } else {
-                webView.loadUrl(currentLink);
-                Log.d(TAG, "Fallback: loading live URL - " + currentLink);
-            }
-            refreshButtonVisibility();
-
-            // 8. TTS Bridge
-            if (ttsPlayer.isWebViewConnected()) {
-                ttsPlayer.setUiControlPlayback(true);
-            }
-        }
-
-        @Override
-        public void onSessionDestroyed() {
-            super.onSessionDestroyed();
-        }
-    }
-
-    private void updatePlayPauseButtonIcon(boolean playing) {
-        int iconRes = playing ? R.drawable.ic_pause : R.drawable.ic_play;
-        playPauseButton.setIcon(ContextCompat.getDrawable(this, iconRes));
     }
 
     private void animateToolbarIcon(int itemId) {

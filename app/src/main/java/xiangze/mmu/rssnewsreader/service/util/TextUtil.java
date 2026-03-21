@@ -682,6 +682,76 @@ public class TextUtil {
                 .onErrorReturnItem("und");
     }
 
+    public static class AiResponse {
+        public final String title;
+        public final String content;
+
+        public AiResponse(String title, String content) {
+            this.title = title;
+            this.content = content;
+        }
+    }
+
+    public AiResponse parseAiResponse(String rawResponse, String defaultTitle) {
+        if (rawResponse == null) return new AiResponse(defaultTitle, "");
+
+        String cleaned = rawResponse
+                .replaceAll("(?s)^\\s*```[a-zA-Z]*\\n?", "")
+                .replaceAll("(?s)\\n?```\\s*$", "")
+                .trim();
+
+        String title = defaultTitle;
+        String content = cleaned;
+
+        if (cleaned.contains("[TITLE]") && cleaned.contains("[CONTENT]") &&
+                cleaned.indexOf("[TITLE]") < cleaned.indexOf("[CONTENT]")) {
+            title = cleaned.substring(
+                    cleaned.indexOf("[TITLE]") + 7,
+                    cleaned.indexOf("[CONTENT]")
+            ).trim();
+            content = cleaned.substring(
+                    cleaned.indexOf("[CONTENT]") + 9
+            ).trim();
+        }
+
+        return new AiResponse(title, content);
+    }
+
+    @SuppressLint("SimpleDateFormat")
+    public String formatAiResponseToHtml(String title, String content, String feedTitle, java.util.Date publishDate, String feedImageUrl, boolean isNightMode, String titleClass) {
+        String textColor = isNightMode ? "#E2E2E6" : "#1B1B1F";
+        String classAttr = (titleClass != null && !titleClass.isEmpty()) ? " class=\"" + titleClass + "\"" : "";
+        
+        StringBuilder sb = new StringBuilder();
+        sb.append("<html><head>");
+        sb.append("<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">");
+        sb.append("</head><body>");
+        
+        sb.append("<div class=\"entry-header\" style=\"color: ").append(textColor).append("\">");
+        sb.append("  <div style=\"display: flex; align-items: center;\">");
+        sb.append("    <img style=\"margin-right: 10px; width: 20px; height: 20px\" src=\"").append(feedImageUrl).append("\">");
+        sb.append("    <p style=\"font-size: 0.75em\">").append(feedTitle).append("</p>");
+        sb.append("  </div>");
+        sb.append("  <p").append(classAttr).append(" style=\"margin:0; font-size: 1.25em; font-weight:bold\">").append(title).append("</p>");
+        sb.append("  <p style=\"font-size: 0.75em;\">").append(new java.text.SimpleDateFormat("EEE, d MMM yyyy 'at' hh:mm aaa").format(publishDate)).append("</p>");
+        sb.append("</div>");
+        
+        // Wrap content in paragraphs if it doesn't look like HTML
+        if (!content.trim().startsWith("<")) {
+            String[] paragraphs = content.split("\\n\\n+");
+            for (String p : paragraphs) {
+                if (!p.trim().isEmpty()) {
+                    sb.append("<p>").append(p.trim().replace("\n", "<br>")).append("</p>");
+                }
+            }
+        } else {
+            sb.append(content);
+        }
+        
+        sb.append("</body></html>");
+        return sb.toString();
+    }
+
     public void onDestroy() {
         compositeDisposable.dispose();
     }

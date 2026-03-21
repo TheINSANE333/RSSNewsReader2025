@@ -145,10 +145,10 @@ public class MediaBrowserHelper {
                     new MediaControllerCompat(mContext, mMediaBrowser.getSessionToken());
             mMediaController.registerCallback(mMediaControllerCallback);
 
-//            mMediaControllerCallback.onMetadataChanged(mMediaController.getMetadata());
-//            mMediaControllerCallback.onPlaybackStateChanged(mMediaController.getPlaybackState());
+            mMediaControllerCallback.onMetadataChanged(mMediaController.getMetadata());
+            mMediaControllerCallback.onPlaybackStateChanged(mMediaController.getPlaybackState());
 
-//            MediaBrowserHelper.this.onConnected(mMediaController);
+            MediaBrowserHelper.this.onConnected(mMediaController);
 
             mMediaBrowser.subscribe(mMediaBrowser.getRoot(), mMediaBrowserSubscriptionCallback);
         }

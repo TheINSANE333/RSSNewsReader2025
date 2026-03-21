@@ -268,4 +268,10 @@ public interface EntryDao {
     @Query("UPDATE entry_table SET summarized = :summarized WHERE id = :id")
     void updateSummarizedText(String summarized, long id);
 
+    @Query("UPDATE entry_table SET summarized = NULL, summarized_html = NULL WHERE id = :id")
+    void resetSummarized(long id);
+
+    @Query("UPDATE entry_table SET translated = NULL, translated_html = NULL WHERE id = :id")
+    void resetTranslated(long id);
+
 }

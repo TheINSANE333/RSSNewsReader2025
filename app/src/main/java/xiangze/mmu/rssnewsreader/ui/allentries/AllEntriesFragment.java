@@ -33,8 +33,11 @@ import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
 
+import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers;
+import io.reactivex.rxjava3.core.Single;
 import io.reactivex.rxjava3.disposables.CompositeDisposable;
 import io.reactivex.rxjava3.disposables.Disposable;
+import io.reactivex.rxjava3.schedulers.Schedulers;
 import xiangze.mmu.rssnewsreader.R;
 import xiangze.mmu.rssnewsreader.data.entry.Entry;
 import xiangze.mmu.rssnewsreader.data.entry.EntryRepository;
@@ -373,25 +376,24 @@ public class AllEntriesFragment extends Fragment implements EntryItemAdapter.Ent
         });
     }
 
-    private void doWhenTranslationFinish(EntryInfo entryInfo, String translatedHtml, String targetLanguage) {
-        // Handle html
-        Document doc = Jsoup.parse(translatedHtml);
-        doc.head().append(webViewViewModel.getStyle(sharedPreferencesRepository.getNight()));
-        Objects.requireNonNull(doc.selectFirst("body"))
-                .prepend(webViewViewModel.getHtml(
-                        entryInfo.getEntryTitle(),
-                        entryInfo.getFeedTitle(),
-                        entryInfo.getEntryPublishedDate(),
-                        entryInfo.getFeedImageUrl(),
-                        sharedPreferencesRepository.getNight()
-                ));
-        String finalHtml = doc.html();
+    private void doWhenTranslationFinish(EntryInfo entryInfo, String translationRaw, String targetLanguage) {
+        TextUtil.AiResponse aiRes = textUtil.parseAiResponse(translationRaw, entryInfo.getEntryTitle());
+
+        // Use unified formatter to include markers and header
+        String finalHtml = textUtil.formatAiResponseToHtml(
+                aiRes.title,
+                aiRes.content,
+                entryInfo.getFeedTitle(),
+                entryInfo.getEntryPublishedDate(),
+                entryInfo.getFeedImageUrl(),
+                sharedPreferencesRepository.getNight(),
+                "translated-title"
+        );
 
         // Store result in Translated fields, NOT original html fields
         webViewViewModel.updateTranslatedHtml(finalHtml, entryInfo.getEntryId());
         entryRepository.updateTranslatedHtml(finalHtml, entryInfo.getEntryId());
 
-        TextUtil textUtil = new TextUtil(sharedPreferencesRepository);
         final String translatedContent = textUtil.extractHtmlContent(finalHtml, "--####--");
 
         webViewViewModel.updateTranslated(translatedContent, entryInfo.getEntryId());
@@ -421,7 +423,21 @@ public class AllEntriesFragment extends Fragment implements EntryItemAdapter.Ent
     }
 
     private void translate(EntryInfo entryInfo) {
-        String html = webViewViewModel.getOriginalHtmlById(entryInfo.getEntryId());
+        long entryId = entryInfo.getEntryId();
+
+        // 1. Check if already translated or processing
+        if (AutoTranslator.isProcessing(entryId)) {
+            Toast.makeText(requireContext(), "Translation is already in progress...", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        String translatedHtml = webViewViewModel.getTranslatedHtmlById(entryId);
+        if (translatedHtml != null && !translatedHtml.trim().isEmpty() && translatedHtml.contains("translated-title")) {
+            Toast.makeText(requireContext(), "Article is already translated.", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        String html = webViewViewModel.getOriginalHtmlById(entryId);
         if (html == null || html.trim().isEmpty()) {
             html = webViewViewModel.getHtmlById(entryInfo.getEntryId());
         }
@@ -429,53 +445,31 @@ public class AllEntriesFragment extends Fragment implements EntryItemAdapter.Ent
         if (html == null || html.trim().isEmpty()) return;
         final String sourceHtml = html; // Make it effectively final for lambdas
         Log.d(TAG, "translating title: " + entryInfo.getEntryTitle());
-        // Identify source language
-        TextUtil textUtil = new TextUtil(sharedPreferencesRepository);
-        String content = textUtil.extractHtmlContent(sourceHtml, "--####--");
-        String translationMethod = sharedPreferencesRepository.getTranslationMethod();
+        
         String targetLanguage = sharedPreferencesRepository.getDefaultTranslationLanguage();
 
-        Disposable disposable = textUtil.identifyLanguageRx(content).subscribe(languageCode -> {
-            if (languageCode != null && languageCode.equalsIgnoreCase(targetLanguage)) {
-                requireActivity().runOnUiThread(() ->
-                        Toast.makeText(requireContext(), entryInfo.getEntryTitle() + " is already in " + Locale.forLanguageTag(targetLanguage).getDisplayLanguage(), Toast.LENGTH_SHORT).show()
-                );
-                return;
-            }
-            Disposable translateDisposable;
-            Log.d(TAG, "translate: translation method: " + translationMethod);
-            if (translationMethod.equals("lineByLine")) {
-                translateDisposable = textUtil.translateHtmlLineByLine(languageCode, targetLanguage, sourceHtml, entryInfo.getEntryTitle(), entryInfo.getEntryId(), progress -> {
-                    requireActivity().runOnUiThread(() ->
-                            Toast.makeText(requireContext(), progress + "% Translated for " + entryInfo.getEntryTitle(), Toast.LENGTH_SHORT).show()
-                    );
-                }).subscribe(translatedHtml -> {
-                    doWhenTranslationFinish(entryInfo, translatedHtml, targetLanguage);
-                });
-            } else if (translationMethod.equals("paragraphByParagraph")) {
-                translateDisposable = textUtil.translateHtmlByParagraph(languageCode, targetLanguage, sourceHtml, entryInfo.getEntryTitle(), entryInfo.getEntryId(), progress -> {
-                        requireActivity().runOnUiThread(() ->
-                                Toast.makeText(requireContext(), progress + "% Translated for " + entryInfo.getEntryTitle(), Toast.LENGTH_SHORT).show()
-                        );
-            }).subscribe(translatedHtml -> {
-                    doWhenTranslationFinish(entryInfo, translatedHtml, targetLanguage);
-                }, error -> {
-                    Log.e("AllEntriesFragment", "Translation failed for paragraph mode", error);
-                });
+        AutoTranslator.processingIds.add(entryId);
 
-            } else {
-                translateDisposable = textUtil.translateHtmlAllAtOnce(languageCode, targetLanguage, sourceHtml, entryInfo.getEntryTitle(), entryInfo.getEntryId(), progress -> {
-                    requireActivity().runOnUiThread(() ->
-                            Toast.makeText(requireContext(), progress + "% Translated for " + entryInfo.getEntryTitle(), Toast.LENGTH_SHORT).show()
-                    );
-                }).subscribe(translatedHtml -> {
-                    doWhenTranslationFinish(entryInfo, translatedHtml, targetLanguage);
+        Disposable disposable = textUtil.identifyLanguageRx(sourceHtml)
+                .flatMap(sourceLang -> {
+                    if (sourceLang != null && sourceLang.equalsIgnoreCase(targetLanguage)) {
+                        return Single.error(new Exception("Article is already in " + Locale.forLanguageTag(targetLanguage).getDisplayLanguage()));
+                    }
+                    return textUtil.translateHtmlAllAtOnce(sourceLang, targetLanguage, sourceHtml, entryInfo.getEntryTitle(), entryId, progress -> {
+                        // Optional progress update
+                    });
+                })
+                .subscribeOn(Schedulers.io())
+                .observeOn(AndroidSchedulers.mainThread())
+                .doFinally(() -> AutoTranslator.processingIds.remove(entryId))
+                .subscribe(translatedResult -> {
+                    doWhenTranslationFinish(entryInfo, translatedResult, targetLanguage);
+                    Toast.makeText(requireContext(), "Translation completed successfully", Toast.LENGTH_SHORT).show();
+                }, error -> {
+                    Log.e(TAG, "Translation failed", error);
+                    Toast.makeText(requireContext(), "Translation failed: " + error.getMessage(), Toast.LENGTH_SHORT).show();
                 });
-            }
-            compositeDisposable.add(translateDisposable);
-        }, throwable -> {
-            System.err.println("Error identifying language: " + throwable.getMessage());
-        });
+        
         compositeDisposable.add(disposable);
     }
 

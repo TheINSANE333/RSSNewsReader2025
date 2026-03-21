@@ -456,4 +456,12 @@ public class EntryRepository {
         return (entry != null) ? entry.getSummarized() : null;
     }
 
+    public void resetSummarized(long id) {
+        entryDao.resetSummarized(id);
+    }
+
+    public void resetTranslated(long id) {
+        entryDao.resetTranslated(id);
+    }
+
 }

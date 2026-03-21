@@ -23,6 +23,8 @@ public class AutoTranslator {
     private final SharedPreferencesRepository prefs;
     private final android.content.Context context;
     private final String delimiter = "--####--";
+    public static final java.util.Set<Long> processingIds = java.util.Collections.synchronizedSet(new java.util.HashSet<>());
+    public static final java.util.Set<Long> failedSessionIds = java.util.Collections.synchronizedSet(new java.util.HashSet<>());
 
     @Inject
     SharedPreferencesRepository sharedPreferencesRepository;
@@ -32,6 +34,14 @@ public class AutoTranslator {
         this.entryRepository = entryRepository;
         this.textUtil = textUtil;
         this.prefs = prefs;
+    }
+
+    public static boolean isProcessing(long id) {
+        return processingIds.contains(id);
+    }
+
+    public static boolean hasFailed(long id) {
+        return failedSessionIds.contains(id);
     }
 
     /**
@@ -54,18 +64,31 @@ public class AutoTranslator {
                     return;
                 }
 
-                while (true) {
-                    List<Entry> untranslatedEntries = entryRepository.getUntranslatedEntries();
-                    if (untranslatedEntries.isEmpty()) break;
+                List<Entry> untranslatedEntries = entryRepository.getUntranslatedEntries();
+                for (Entry entry : untranslatedEntries) {
+                    if (!prefs.getAutoTranslate()) {
+                        Log.d(TAG, "Auto-translate disabled during batch.");
+                        break;
+                    }
 
-                    Entry entry = untranslatedEntries.get(0);
                     long id = entry.getId();
                     String title = entry.getTitle();
 
+                    // Check if already being processed by another thread or failed in this session
+                    if (processingIds.contains(id) || failedSessionIds.contains(id)) {
+                        Log.d(TAG, "Skipping ID " + id + " (In-progress or failed session)");
+                        continue;
+                    }
+
                     try {
+                        processingIds.add(id);
 
                         // Always translate original content, not translated HTML
                         String currentHtml = entry.getOriginalHtml();
+                        if (currentHtml == null || currentHtml.trim().isEmpty()) {
+                            currentHtml = entry.getHtml();
+                        }
+
                         if (currentHtml == null || currentHtml.trim().isEmpty()) {
                             Log.w(TAG, "Skipping ID " + id + " - Empty content.");
                             continue;
@@ -161,10 +184,16 @@ public class AutoTranslator {
 
                     } catch (Exception entryError) {
                         Log.e(TAG, "ERROR translating ID " + id, entryError);
+                        
+                        failedSessionIds.add(id);
+
                         androidx.core.content.ContextCompat.getMainExecutor(context).execute(() -> {
                             android.widget.Toast.makeText(context, "Translation failed for: " + title, android.widget.Toast.LENGTH_SHORT).show();
                         });
-                        break;
+                        Log.e(TAG, "Continuing to next article in batch.");
+                        continue;
+                    } finally {
+                        processingIds.remove(id);
                     }
                 }
 
