@@ -156,14 +156,26 @@ public class AutoTranslator {
                             entryRepository.updateOriginalHtml(currentHtml, id);
                         }
 
+                        // Use unified formatter to include markers and header
+                        xiangze.mmu.rssnewsreader.model.EntryInfo info = entryRepository.getEntryInfoById(id);
+                        String finalHtml = textUtil.formatAiResponseToHtml(
+                                translatedTitle,
+                                cleanedTranslated,
+                                info.getFeedTitle(),
+                                info.getEntryPublishedDate(),
+                                info.getFeedImageUrl(),
+                                prefs.getNight(),
+                                "translated-title"
+                        );
+
                         // Save new data atomically (without overwriting original 'html' column)
-                        String translatedContent = textUtil.extractHtmlContent(cleanedTranslated, delimiter);
-                        entryRepository.updateTranslatedHtml(cleanedTranslated, id);
+                        String translatedContent = textUtil.extractHtmlContent(finalHtml, delimiter);
+                        entryRepository.updateTranslatedHtml(finalHtml, id);
                         entryRepository.updateTranslated(translatedContent, id);
                         entryRepository.updateTitle(translatedTitle, id, entry.getLink());
 
                         // Update in-memory object just in case
-                        entry.setTranslatedHtml(cleanedTranslated);
+                        entry.setTranslatedHtml(finalHtml);
                         entry.setTranslated(translatedContent);
                         entry.setTitle(translatedTitle);
 

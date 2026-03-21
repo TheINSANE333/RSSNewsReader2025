@@ -594,15 +594,14 @@ public class TtsExtractor {
                 boolean shouldTranslateGlobal = sharedPreferencesRepository.getAutoTranslate();
                 boolean shouldSummarizeGlobal = sharedPreferencesRepository.getAutoSummarize();
                 
-                Entry entryObj = entryRepository.getEntryById(processingId);
+                final Entry entryObj = entryRepository.getEntryById(processingId);
+                final Feed feed = (entryObj != null) ? feedRepository.getFeedById(entryObj.getFeedId()) : null;
+                
                 boolean shouldTranslateFeed = false;
                 boolean shouldSummarizeFeed = false;
-                if (entryObj != null) {
-                    Feed feed = feedRepository.getFeedById(entryObj.getFeedId());
-                    if (feed != null) {
-                        shouldTranslateFeed = feed.isAutoTranslate();
-                        shouldSummarizeFeed = feed.isAutoSummarize();
-                    }
+                if (feed != null) {
+                    shouldTranslateFeed = feed.isAutoTranslate();
+                    shouldSummarizeFeed = feed.isAutoSummarize();
                 }
                 
                 boolean shouldTranslate = shouldTranslateGlobal && shouldTranslateFeed;
@@ -654,16 +653,39 @@ public class TtsExtractor {
                                     xiangze.mmu.rssnewsreader.service.util.AutoSummarizer.processingIds.remove(processingId);
                                 })
                                 .subscribe(results -> {
-                                    String translatedHtml = results[0];
-                                    String summarizedHtml = results[1];
+                                    String translatedHtmlRaw = results[0];
+                                    String summarizedHtmlRaw = results[1];
 
-                                    entryRepository.updateTranslatedHtml(translatedHtml, processingId);
-                                    String translatedContent = textUtil.extractHtmlContent(translatedHtml, delimiter);
+                                    TextUtil.AiResponse translatedAi = textUtil.parseAiResponse(translatedHtmlRaw, processingTitle);
+                                    TextUtil.AiResponse summarizedAi = textUtil.parseAiResponse(summarizedHtmlRaw, "Summary");
+
+                                    String finalTranslatedHtml = textUtil.formatAiResponseToHtml(
+                                            translatedAi.title,
+                                            translatedAi.content,
+                                            feed.getTitle(),
+                                            entryObj.getPublishedDate(),
+                                            feed.getImageUrl(),
+                                            sharedPreferencesRepository.getNight(),
+                                            "translated-title"
+                                    );
+
+                                    String finalSummarizedHtml = textUtil.formatAiResponseToHtml(
+                                            summarizedAi.title,
+                                            summarizedAi.content,
+                                            feed.getTitle(),
+                                            entryObj.getPublishedDate(),
+                                            feed.getImageUrl(),
+                                            sharedPreferencesRepository.getNight(),
+                                            "summarized-title"
+                                    );
+
+                                    entryRepository.updateTranslatedHtml(finalTranslatedHtml, processingId);
+                                    String translatedContent = textUtil.extractHtmlContent(finalTranslatedHtml, delimiter);
                                     entryRepository.updateTranslatedText(translatedContent, processingId);
                                     entryRepository.updateTranslated(translatedContent, processingId);
 
-                                    entryRepository.updateSummarizedHtml(summarizedHtml, processingId);
-                                    String summarizedContent = textUtil.extractHtmlContent(summarizedHtml, delimiter);
+                                    entryRepository.updateSummarizedHtml(finalSummarizedHtml, processingId);
+                                    String summarizedContent = textUtil.extractHtmlContent(finalSummarizedHtml, delimiter);
                                     entryRepository.updateSummarizedText(summarizedContent, processingId);
                                     entryRepository.updateSummarized(summarizedContent, processingId);
 
@@ -679,9 +701,20 @@ public class TtsExtractor {
                                         .subscribeOn(Schedulers.io())
                                         .observeOn(AndroidSchedulers.mainThread())
                                         .doFinally(() -> xiangze.mmu.rssnewsreader.service.util.AutoTranslator.processingIds.remove(processingId))
-                                        .subscribe(translatedHtml -> {
-                                            entryRepository.updateTranslatedHtml(translatedHtml, processingId);
-                                            String translatedContent = textUtil.extractHtmlContent(translatedHtml, delimiter);
+                                        .subscribe(translatedHtmlRaw -> {
+                                            TextUtil.AiResponse translatedAi = textUtil.parseAiResponse(translatedHtmlRaw, processingTitle);
+                                            String finalTranslatedHtml = textUtil.formatAiResponseToHtml(
+                                                    translatedAi.title,
+                                                    translatedAi.content,
+                                                    feed.getTitle(),
+                                                    entryObj.getPublishedDate(),
+                                                    feed.getImageUrl(),
+                                                    sharedPreferencesRepository.getNight(),
+                                                    "translated-title"
+                                            );
+
+                                            entryRepository.updateTranslatedHtml(finalTranslatedHtml, processingId);
+                                            String translatedContent = textUtil.extractHtmlContent(finalTranslatedHtml, delimiter);
                                             entryRepository.updateTranslatedText(translatedContent, processingId);
                                             entryRepository.updateTranslated(translatedContent, processingId);
 
@@ -697,9 +730,20 @@ public class TtsExtractor {
                                         .subscribeOn(Schedulers.io())
                                         .observeOn(AndroidSchedulers.mainThread())
                                         .doFinally(() -> xiangze.mmu.rssnewsreader.service.util.AutoSummarizer.processingIds.remove(processingId))
-                                        .subscribe(summarizedHtml -> {
-                                            entryRepository.updateSummarizedHtml(summarizedHtml, processingId);
-                                            String summarizedContent = textUtil.extractHtmlContent(summarizedHtml, delimiter);
+                                        .subscribe(summarizedHtmlRaw -> {
+                                            TextUtil.AiResponse summarizedAi = textUtil.parseAiResponse(summarizedHtmlRaw, "Summary");
+                                            String finalSummarizedHtml = textUtil.formatAiResponseToHtml(
+                                                    summarizedAi.title,
+                                                    summarizedAi.content,
+                                                    feed.getTitle(),
+                                                    entryObj.getPublishedDate(),
+                                                    feed.getImageUrl(),
+                                                    sharedPreferencesRepository.getNight(),
+                                                    "summarized-title"
+                                            );
+
+                                            entryRepository.updateSummarizedHtml(finalSummarizedHtml, processingId);
+                                            String summarizedContent = textUtil.extractHtmlContent(finalSummarizedHtml, delimiter);
                                             entryRepository.updateSummarizedText(summarizedContent, processingId);
                                             entryRepository.updateSummarized(summarizedContent, processingId);
 

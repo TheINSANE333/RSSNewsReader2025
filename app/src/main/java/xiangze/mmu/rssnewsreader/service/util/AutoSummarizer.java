@@ -133,16 +133,16 @@ public class AutoSummarizer {
                             ).trim();
                         }
 
-                        // Convert plain text summary to HTML with marker
-                        org.jsoup.nodes.Document doc = org.jsoup.Jsoup.parse("");
-                        org.jsoup.nodes.Element titleElement = doc.body().appendElement("p");
-                        titleElement.addClass("summarized-title");
-                        titleElement.text(summarizedTitle); // Use the translated title
-
-                        org.jsoup.nodes.Element contentElement = doc.body().appendElement("p");
-                        contentElement.text(summarizedBody); // Use text() to escape any HTML in the summary itself
-
-                        String finalSummarizedHtml = doc.html();
+                        xiangze.mmu.rssnewsreader.model.EntryInfo info = entryRepository.getEntryInfoById(id);
+                        String finalSummarizedHtml = textUtil.formatAiResponseToHtml(
+                                summarizedTitle,
+                                summarizedBody,
+                                info.getFeedTitle(),
+                                info.getEntryPublishedDate(),
+                                info.getFeedImageUrl(),
+                                prefs.getNight(),
+                                "summarized-title"
+                        );
 
                         // 6. Save to Database (Only reached if step 5 succeeds)
                         String existingOriginal = entryRepository.getOriginalHtmlById(id);
