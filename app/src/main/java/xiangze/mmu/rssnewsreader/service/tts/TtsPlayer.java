@@ -100,11 +100,6 @@ public class TtsPlayer extends PlayerAdapter implements TtsPlayerListener {
                 if (actionNeeded) {
                     Log.d(TAG, "Deferred auto-play activated — TTS is now ready");
                     setupTts();
-                    if (!isPausedManually) {
-                        speak();
-                    } else {
-                        Log.d(TAG, "Deferred play skipped due to manual pause");
-                    }
                     actionNeeded = false;
                 }
             }
@@ -265,12 +260,6 @@ public class TtsPlayer extends PlayerAdapter implements TtsPlayerListener {
 
                     if (isInit) {
                         setupTts();
-                        if (!isPausedManually) {
-                            Log.d(TAG, "TTS ready and not manually paused — auto speaking");
-                            speak();
-                        } else {
-                            Log.d(TAG, "TTS ready but paused manually — not speaking");
-                        }
                     } else {
                         Log.d(TAG, "TTS not initialized yet, setting actionNeeded = true");
                         actionNeeded = true;
@@ -287,13 +276,11 @@ public class TtsPlayer extends PlayerAdapter implements TtsPlayerListener {
 
     @Override
     public void extractToTts(String content, String language) {
-        if (tts == null) {
-            Log.w(TAG, "TTS engine is not initialized.");
-            return;
-        }
-
         if (content == null || content.trim().isEmpty()) {
             Log.w(TAG, "extractToTts: No content provided.");
+            isPreparing = false;
+            isSettingUpNewArticle = false;
+            if (countDownLatch != null) countDownLatch.countDown();
             return;
         }
 
@@ -310,62 +297,62 @@ public class TtsPlayer extends PlayerAdapter implements TtsPlayerListener {
         int totalSentences = sentenceList.size();
 
         new Thread(() -> {
-            for (int i = 0; i < sentenceList.size(); i++) {
-                String sentence = sentenceList.get(i);
-                if (sentence.length() >= TextToSpeech.getMaxSpeechInputLength()) {
-                    BreakIterator iterator = BreakIterator.getSentenceInstance();
-                    iterator.setText(sentence);
-                    int start = iterator.first();
-                    for (int end = iterator.next(); end != BreakIterator.DONE; start = end, end = iterator.next()) {
-                        sentences.add(sentence.substring(start, end));
-                    }
-                } else {
-                    sentences.add(sentence);
-                }
-
-                currentExtractProgress = Math.min((int) (((double) sentences.size() / totalSentences) * 100), 95);
-
-                if (i % 3 == 0 || i == sentenceList.size() - 1) {
-                    ContextCompat.getMainExecutor(context).execute(() -> {
-                        if (webViewCallback != null) {
-                            webViewCallback.updateLoadingProgress(currentExtractProgress);
+            try {
+                for (int i = 0; i < sentenceList.size(); i++) {
+                    String sentence = sentenceList.get(i);
+                    if (sentence.length() >= TextToSpeech.getMaxSpeechInputLength()) {
+                        BreakIterator iterator = BreakIterator.getSentenceInstance();
+                        iterator.setText(sentence);
+                        int start = iterator.first();
+                        for (int end = iterator.next(); end != BreakIterator.DONE; start = end, end = iterator.next()) {
+                            sentences.add(sentence.substring(start, end));
                         }
-                    });
+                    } else {
+                        sentences.add(sentence);
+                    }
+
+                    currentExtractProgress = (int) (((double) (i + 1) / totalSentences) * 100);
+
+                    if (i % 3 == 0 || i == sentenceList.size() - 1) {
+                        ContextCompat.getMainExecutor(context).execute(() -> {
+                            if (webViewCallback != null) {
+                                webViewCallback.updateLoadingProgress(currentExtractProgress);
+                            }
+                        });
+                    }
                 }
-            }
 
-            if (sentences.size() < 1) {
-                Log.w(TAG, "Extraction failed: no sentences found. Resetting state.");
-                if (webViewCallback != null) webViewCallback.askForReload(feedId);
-                sentences.clear();
-                actionNeeded = false;
-                isPreparing = false;
-                countDownLatch.countDown();
-                return;
-            } else {
-                int savedProgress = entryRepository.getSentCount(currentId);
-                sentenceCounter = Math.min(savedProgress, sentences.size() - 1);
-
-                if (!isInit) {
-                    Log.d(TAG, "TTS not initialized yet");
-                    actionNeeded = true;
+                if (sentences.size() < 1) {
+                    Log.w(TAG, "Extraction failed: no sentences found. Resetting state.");
+                    if (webViewCallback != null) webViewCallback.askForReload(feedId);
+                    sentences.clear();
+                    actionNeeded = false;
+                    isPreparing = false;
+                    isSettingUpNewArticle = false;
                 } else {
-                    Log.d(TAG, "TTS is initialized");
-                    setupTts();
+                    int savedProgress = entryRepository.getSentCount(currentId);
+                    sentenceCounter = Math.min(savedProgress, sentences.size() - 1);
+
+                    if (!isInit) {
+                        Log.d(TAG, "TTS not initialized yet");
+                        actionNeeded = true;
+                    } else {
+                        Log.d(TAG, "TTS is initialized");
+                        setupTts();
+                    }
+                }
+            } finally {
+                if (countDownLatch != null) {
+                    countDownLatch.countDown();
                 }
             }
-            countDownLatch.countDown();
         }).start();
     }
 
     private void setupTts() {
         ContextCompat.getMainExecutor(context).execute(() -> {
             Log.d(TAG, "[setupTts] currentLanguage = " + language + ", isLockedByTtsPlayer = " + ttsExtractor.isLocked() + ", ttsExtractor.language = " + ttsExtractor.getCurrentLanguage());
-            if (sentences == null || sentences.isEmpty()) {
-                Log.w(TAG, "No content to read in setupTts(), skipping...");
-                return;
-            }
-
+            
             isPreparing = false;
 
             if (webViewCallback != null) {
@@ -378,35 +365,32 @@ public class TtsPlayer extends PlayerAdapter implements TtsPlayerListener {
                 ((WebViewActivity) webViewCallback).syncLoadingWithTts();
             }
 
+            if (sentences == null || sentences.isEmpty()) {
+                Log.w(TAG, "No content to read in setupTts(), skipping...");
+                isSettingUpNewArticle = false;
+                return;
+            }
+
             if (language != null && !language.isEmpty()) {
                 try {
                     Log.d(TAG, "Setting TTS language to: " + language);
-                    Log.d(TAG, "setupTts() using language: " + language);
                     setLanguage(Locale.forLanguageTag(language), true);
                 } catch (Exception e) {
                     Log.d(TAG, "Invalid locale " + e.getMessage());
                     setLanguage(Locale.ENGLISH, true);
                 }
-            } else {
-                Log.d(TAG, "Language is null (auto-detect), skipping initial setLanguage.");
             }
 
-            new Handler(Looper.getMainLooper()).postDelayed(() -> {
-                isSettingUpNewArticle = false;
+            // Move this out of postDelayed for more immediate action
+            isSettingUpNewArticle = false;
 
-                if (sentences.size() > 0 && !isPausedManually && !hasSpokenAfterSetup) {
-                    hasSpokenAfterSetup = true;
-                    speak();
-                    if (webViewCallback != null) {
-                        Log.d(TAG, "Hiding fake loading after TTS starts.");
-                        webViewCallback.hideFakeLoading();
-                    } else {
-                        Log.w(TAG, "webViewCallback is null, cannot hideFakeLoading.");
-                    }
-                } else {
-                    Log.d(TAG, "TTS ready, but paused manually or no content. Waiting for user to resume.");
-                }
-            }, 500);
+            if (sentences.size() > 0 && !isPausedManually && !hasSpokenAfterSetup) {
+                hasSpokenAfterSetup = true;
+                Log.d(TAG, "Auto-speaking from setupTts");
+                speak();
+            } else {
+                Log.d(TAG, "TTS ready, but paused manually or no content. Waiting for user to resume.");
+            }
         });
     }
 

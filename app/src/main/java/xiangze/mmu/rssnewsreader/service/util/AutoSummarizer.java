@@ -68,7 +68,8 @@ public class AutoSummarizer {
                     }
 
                     long id = entry.getId();
-                    String title = entry.getTitle();
+                    xiangze.mmu.rssnewsreader.model.EntryInfo info = entryRepository.getEntryInfoById(id);
+                    String title = (info != null) ? info.getEntryTitle() : entry.getTitle();
 
                     // Check if already being processed by another thread or failed in this session
                     if (processingIds.contains(id) || failedSessionIds.contains(id)) {
@@ -107,7 +108,7 @@ public class AutoSummarizer {
                                 .subscribeOn(Schedulers.io())
                                 .blockingGet();
 
-                        Log.d(TAG, "Summarizing ID " + id + " in " + targetLang);
+                        Log.d(TAG, "Summarizing ID " + id + " (" + title + ") in " + targetLang);
 
                         Single<String> summarizationSingle;
 
@@ -133,40 +134,46 @@ public class AutoSummarizer {
                             ).trim();
                         }
 
-                        xiangze.mmu.rssnewsreader.model.EntryInfo info = entryRepository.getEntryInfoById(id);
-                        String finalSummarizedHtml = textUtil.formatAiResponseToHtml(
-                                summarizedTitle,
-                                summarizedBody,
-                                info.getFeedTitle(),
-                                info.getEntryPublishedDate(),
-                                info.getFeedImageUrl(),
-                                prefs.getNight(),
-                                "summarized-title"
-                        );
-
-                        // 6. Save to Database (Only reached if step 5 succeeds)
-                        String existingOriginal = entryRepository.getOriginalHtmlById(id);
-
-                        // Backup original if needed
-                        if ((existingOriginal == null || existingOriginal.trim().isEmpty()) && sourceHtml != null && !sourceHtml.trim().isEmpty()) {
-                            entryRepository.updateOriginalHtml(sourceHtml, id);
+                        // Re-fetch info just in case it changed, though it shouldn't
+                        if (info == null) {
+                            info = entryRepository.getEntryInfoById(id);
                         }
 
-                        // Save new data atomically (without overwriting original 'html' column)
-                        String summarizedContent = textUtil.extractHtmlContent(finalSummarizedHtml, delimiter);
-                        entryRepository.updateSummarizedHtml(finalSummarizedHtml, id);
-                        entryRepository.updateSummarized(summarizedContent, id);
+                        if (info != null) {
+                            String finalSummarizedHtml = textUtil.formatAiResponseToHtml(
+                                    summarizedTitle,
+                                    summarizedBody,
+                                    info.getFeedTitle(),
+                                    info.getEntryPublishedDate(),
+                                    info.getFeedImageUrl(),
+                                    prefs.getNight(),
+                                    "summarized-title"
+                            );
 
-                        // Update in-memory object just in case
-                        entry.setSummarizedHtml(finalSummarizedHtml);
-                        entry.setSummarized(summarizedContent);
+                            // 6. Save to Database (Only reached if step 5 succeeds)
+                            String existingOriginal = entryRepository.getOriginalHtmlById(id);
 
-                        // Only auto-switch the view if the user hasn't manually interacted with this article's view state yet
-                        if (!prefs.hasSummarizationToggle(id)) {
+                            // Backup original if needed
+                            if ((existingOriginal == null || existingOriginal.trim().isEmpty()) && sourceHtml != null && !sourceHtml.trim().isEmpty()) {
+                                entryRepository.updateOriginalHtml(sourceHtml, id);
+                            }
+
+                            // Save new data atomically (without overwriting original 'html' column)
+                            String summarizedContent = textUtil.extractHtmlContent(finalSummarizedHtml, delimiter);
+                            entryRepository.updateSummarizedHtml(finalSummarizedHtml, id);
+                            entryRepository.updateSummarized(summarizedContent, id);
+
+                            // Update in-memory object just in case
+                            entry.setSummarizedHtml(finalSummarizedHtml);
+                            entry.setSummarized(summarizedContent);
+
+                            // Force switch the view to summarized
                             prefs.setIsSummarizedView(id, true);
-                        }
 
-                        Log.d(TAG, "SUCCESS: Summarized ID " + id);
+                            Log.d(TAG, "SUCCESS: Summarized ID " + id);
+                        } else {
+                            Log.e(TAG, "EntryInfo is null for ID " + id + ", cannot format HTML.");
+                        }
 
                         // Add a small delay to avoid hitting rate limits
                         try {
