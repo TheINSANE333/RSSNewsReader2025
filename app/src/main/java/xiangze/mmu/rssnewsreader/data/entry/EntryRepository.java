@@ -8,6 +8,7 @@ import xiangze.mmu.rssnewsreader.data.history.History;
 import xiangze.mmu.rssnewsreader.data.history.HistoryRepository;
 import xiangze.mmu.rssnewsreader.data.sharedpreferences.SharedPreferencesRepository;
 import xiangze.mmu.rssnewsreader.model.EntryInfo;
+import xiangze.mmu.rssnewsreader.service.util.TextUtil;
 
 import java.util.Date;
 import java.util.HashMap;
@@ -30,6 +31,9 @@ public class EntryRepository {
     private final HistoryRepository historyRepository;
     private final SharedPreferencesRepository sharedPreferencesRepository;
     private final Map<Long, Entry> entryCache = new HashMap<>();
+
+    @Inject
+    TextUtil textUtil;
 
     @Inject
     public EntryRepository(EntryDao entryDao, HistoryRepository historyRepository, SharedPreferencesRepository sharedPreferencesRepository) {
@@ -145,22 +149,24 @@ public class EntryRepository {
     }
 
     public long insert(long feedId, Entry entry) {
+        String normalizedLink = textUtil.normalizeUrl(entry.getLink());
+        
         // Handle updated link or title if the site modifies them
         if (historyRepository.checkTitleExist(feedId, entry.getTitle())) {
-            if (!historyRepository.checkLinkExist(feedId, entry.getLink())) {
+            if (!historyRepository.checkLinkExist(feedId, normalizedLink)) {
                 entryDao.updateLink(feedId, entry.getTitle(), entry.getLink());
             }
-            Log.d(TAG, "Skipped inserting duplicate entry: " + entry.getTitle());
+            Log.d(TAG, "Skipped inserting duplicate entry (by title): " + entry.getTitle());
             return -1; // Entry already exists, no new insertion
-        } else if (historyRepository.checkLinkExist(feedId, entry.getLink())) {
+        } else if (historyRepository.checkLinkExist(feedId, normalizedLink)) {
             if (!historyRepository.checkTitleExist(feedId, entry.getTitle())) {
                 entryDao.updateTitle(feedId, entry.getTitle(), entry.getLink());
             }
-            Log.d(TAG, "Skipped inserting duplicate entry: " + entry.getTitle());
+            Log.d(TAG, "Skipped inserting duplicate entry (by link): " + entry.getTitle());
             return -1; // Entry already exists, no new insertion
         } else {
             // If not in history, insert into history and database
-            historyRepository.insert(new History(entry.getFeedId(), new Date(), entry.getTitle(), entry.getLink()));
+            historyRepository.insert(new History(entry.getFeedId(), new Date(), entry.getTitle(), normalizedLink));
             long id = entryDao.insert(entry);
 
             if (id > 0) {

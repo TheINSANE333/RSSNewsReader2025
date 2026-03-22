@@ -752,6 +752,26 @@ public class TextUtil {
         return sb.toString();
     }
 
+    public String normalizeUrl(String url) {
+        if (url == null || url.isEmpty()) return url;
+        try {
+            // Strip tracking parameters
+            String normalized = url.split("\\?")[0];
+            if (normalized.endsWith("/")) {
+                normalized = normalized.substring(0, normalized.length() - 1);
+            }
+            // Strip common feedproxy/redirector noise if possible
+            if (normalized.contains("feedproxy.google.com")) {
+                // If it's a feedproxy link, we might not be able to normalize easily without fetching,
+                // but we can at least remove the trailing slash.
+                return normalized;
+            }
+            return normalized.toLowerCase();
+        } catch (Exception e) {
+            return url;
+        }
+    }
+
     public void onDestroy() {
         compositeDisposable.dispose();
     }

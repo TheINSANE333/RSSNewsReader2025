@@ -688,10 +688,21 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
             loadHtmlIntoWebView(htmlToLoad);
 
             if (contentToRead != null && !contentToRead.trim().isEmpty()) {
+                content = contentToRead;
                 ttsPlayer.extract(entry.getId(), entry.getFeedId(), contentToRead, lang);
             }
         } else {
-            Log.w(TAG, "HTML missing, skipping WebView load.");
+            Log.w(TAG, "HTML missing, loading live URL as fallback and triggering extraction.");
+            
+            // Show the live URL so the user isn't stuck with a blank screen
+            webView.loadUrl(currentLink);
+            webView.animate().alpha(1.0f).setDuration(300).start();
+            
+            // Still show a progress bar to indicate we are working on the "Reader View"
+            showFakeLoading();
+            
+            // Trigger background extraction (prioritize this entry)
+            ttsPlayer.extract(entry.getId(), entry.getFeedId(), null, lang);
         }
 
         sharedPreferencesRepository.setCurrentReadingEntryId(currentId);
@@ -897,45 +908,61 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
                                 refreshButtonVisibility();
                                 webViewViewModel.triggerEntryRefresh(currentId);
                             }
-                        } else if (!isSummarizedView && !isTranslatedView && hasOriginalHtml) {
-                            // Just regular extraction finished
-                            String htmlFromDb = entry.getHtml();
-                            if (htmlFromDb == null) htmlFromDb = entry.getOriginalHtml();
+                        } else if (!isSummarizedView && !isTranslatedView) {
+                            if (hasOriginalHtml) {
+                                // Just regular extraction finished
+                                String htmlFromDb = entry.getHtml();
+                                if (htmlFromDb == null) htmlFromDb = entry.getOriginalHtml();
 
-                            // Use LiveData value from ViewModel to detect if we are currently showing a fallback or partial content
-                            String currentViewModelHtml = webViewViewModel.getOriginalHtmlLiveData().getValue();
-                            boolean isShowingFallback = (currentViewModelHtml == null || currentViewModelHtml.trim().isEmpty());
+                                // Use LiveData value from ViewModel to detect if we are currently showing a fallback or partial content
+                                String currentViewModelHtml = webViewViewModel.getOriginalHtmlLiveData().getValue();
+                                boolean isShowingFallback = (currentViewModelHtml == null || currentViewModelHtml.trim().isEmpty());
 
-                            // Allow update if we were showing nothing, or if the new content is significantly larger (indicating a full unlock)
-                            boolean shouldUpdate = isShowingFallback;
-                            if (!isShowingFallback && htmlFromDb != null) {
-                                int currentLen = currentViewModelHtml.length();
-                                int newLen = htmlFromDb.length();
-                                if (newLen > currentLen + 1000) { // Significant increase suggests full article unlocked
-                                    shouldUpdate = true;
-                                    Log.d(TAG, "Content significantly increased (" + currentLen + " -> " + newLen + "). Updating view.");
-                                }
-                            }
-
-                            if (htmlFromDb != null && shouldUpdate) {
-                                Log.d(TAG, "Regular extraction synced. Switching to extracted view.");
-
-                                // 1. Notify user
-                                if (isShowingFallback) {
-                                    makeSnackbar("Article extracted. Switching to reader view...");
-                                } else {
-                                    makeSnackbar("Full article unlocked.");
+                                // Allow update if we were showing nothing, or if the new content is significantly larger (indicating a full unlock)
+                                boolean shouldUpdate = isShowingFallback;
+                                if (!isShowingFallback && htmlFromDb != null) {
+                                    int currentLen = currentViewModelHtml.length();
+                                    int newLen = htmlFromDb.length();
+                                    if (newLen > currentLen + 1000) { // Significant increase suggests full article unlocked
+                                        shouldUpdate = true;
+                                        Log.d(TAG, "Content significantly increased (" + currentLen + " -> " + newLen + "). Updating view.");
+                                    }
                                 }
 
-                                // 2. Update ViewModel which triggers the LiveData observer to load HTML
-                                webViewViewModel.updateOriginalHtml(htmlFromDb, currentId);
+                                if (htmlFromDb != null && shouldUpdate) {
+                                    Log.d(TAG, "Regular extraction synced. Switching to extracted view.");
 
-                                // 3. Update buttons
-                                refreshButtonVisibility();
+                                    // 1. Notify user
+                                    if (isShowingFallback) {
+                                        makeSnackbar("Article extracted. Switching to reader view...");
+                                    } else {
+                                        makeSnackbar("Full article unlocked.");
+                                    }
 
-                                // 4. Start TTS immediately
-                                String lang = getLanguageForCurrentView(currentId, false, "en");
-                                ttsPlayer.extract(currentId, feedId, entry.getContent(), lang);
+                                    // 2. Update ViewModel which triggers the LiveData observer to load HTML
+                                    webViewViewModel.updateOriginalHtml(htmlFromDb, currentId);
+
+                                    // 3. Update buttons
+                                    refreshButtonVisibility();
+
+                                    // 4. Start TTS immediately
+                                    String lang = getLanguageForCurrentView(currentId, false, "en");
+                                    ttsPlayer.extract(currentId, feedId, entry.getContent(), lang);
+                                }
+                            } else if (hasContent) {
+                                // Extraction failed or only plain text available
+                                String contentFromDb = entry.getContent();
+                                String currentViewModelHtml = webViewViewModel.getOriginalHtmlLiveData().getValue();
+                                
+                                if (currentViewModelHtml == null || currentViewModelHtml.trim().isEmpty()) {
+                                    Log.d(TAG, "No HTML but content available. Showing plain text / failure message.");
+                                    loadHtmlToWebView(contentFromDb);
+                                    refreshButtonVisibility();
+                                    
+                                    // Start TTS for the failure message or plain text
+                                    String lang = getLanguageForCurrentView(currentId, false, "en");
+                                    ttsPlayer.extract(currentId, feedId, contentFromDb, lang);
+                                }
                             }
                         } else {
                             // Already in a processed view, or waiting for more data.
@@ -957,7 +984,13 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
             return;
         }
 
-        Document doc = Jsoup.parse(html);
+        // Handle delimiters if this is plain text content from TtsExtractor
+        String processedHtml = html;
+        if (html.contains("--####--")) {
+            processedHtml = html.replace("--####--", "<br><br>");
+        }
+
+        Document doc = Jsoup.parse(processedHtml);
         doc.head().append(webViewViewModel.getStyle(sharedPreferencesRepository.getNight()));
 
         EntryInfo entryInfo = webViewViewModel.getEntryInfoById(currentId);
@@ -1560,8 +1593,12 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
                 htmlToLoad = metadata.getString("html");
             }
 
-            if (htmlToLoad != null) {
+            if (htmlToLoad != null && !htmlToLoad.trim().isEmpty()) {
                 loadHtmlIntoWebView(htmlToLoad);
+            } else {
+                webView.loadUrl(currentLink);
+                webView.animate().alpha(1.0f).setDuration(300).start();
+                showFakeLoading();
             }
 
             reloadButton.setVisible(true);

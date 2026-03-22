@@ -285,7 +285,7 @@ public class FeedRepository {
                             counter.incrementAndGet(); // Increment the counter atomically
                             entryRepository.updatePriority(1, insertedId);
                         } else {
-                            histories.add(new History(entry.getFeedId(), new Date(), entry.getTitle(), entry.getLink()));
+                            histories.add(new History(entry.getFeedId(), new Date(), entry.getTitle(), textUtil.normalizeUrl(entry.getLink())));
                         }
                     }
 

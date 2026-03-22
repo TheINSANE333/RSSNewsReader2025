@@ -8,6 +8,7 @@ import android.os.Looper;
 import android.util.JsonReader;
 import android.util.JsonToken;
 import android.util.Log;
+import android.view.View;
 import android.webkit.ValueCallback;
 import android.webkit.WebChromeClient;
 import android.webkit.WebSettings;
@@ -110,11 +111,13 @@ public class TtsExtractor {
                 settings.setUseWideViewPort(true);
                 settings.setLoadWithOverviewMode(true);
                 
-                // Tricking sites to think it's a real browser on a standard screen
-//                webView.layout(0, 0, 1080, 1920);
-                
-//                settings.setUserAgentString("Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/116.0.0.0 Mobile Safari/537.36");
-//                settings.setMediaPlaybackRequiresUserGesture(false);
+                // Set a standard mobile User Agent to avoid being blocked by some sites
+                settings.setUserAgentString("Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/116.0.0.0 Mobile Safari/537.36");
+
+                // Give the WebView a size so that sites that depend on layout can render correctly
+                webView.measure(View.MeasureSpec.makeMeasureSpec(1080, View.MeasureSpec.EXACTLY), 
+                               View.MeasureSpec.makeMeasureSpec(1920, View.MeasureSpec.EXACTLY));
+                webView.layout(0, 0, 1080, 1920);
 
                 webView.setWebChromeClient(new WebChromeClient() {
                     @Override
