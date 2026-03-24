@@ -1,0 +1,297 @@
+{
+  "formatVersion": 1,
+  "database": {
+    "version": 8,
+    "identityHash": "75dd31f44afd91950ae6821f5780d2f1",
+    "entities": [
+      {
+        "tableName": "feed_table",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `delayTime` INTEGER NOT NULL, `ttsSpeechRate` REAL NOT NULL, `title` TEXT, `link` TEXT, `description` TEXT, `imageUrl` TEXT, `language` TEXT, `isPreloaded` INTEGER NOT NULL DEFAULT 0, `autoSummarize` INTEGER NOT NULL DEFAULT 1, `autoTranslate` INTEGER NOT NULL DEFAULT 1)",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "delayTime",
+            "columnName": "delayTime",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "ttsSpeechRate",
+            "columnName": "ttsSpeechRate",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "title",
+            "columnName": "title",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "link",
+            "columnName": "link",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "description",
+            "columnName": "description",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "imageUrl",
+            "columnName": "imageUrl",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "language",
+            "columnName": "language",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "isPreloaded",
+            "columnName": "isPreloaded",
+            "affinity": "INTEGER",
+            "notNull": true,
+            "defaultValue": "0"
+          },
+          {
+            "fieldPath": "autoSummarize",
+            "columnName": "autoSummarize",
+            "affinity": "INTEGER",
+            "notNull": true,
+            "defaultValue": "1"
+          },
+          {
+            "fieldPath": "autoTranslate",
+            "columnName": "autoTranslate",
+            "affinity": "INTEGER",
+            "notNull": true,
+            "defaultValue": "1"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_feed_table_link",
+            "unique": true,
+            "columnNames": [
+              "link"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_feed_table_link` ON `${TABLE_NAME}` (`link`)"
+          }
+        ]
+      },
+      {
+        "tableName": "entry_table",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `feedId` INTEGER NOT NULL, `priority` INTEGER NOT NULL, `title` TEXT, `link` TEXT, `description` TEXT, `content` TEXT, `html` TEXT, `imageUrl` TEXT, `category` TEXT, `publishedDate` INTEGER, `visitedDate` INTEGER, `bookmark` TEXT, `sentCountStopAt` INTEGER NOT NULL, `isCached` INTEGER NOT NULL DEFAULT 0, `original_html` TEXT, `translated` TEXT, `translated_html` TEXT, `summarized_html` TEXT, `summarized` TEXT)",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "feedId",
+            "columnName": "feedId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "priority",
+            "columnName": "priority",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "title",
+            "columnName": "title",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "link",
+            "columnName": "link",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "description",
+            "columnName": "description",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "content",
+            "columnName": "content",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "html",
+            "columnName": "html",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "imageUrl",
+            "columnName": "imageUrl",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "category",
+            "columnName": "category",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "publishedDate",
+            "columnName": "publishedDate",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "visitedDate",
+            "columnName": "visitedDate",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "bookmark",
+            "columnName": "bookmark",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "sentCountStopAt",
+            "columnName": "sentCountStopAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "isCached",
+            "columnName": "isCached",
+            "affinity": "INTEGER",
+            "notNull": true,
+            "defaultValue": "0"
+          },
+          {
+            "fieldPath": "originalHtml",
+            "columnName": "original_html",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "translated",
+            "columnName": "translated",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "translatedHtml",
+            "columnName": "translated_html",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "summarizedHtml",
+            "columnName": "summarized_html",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "summarized",
+            "columnName": "summarized",
+            "affinity": "TEXT"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_entry_table_feedId_link",
+            "unique": true,
+            "columnNames": [
+              "feedId",
+              "link"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_entry_table_feedId_link` ON `${TABLE_NAME}` (`feedId`, `link`)"
+          }
+        ]
+      },
+      {
+        "tableName": "playlist_table",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `createdDate` INTEGER, `playlist` TEXT)",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "createdDate",
+            "columnName": "createdDate",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "playlist",
+            "columnName": "playlist",
+            "affinity": "TEXT"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        }
+      },
+      {
+        "tableName": "history_table",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `feedId` INTEGER NOT NULL, `insertDate` INTEGER, `title` TEXT, `link` TEXT)",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "feedId",
+            "columnName": "feedId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "insertDate",
+            "columnName": "insertDate",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "title",
+            "columnName": "title",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "link",
+            "columnName": "link",
+            "affinity": "TEXT"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        }
+      }
+    ],
+    "setupQueries": [
+      "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '75dd31f44afd91950ae6821f5780d2f1')"
+    ]
+  }
+}

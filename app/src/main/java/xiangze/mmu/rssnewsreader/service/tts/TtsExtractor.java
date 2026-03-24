@@ -660,7 +660,7 @@ public class TtsExtractor {
                                     String summarizedHtmlRaw = results[1];
 
                                     TextUtil.AiResponse translatedAi = textUtil.parseAiResponse(translatedHtmlRaw, processingTitle);
-                                    TextUtil.AiResponse summarizedAi = textUtil.parseAiResponse(summarizedHtmlRaw, "Summary");
+                                    TextUtil.AiResponse summarizedAi = textUtil.parseAiResponse(summarizedHtmlRaw, processingTitle);
 
                                     String finalTranslatedHtml = textUtil.formatAiResponseToHtml(
                                             translatedAi.title,
@@ -734,7 +734,7 @@ public class TtsExtractor {
                                         .observeOn(AndroidSchedulers.mainThread())
                                         .doFinally(() -> xiangze.mmu.rssnewsreader.service.util.AutoSummarizer.processingIds.remove(processingId))
                                         .subscribe(summarizedHtmlRaw -> {
-                                            TextUtil.AiResponse summarizedAi = textUtil.parseAiResponse(summarizedHtmlRaw, "Summary");
+                                            TextUtil.AiResponse summarizedAi = textUtil.parseAiResponse(summarizedHtmlRaw, processingTitle);
                                             String finalSummarizedHtml = textUtil.formatAiResponseToHtml(
                                                     summarizedAi.title,
                                                     summarizedAi.content,

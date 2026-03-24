@@ -500,7 +500,8 @@ public class TextUtil {
 
                 String baseSystemPrompt = "You are a helpful assistant designed to summarize web articles. " +
                         "Provide a concise summary of the content in targeted language. " +
-                        "If the content is short, do not make it longer. ";
+                        "If the content is short, do not make it longer. " +
+                        "Format your response exactly like this: [TITLE] <original_article_title_translated_to_target_language> [CONTENT] <summarized_content>. ";
                 String customPrompt = sharedPreferencesRepository.getCustomSummarizationPrompt();
                 if (customPrompt != null && !customPrompt.trim().isEmpty()) {
                     baseSystemPrompt += "\n\nAdditional Instructions:\n" + customPrompt;

@@ -120,7 +120,7 @@ public class AutoSummarizer {
                         // If this fails (Network error, Rate limit), it throws an exception immediately.
                         String summaryText = summarizationSingle.blockingGet();
 
-                        String summarizedTitle = "Summary";
+                        String summarizedTitle = title;
                         String summarizedBody = summaryText;
 
                         if (summaryText.contains("[TITLE]") && summaryText.contains("[CONTENT]") && 
