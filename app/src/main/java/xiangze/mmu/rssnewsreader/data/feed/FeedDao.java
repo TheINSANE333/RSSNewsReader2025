@@ -3,6 +3,7 @@ package xiangze.mmu.rssnewsreader.data.feed;
 import androidx.room.Dao;
 import androidx.room.Delete;
 import androidx.room.Insert;
+import androidx.room.OnConflictStrategy;
 import androidx.room.Query;
 import androidx.room.Update;
 
@@ -14,7 +15,7 @@ import io.reactivex.rxjava3.core.Flowable;
 @Dao
 public interface FeedDao {
 
-    @Insert
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
     void insert(Feed feed);
 
     @Update

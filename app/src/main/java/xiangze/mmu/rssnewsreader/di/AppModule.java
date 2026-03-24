@@ -25,7 +25,7 @@ public class AppModule {
     @Singleton
     public static AppDatabase provideDatabase(Application app, AppDatabase.Callback callback) {
         return Room.databaseBuilder(app, AppDatabase.class, "app_database")
-                .addMigrations(AppDatabase.MIGRATION_2_3, AppDatabase.MIGRATION_3_4, AppDatabase.MIGRATION_4_5, AppDatabase.MIGRATION_5_6, AppDatabase.MIGRATION_6_7)
+                .addMigrations(AppDatabase.MIGRATION_2_3, AppDatabase.MIGRATION_3_4, AppDatabase.MIGRATION_4_5, AppDatabase.MIGRATION_5_6, AppDatabase.MIGRATION_6_7, AppDatabase.MIGRATION_7_8)
                 .addCallback(callback)
                 .allowMainThreadQueries()
                 .build();

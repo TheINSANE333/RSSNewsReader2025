@@ -3,11 +3,13 @@ package xiangze.mmu.rssnewsreader.data.feed;
 import androidx.room.ColumnInfo;
 import androidx.room.Entity;
 import androidx.room.Ignore;
+import androidx.room.Index;
 import androidx.room.PrimaryKey;
 
 import java.util.Objects;
 
-@Entity(tableName = "feed_table")
+@Entity(tableName = "feed_table",
+        indices = {@Index(value = {"link"}, unique = true)})
 public class Feed {
 
     @PrimaryKey(autoGenerate = true)

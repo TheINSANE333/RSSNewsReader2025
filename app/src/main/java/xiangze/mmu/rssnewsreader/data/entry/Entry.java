@@ -2,12 +2,14 @@ package xiangze.mmu.rssnewsreader.data.entry;
 
 import androidx.room.ColumnInfo;
 import androidx.room.Entity;
+import androidx.room.Index;
 import androidx.room.PrimaryKey;
 import androidx.annotation.Nullable;
 
 import java.util.Date;
 
-@Entity(tableName = "entry_table")
+@Entity(tableName = "entry_table",
+        indices = {@Index(value = {"feedId", "link"}, unique = true)})
 public class Entry {
     @PrimaryKey(autoGenerate = true)
     private long id;

@@ -21,7 +21,7 @@ import xiangze.mmu.rssnewsreader.data.playlist.PlaylistDao;
 import javax.inject.Inject;
 import javax.inject.Provider;
 
-@Database(entities = {Feed.class, Entry.class, Playlist.class, History.class}, version = 7)
+@Database(entities = {Feed.class, Entry.class, Playlist.class, History.class}, version = 8)
 @androidx.room.TypeConverters({TypeConverters.class})
 // make this abstract to let room do the implementation
 public abstract class AppDatabase extends RoomDatabase {
@@ -30,6 +30,27 @@ public abstract class AppDatabase extends RoomDatabase {
     public abstract EntryDao entryDao();
     public abstract PlaylistDao playlistDao();
     public abstract HistoryDao historyDao();
+
+    public static final Migration MIGRATION_7_8 = new Migration(7, 8) {
+        @Override
+        public void migrate(@NonNull SupportSQLiteDatabase database) {
+            try {
+                // Delete duplicates in entry_table (keep only the one with the smallest ID for each feedId+link pair)
+                database.execSQL("DELETE FROM entry_table WHERE id NOT IN (SELECT MIN(id) FROM entry_table GROUP BY feedId, link)");
+
+                // Delete duplicates in feed_table
+                database.execSQL("DELETE FROM feed_table WHERE id NOT IN (SELECT MIN(id) FROM feed_table GROUP BY link)");
+
+                // Create unique indices
+                database.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS index_entry_table_feedId_link ON entry_table (feedId, link)");
+                database.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS index_feed_table_link ON feed_table (link)");
+
+                Log.d("DatabaseMigration", "Migration from v7 to v8 completed successfully.");
+            } catch (Exception e) {
+                Log.e("DatabaseMigration", "Migration v7 to v8 failed: " + e.getMessage());
+            }
+        }
+    };
 
     // Migration from version 2 to 3
     public static final Migration MIGRATION_2_3 = new Migration(2, 3) {
