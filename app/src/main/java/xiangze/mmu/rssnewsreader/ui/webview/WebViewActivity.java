@@ -1775,11 +1775,28 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
 
         Log.d(TAG, "onResume: isSpeaking=" + ttsPlayer.isSpeaking() + ", isPausedManually=" + ttsPlayer.isPausedManually());
 
+        // Ensure UI is synced with currently playing article if TTS moved forward while screen was off
+        if (!isReadingMode) {
+            long playingId = ttsPlayer.getCurrentId();
+            if (playingId != 0 && playingId != currentId) {
+                Log.d(TAG, "Syncing to currently playing article on resume: " + playingId);
+                currentId = playingId;
+                sharedPreferencesRepository.setCurrentReadingEntryId(currentId);
+                loadEntryContent();
+            }
+        }
+
         if (!isReadingMode && mMediaBrowserHelper != null) {
             mMediaBrowserHelper.onStart();
             MediaControllerCompat mediaController = mMediaBrowserHelper.getMediaController();
             if (mediaController != null) {
                 mediaController.registerCallback(mediaControllerCallback);
+                
+                // Also sync via MediaController if available
+                MediaMetadataCompat metadata = mediaController.getMetadata();
+                if (metadata != null) {
+                    mediaControllerCallback.onMetadataChanged(metadata);
+                }
             }
         }
 
@@ -1926,6 +1943,9 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
             if (mediaController.getPlaybackState() != null) {
                 isPlaying = mediaController.getPlaybackState().getState() == PlaybackStateCompat.STATE_PLAYING;
                 updatePlayPauseButtonIcon(isPlaying);
+            }
+            if (mediaController.getMetadata() != null) {
+                mediaControllerCallback.onMetadataChanged(mediaController.getMetadata());
             }
         }
 
