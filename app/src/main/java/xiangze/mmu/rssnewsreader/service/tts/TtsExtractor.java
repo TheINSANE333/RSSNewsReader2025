@@ -465,10 +465,6 @@ public class TtsExtractor {
             Article article = readability4J.parse();
             StringBuilder content = new StringBuilder();
 
-            if (title != null && !title.isEmpty()) {
-                content.append(title).append(delimiter);
-            }
-
             String articleContent = article.getContentWithUtf8Encoding();
             if (articleContent != null) {
                 // 2. Clean with Jsoup
@@ -540,6 +536,15 @@ public class TtsExtractor {
                                 element.remove();
                             }
                         }
+                    }
+                }
+
+                // Only prepend title if it's not already at the start of the content
+                String tempContent = content.toString().trim();
+                if (title != null && !title.trim().isEmpty()) {
+                    String cleanTitle = title.trim();
+                    if (!tempContent.startsWith(cleanTitle)) {
+                        content.insert(0, cleanTitle + delimiter);
                     }
                 }
 

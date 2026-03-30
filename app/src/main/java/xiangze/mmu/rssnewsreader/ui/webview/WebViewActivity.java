@@ -103,6 +103,7 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
     private MenuItem highlightTextButton;
     private MenuItem backgroundMusicButton;
     private String currentLink;
+    private String currentTitle;
     private long currentId;
     private long feedId;
     private String html;
@@ -649,6 +650,7 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
 
         webViewViewModel.clearViewData();
         currentId = entryInfo.getEntryId();
+        currentTitle = entryInfo.getEntryTitle();
         feedId = entryInfo.getFeedId();
         currentLink = entryInfo.getEntryLink();
         bookmark = entryInfo.getBookmark();
@@ -1444,6 +1446,7 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
         bookmark = metadata.getString("bookmark");
         currentLink = metadata.getString("link");
         currentId = Long.parseLong(metadata.getString(MediaMetadataCompat.METADATA_KEY_MEDIA_ID));
+        currentTitle = metadata.getString(MediaMetadataCompat.METADATA_KEY_DISPLAY_SUBTITLE);
         webViewViewModel.prioritizeEntry(currentId);
         refreshButtonVisibility();
         feedId = metadata.getLong("feedId");
@@ -1916,7 +1919,7 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
                 if (reader.peek() == JsonToken.STRING) {
                     String extractedHtml = reader.nextString();
                     if (extractedHtml != null && extractedHtml.length() >= 500) {
-                        ttsExtractor.processExtraction(currentId, currentLink, null, extractedHtml);
+                        ttsExtractor.processExtraction(currentId, currentLink, currentTitle, extractedHtml);
                     }
                 }
             } catch (Exception e) {

@@ -713,6 +713,18 @@ public class TextUtil {
             content = cleaned.substring(
                     cleaned.indexOf("[CONTENT]") + 9
             ).trim();
+
+            // Strip redundant title at the start of content
+            if (content.toLowerCase().startsWith(title.toLowerCase())) {
+                String potentialContent = content.substring(title.length()).trim();
+                // Check for common separators like ": ", "- ", or " - "
+                if (potentialContent.startsWith(":") || potentialContent.startsWith("-") || potentialContent.startsWith("—")) {
+                    potentialContent = potentialContent.substring(1).trim();
+                }
+                if (!potentialContent.isEmpty()) {
+                    content = potentialContent;
+                }
+            }
         }
 
         return new AiResponse(title, content);
