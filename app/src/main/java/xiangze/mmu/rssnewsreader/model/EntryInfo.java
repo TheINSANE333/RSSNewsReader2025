@@ -19,10 +19,13 @@ public class EntryInfo {
     private Date visitedDate;
     private String bookmark;
     private String content;
+    private String html;
     private int priority;
     private String originalHtml;
     private String translatedHtml;
+    private String translated;
     private String summarizedHtml;
+    private String summarized;
 
     // Feed
     private long feedId;
@@ -238,6 +241,14 @@ public class EntryInfo {
         this.content = content;
     }
 
+    public String getHtml() {
+        return html;
+    }
+
+    public void setHtml(String html) {
+        this.html = html;
+    }
+
     public int getPriority() {
         return priority;
     }
@@ -261,11 +272,27 @@ public class EntryInfo {
         this.translatedHtml = html;
     }
 
+    public String getTranslated() {
+        return translated;
+    }
+
+    public void setTranslated(String translated) {
+        this.translated = translated;
+    }
+
     public String getSummarizedHtml() {
         return summarizedHtml;
     }
 
     public void   setSummarizedHtml(String html) {
         this.summarizedHtml = html;
+    }
+
+    public String getSummarized() {
+        return summarized;
+    }
+
+    public void setSummarized(String summarized) {
+        this.summarized = summarized;
     }
 }

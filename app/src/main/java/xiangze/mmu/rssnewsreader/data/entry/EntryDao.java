@@ -113,6 +113,20 @@ public interface EntryDao {
     @Query("SELECT e.id as entryId, e.title as entryTitle, e.content as content, e.priority as priority, e.link as entryLink, e.description as entryDescription, e.imageUrl as entryImageUrl, e.publishedDate as entryPublishedDate, e.visitedDate as visitedDate, e.category as entryCategory, e.bookmark as bookmark, e.original_html as originalHtml, e.html as html, e.translated_html as translatedHtml, e.summarized_html as summarizedHtml, f.id as feedId, f.ttsSpeechRate as ttsSpeechRate, f.language as feedLanguage, f.title as feedTitle, f.imageUrl as feedImageUrl " +
             "FROM entry_table e " +
             "LEFT JOIN feed_table f ON e.feedId = f.id " +
+            "WHERE (summarized_html IS NULL OR summarized_html = '') AND original_html IS NOT NULL AND original_html != ''")
+    List<EntryInfo> getUnsummarizedEntriesInfo();
+
+    @RewriteQueriesToDropUnusedColumns
+    @Query("SELECT e.id as entryId, e.title as entryTitle, e.content as content, e.priority as priority, e.link as entryLink, e.description as entryDescription, e.imageUrl as entryImageUrl, e.publishedDate as entryPublishedDate, e.visitedDate as visitedDate, e.category as entryCategory, e.bookmark as bookmark, e.original_html as originalHtml, e.html as html, e.translated_html as translatedHtml, e.summarized_html as summarizedHtml, f.id as feedId, f.ttsSpeechRate as ttsSpeechRate, f.language as feedLanguage, f.title as feedTitle, f.imageUrl as feedImageUrl " +
+            "FROM entry_table e " +
+            "LEFT JOIN feed_table f ON e.feedId = f.id " +
+            "WHERE (translated_html IS NULL OR translated_html = '') AND original_html IS NOT NULL AND original_html != ''")
+    List<EntryInfo> getUntranslatedEntriesInfo();
+
+    @RewriteQueriesToDropUnusedColumns
+    @Query("SELECT e.id as entryId, e.title as entryTitle, e.content as content, e.priority as priority, e.link as entryLink, e.description as entryDescription, e.imageUrl as entryImageUrl, e.publishedDate as entryPublishedDate, e.visitedDate as visitedDate, e.category as entryCategory, e.bookmark as bookmark, e.original_html as originalHtml, e.html as html, e.translated_html as translatedHtml, e.summarized_html as summarizedHtml, f.id as feedId, f.ttsSpeechRate as ttsSpeechRate, f.language as feedLanguage, f.title as feedTitle, f.imageUrl as feedImageUrl " +
+            "FROM entry_table e " +
+            "LEFT JOIN feed_table f ON e.feedId = f.id " +
             "WHERE e.id = :id")
     EntryInfo getEntryInfoById(long id);
 

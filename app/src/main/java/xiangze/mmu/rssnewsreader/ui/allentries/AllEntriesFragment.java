@@ -31,6 +31,7 @@ import androidx.navigation.NavOptions;
 import androidx.navigation.Navigation;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
+import androidx.recyclerview.widget.ItemTouchHelper;
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
 
 import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers;
@@ -86,8 +87,10 @@ public class AllEntriesFragment extends Fragment implements EntryItemAdapter.Ent
     private List<EntryInfo> selectedEntries = new ArrayList<>();
     private TextView selectedCountTextView;
     private ActionBar actionBar;
-    private AutoTranslator autoTranslator;
-    private AutoSummarizer autoSummarizer;
+    @Inject
+    AutoTranslator autoTranslator;
+    @Inject
+    AutoSummarizer autoSummarizer;
     private static final AtomicBoolean autoTranslationStarted = new AtomicBoolean(false);
     private static final AtomicBoolean autoSummarizationStarted = new AtomicBoolean(false);
 
@@ -226,21 +229,6 @@ public class AllEntriesFragment extends Fragment implements EntryItemAdapter.Ent
     public void onViewCreated(@NonNull View view, Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
 
-        // 1. Initialize workers FIRST
-        autoTranslator = new AutoTranslator(
-                requireContext(),
-                entryRepository,
-                textUtil,
-                sharedPreferencesRepository
-        );
-
-        autoSummarizer = new AutoSummarizer(
-                requireContext(),
-                entryRepository,
-                textUtil,
-                sharedPreferencesRepository
-        );
-
         // 2. Read arguments
         if (getArguments() != null) {
             String newTitle = getArguments().getString("title");
@@ -266,6 +254,73 @@ public class AllEntriesFragment extends Fragment implements EntryItemAdapter.Ent
 
         // 6. Loading state observer
         observeLoadingState();
+
+        // 7. Swipe-to-action setup
+        setupSwipeToAction();
+    }
+
+    private void setupSwipeToAction() {
+        ItemTouchHelper.SimpleCallback swipeCallback = new ItemTouchHelper.SimpleCallback(0, ItemTouchHelper.LEFT | ItemTouchHelper.RIGHT) {
+            @Override
+            public boolean onMove(@NonNull RecyclerView recyclerView, @NonNull RecyclerView.ViewHolder viewHolder, @NonNull RecyclerView.ViewHolder target) {
+                return false;
+            }
+
+            @Override
+            public void onSwiped(@NonNull RecyclerView.ViewHolder viewHolder, int direction) {
+                int position = viewHolder.getAbsoluteAdapterPosition();
+                EntryInfo entryInfo = adapter.getCurrentList().get(position);
+
+                if (direction == ItemTouchHelper.RIGHT) {
+                    // Toggle bookmark
+                    String newBookmark = (entryInfo.getBookmark() == null || entryInfo.getBookmark().equals("N")) ? "Y" : "N";
+                    allEntriesViewModel.updateBookmark(newBookmark, entryInfo.getEntryId());
+                    adapter.notifyItemChanged(position);
+                    String message = newBookmark.equals("Y") ? "Bookmarked" : "Removed from bookmarks";
+                    Snackbar.make(binding.getRoot(), message, Snackbar.LENGTH_SHORT).show();
+                } else if (direction == ItemTouchHelper.LEFT) {
+                    // Delete entry
+                    allEntriesViewModel.deleteEntry(entryInfo.getEntryId());
+                    Snackbar.make(binding.getRoot(), "Entry deleted", Snackbar.LENGTH_LONG)
+                            .setAction("Undo", v -> {
+                                allEntriesViewModel.insertEntry(entryInfo);
+                            }).show();
+                }
+            }
+
+            @Override
+            public void onChildDraw(@NonNull android.graphics.Canvas c, @NonNull RecyclerView recyclerView, @NonNull RecyclerView.ViewHolder viewHolder, float dX, float dY, int actionState, boolean isCurrentlyActive) {
+                android.graphics.Paint paint = new android.graphics.Paint();
+                View itemView = viewHolder.itemView;
+
+                if (dX > 0) { // Swiping Right (Bookmark)
+                    paint.setColor(androidx.core.content.ContextCompat.getColor(requireContext(), R.color.primary));
+                    c.drawRect((float) itemView.getLeft(), (float) itemView.getTop(), dX, (float) itemView.getBottom(), paint);
+                    
+                    android.graphics.drawable.Drawable icon = androidx.core.content.ContextCompat.getDrawable(requireContext(), R.drawable.ic_bookmark_filled);
+                    if (icon != null) {
+                        int iconMargin = (itemView.getHeight() - icon.getIntrinsicHeight()) / 2;
+                        icon.setBounds(itemView.getLeft() + iconMargin, itemView.getTop() + iconMargin,
+                                itemView.getLeft() + iconMargin + icon.getIntrinsicWidth(), itemView.getBottom() - iconMargin);
+                        icon.draw(c);
+                    }
+                } else if (dX < 0) { // Swiping Left (Delete)
+                    paint.setColor(android.graphics.Color.RED);
+                    c.drawRect((float) itemView.getRight() + dX, (float) itemView.getTop(), (float) itemView.getRight(), (float) itemView.getBottom(), paint);
+
+                    android.graphics.drawable.Drawable icon = androidx.core.content.ContextCompat.getDrawable(requireContext(), R.drawable.ic_cancel);
+                    if (icon != null) {
+                        int iconMargin = (itemView.getHeight() - icon.getIntrinsicHeight()) / 2;
+                        icon.setBounds(itemView.getRight() - iconMargin - icon.getIntrinsicWidth(), itemView.getTop() + iconMargin,
+                                itemView.getRight() - iconMargin, itemView.getBottom() - iconMargin);
+                        icon.draw(c);
+                    }
+                }
+                super.onChildDraw(c, recyclerView, viewHolder, dX, dY, actionState, isCurrentlyActive);
+            }
+        };
+
+        new ItemTouchHelper(swipeCallback).attachToRecyclerView(binding.entriesRecycler);
     }
 
     private void observeEntries() {

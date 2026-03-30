@@ -5,6 +5,7 @@ import androidx.lifecycle.LiveData;
 import androidx.lifecycle.MutableLiveData;
 import androidx.lifecycle.ViewModel;
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
+import android.util.Log;
 
 import xiangze.mmu.rssnewsreader.data.entry.EntryRepository;
 import xiangze.mmu.rssnewsreader.data.feed.FeedRepository;
@@ -183,6 +184,24 @@ public class AllEntriesViewModel extends ViewModel {
                     @Override
                     public void onError(@NonNull Throwable e) {
 
+                    }
+                });
+    }
+
+    public void insertEntry(EntryInfo entryInfo) {
+        Completable.fromAction(() -> entryRepository.insert(entryInfo))
+                .subscribeOn(Schedulers.io())
+                .observeOn(AndroidSchedulers.mainThread())
+                .subscribe(new CompletableObserver() {
+                    @Override
+                    public void onSubscribe(@NonNull Disposable d) {}
+                    @Override
+                    public void onComplete() {
+                        toastMessage.postValue("Entry restored");
+                    }
+                    @Override
+                    public void onError(@NonNull Throwable e) {
+                        Log.e("AllEntriesViewModel", "Failed to restore entry", e);
                     }
                 });
     }

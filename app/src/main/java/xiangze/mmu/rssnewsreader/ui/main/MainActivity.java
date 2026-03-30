@@ -78,6 +78,8 @@ public class MainActivity extends AppCompatActivity {
     RssWorkManager rssWorkManager;
     @Inject
     TtsExtractor ttsExtractor;
+    @Inject
+    xiangze.mmu.rssnewsreader.data.opml.OpmlRepository opmlRepository;
 
     // Define the ActivityResultLauncher for importing OPML file
     private final ActivityResultLauncher<String[]> importOpmlLauncher = registerForActivityResult(
@@ -85,180 +87,17 @@ public class MainActivity extends AppCompatActivity {
             new ActivityResultCallback<List<Uri>>() {
                 @Override
                 public void onActivityResult(List<Uri> uris) {
-                    // Handle the result of importing OPML file(s)
                     if (uris != null && !uris.isEmpty()) {
                         for (Uri uri : uris) {
-                            // Do something with the URI(s) of the imported OPML file(s)
                             if (uri != null) {
-                                try {
-                                    InputStream inputStream = getContentResolver().openInputStream(uri);
-                                    XmlPullParserFactory factory = XmlPullParserFactory.newInstance();
-                                    XmlPullParser parser = factory.newPullParser();
-                                    parser.setInput(inputStream, null);
-                                    int eventType = parser.getEventType();
-                                    @SuppressLint("SimpleDateFormat") SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
-                                    long feedId = 0;
-                                    while (eventType != XmlPullParser.END_DOCUMENT) {
-                                        if (eventType == XmlPullParser.START_TAG && parser.getName().equals("setting")) {
-                                            String jobPeriodic = parser.getAttributeValue(null, "jobPeriodic");
-                                            String highlightText = parser.getAttributeValue(null, "highlightText");
-                                            String confidenceThreshold = parser.getAttributeValue(null, "confidenceThreshold");
-                                            String textZoom = parser.getAttributeValue(null, "textZoom");
-                                            String sortBy = parser.getAttributeValue(null, "sortBy");
-                                            String backgroundMusic = parser.getAttributeValue(null, "backgroundMusic");
-                                            String backgroundMusicVolume = parser.getAttributeValue(null, "backgroundMusicVolume");
-                                            String entriesLimitPerFeed = parser.getAttributeValue(null, "entriesLimitPerFeed");
-                                            String defaultTranslationLanguage = parser.getAttributeValue(null, "defaultTranslationLanguage");
-                                            String translationMethod = parser.getAttributeValue(null, "translationMethod");
-                                            String summaryLength = parser.getAttributeValue(null, "summaryLength");
-                                            String night = parser.getAttributeValue(null, "night");
-                                            String autoTranslate = parser.getAttributeValue(null, "autoTranslate");
-                                            String autoSummarize = parser.getAttributeValue(null, "autoSummarize");
-                                            String backgroundMusicFile = parser.getAttributeValue(null, "backgroundMusicFile");
-                                            String aiModel = parser.getAttributeValue(null, "ai_model");
-                                            String translationModel = parser.getAttributeValue(null, "translation_model");
-                                            String summarizationModel = parser.getAttributeValue(null, "summarization_model");
-                                            String chatbotModel = parser.getAttributeValue(null, "chatbot_model");
-                                            String groqApiKey = parser.getAttributeValue(null, "groq_api_key");
-                                            String abbreviationList = parser.getAttributeValue(null, "abbreviation_list");
-                                            String customTranslationPrompt = parser.getAttributeValue(null, "customTranslationPrompt");
-                                            String customSummarizationPrompt = parser.getAttributeValue(null, "customSummarizationPrompt");
-
-                                            Log.d(TAG, "onActivityResult: set defaultTranslationLanguage" + defaultTranslationLanguage);
-                                            if (jobPeriodic != null && !jobPeriodic.isEmpty()) {
-                                                sharedPreferencesRepository.setJobPeriodic(jobPeriodic);
-                                                rssWorkManager.enqueueRssWorker();
-                                            }
-                                            if (highlightText != null && !highlightText.isEmpty()) {
-                                                sharedPreferencesRepository.setHighlightText(highlightText.equals("true"));
-                                            }
-                                            if (textZoom != null && !textZoom.isEmpty()) {
-                                                sharedPreferencesRepository.setTextZoom(Integer.parseInt(textZoom));
-                                            }
-                                            if (sortBy != null && !sortBy.isEmpty()) {
-                                                sharedPreferencesRepository.setSortBy(sortBy);
-                                            }
-                                            if (backgroundMusic != null && !backgroundMusic.isEmpty()) {
-                                                sharedPreferencesRepository.setBackgroundMusic(backgroundMusic.equals("true"));
-                                            }
-                                            if (backgroundMusicVolume != null && !backgroundMusicVolume.isEmpty()) {
-                                                sharedPreferencesRepository.setBackgroundMusicVolume(Integer.parseInt(backgroundMusicVolume));
-                                            }
-                                            if (entriesLimitPerFeed != null && !entriesLimitPerFeed.isEmpty()) {
-                                                sharedPreferencesRepository.setEntriesLimitPerFeed(Integer.parseInt(entriesLimitPerFeed));
-                                            }
-                                            if (confidenceThreshold != null && !confidenceThreshold.isEmpty()) {
-                                                sharedPreferencesRepository.setConfidenceThreshold(Integer.parseInt(confidenceThreshold));
-                                            }
-                                            if (defaultTranslationLanguage != null && !defaultTranslationLanguage.isEmpty()) {
-                                                sharedPreferencesRepository.setDefaultTranslationLanguage(defaultTranslationLanguage);
-                                            }
-                                            if (translationMethod != null && !translationMethod.isEmpty()) {
-                                                sharedPreferencesRepository.setTranslationMethod(translationMethod);
-                                            }
-                                            if (summaryLength != null && !summaryLength.isEmpty()) {
-                                                sharedPreferencesRepository.setSummaryLength(Integer.parseInt(summaryLength));
-                                            }
-                                            if (night != null && !night.isEmpty()) {
-                                                sharedPreferencesRepository.setNight(night.equals("true"));
-                                                updateThemeSwitch();
-                                            }
-                                            if (autoTranslate != null && !autoTranslate.isEmpty()) {
-                                                sharedPreferencesRepository.setAutoTranslate(autoTranslate.equals("true"));
-                                            }
-                                            if (autoSummarize != null && !autoSummarize.isEmpty()) {
-                                                sharedPreferencesRepository.setAutoSummarize(autoSummarize.equals("true"));
-                                            }
-                                            if (backgroundMusicFile != null && !backgroundMusicFile.isEmpty()) {
-                                                sharedPreferencesRepository.setBackgroundMusicFile(backgroundMusicFile);
-                                            }
-                                            if (aiModel != null && !aiModel.isEmpty()) {
-                                                sharedPreferencesRepository.setAiModel(aiModel);
-                                            }
-                                            if (translationModel != null && !translationModel.isEmpty()) {
-                                                sharedPreferencesRepository.setTranslationModel(translationModel);
-                                            }
-                                            if (summarizationModel != null && !summarizationModel.isEmpty()) {
-                                                sharedPreferencesRepository.setSummarizationModel(summarizationModel);
-                                            }
-                                            if (chatbotModel != null && !chatbotModel.isEmpty()) {
-                                                sharedPreferencesRepository.setChatbotModel(chatbotModel);
-                                            }
-                                            if (groqApiKey != null && !groqApiKey.isEmpty()) {
-                                                sharedPreferencesRepository.setGroqApiKey(groqApiKey);
-                                            }
-                                            if (abbreviationList != null && !abbreviationList.isEmpty()) {
-                                                sharedPreferencesRepository.setAbbreviationList(abbreviationList);
-                                            }
-                                            if (customTranslationPrompt != null && !customTranslationPrompt.isEmpty()) {
-                                                sharedPreferencesRepository.setCustomTranslationPrompt(customTranslationPrompt);
-                                            }
-                                            if (customSummarizationPrompt != null && !customSummarizationPrompt.isEmpty()) {
-                                                sharedPreferencesRepository.setCustomSummarizationPrompt(customSummarizationPrompt);
-                                            }
-                                        } else if (eventType == XmlPullParser.START_TAG && parser.getName().equals("outline")) {
-                                            String title = parser.getAttributeValue(null, "text");
-                                            String link = parser.getAttributeValue(null, "xmlUrl");
-                                            Log.d("Test url", link);
-                                            String imageUrl = parser.getAttributeValue(null, "imageUrl");
-                                            String description = parser.getAttributeValue(null, "description");
-                                            String language = parser.getAttributeValue(null, "language");
-                                            String delayTimeString = parser.getAttributeValue(null, "delayTime");
-                                            int delayTime = 0;
-                                            if (delayTimeString != null) {
-                                                delayTime = Integer.parseInt(delayTimeString);
-                                            }
-                                            String ttsSpeechRateString = parser.getAttributeValue(null, "ttsSpeechRate");
-                                            float ttsSpeechRate = 0;
-                                            if (ttsSpeechRateString != null) {
-                                                ttsSpeechRate = Float.parseFloat(ttsSpeechRateString);
-                                            }
-
-                                            if (link != null && !link.isEmpty()) {
-                                                Feed feed = new Feed(title, link, description, imageUrl, language.isEmpty() ? null : language, delayTime, ttsSpeechRate);
-                                                mainActivityViewModel.addFeedUsingOPML(feed);
-                                                feedId = mainActivityViewModel.getFeedIdByLink(link);
-                                            }
-                                        } else if (eventType == XmlPullParser.START_TAG && parser.getName().equals("entry")) {
-                                            String entryTitle = parser.getAttributeValue(null, "entryTitle");
-                                            String bookmark = parser.getAttributeValue(null, "bookmark");
-                                            String visitedDate = parser.getAttributeValue(null, "visitedDate");
-                                            String link = parser.getAttributeValue(null, "link");
-                                            String description = parser.getAttributeValue(null, "description");
-                                            String publishedDate = parser.getAttributeValue(null, "publishedDate");
-                                            String entryImageUrl = parser.getAttributeValue(null, "entryImageUrl");
-                                            String entryCategory = parser.getAttributeValue(null, "entryCategory");
-
-                                            if (entryCategory != null && entryCategory.isEmpty()) {
-                                                entryCategory = null;
-                                            }
-                                            if (entryImageUrl != null && entryImageUrl.isEmpty()) {
-                                                entryImageUrl = null;
-                                            }
-                                            if (description != null && description.isEmpty()) {
-                                                description = null;
-                                            }
-
-                                            try {
-                                                Entry entry = new Entry(feedId, entryTitle, link, description, entryImageUrl, entryCategory, formatter.parse(publishedDate));
-                                                if (!bookmark.isEmpty()) {
-                                                    entry.setBookmark(bookmark);
-                                                }
-                                                if (!visitedDate.isEmpty()) {
-                                                    entry.setVisitedDate(formatter.parse(visitedDate));
-                                                }
-                                                mainActivityViewModel.addEntry(feedId, entry);
-                                            } catch (ParseException e) {
-                                                e.printStackTrace();
-                                            }
-                                        }
-                                        eventType = parser.next();
+                                opmlRepository.importOpml(uri, (success, error) -> {
+                                    if (success) {
+                                        updateThemeSwitch();
+                                        Toast.makeText(getApplicationContext(), "Feeds imported successfully", Toast.LENGTH_SHORT).show();
+                                    } else {
+                                        Toast.makeText(getApplicationContext(), "Import failed: " + error, Toast.LENGTH_SHORT).show();
                                     }
-                                    Toast.makeText(getApplicationContext(), "Feeds imported successfully", Toast.LENGTH_SHORT).show();
-                                } catch (IOException | XmlPullParserException e) {
-                                    e.printStackTrace();
-                                    Toast.makeText(getApplicationContext(), "Import failed", Toast.LENGTH_SHORT).show();
-                                }
+                                });
                             }
                         }
                     }
@@ -271,79 +110,15 @@ public class MainActivity extends AppCompatActivity {
             new ActivityResultCallback<ActivityResult>() {
                 @Override
                 public void onActivityResult(ActivityResult result) {
-                    // Handle the result of exporting OPML file
-                    if (result.getResultCode() == RESULT_OK) {
-                        try {
-                            XmlSerializer serializer = Xml.newSerializer();
-                            OutputStream os = getContentResolver().openOutputStream(result.getData().getData());
-                            serializer.setOutput(os, StandardCharsets.UTF_8.name());
-                            serializer.startDocument(null, true);
-                            serializer.startTag(null, "opml");
-                            serializer.startTag(null, "body");
-                            serializer.startTag(null, "setting");
-                            serializer.attribute(null, "jobPeriodic", Integer.toString(sharedPreferencesRepository.getJobPeriodic()));
-                            serializer.attribute(null, "highlightText", sharedPreferencesRepository.getHighlightText() ? "true" : "false");
-                            serializer.attribute(null, "textZoom", Integer.toString(sharedPreferencesRepository.getTextZoom()));
-                            serializer.attribute(null, "sortBy", sharedPreferencesRepository.getSortBy());
-                            serializer.attribute(null, "backgroundMusic", sharedPreferencesRepository.getBackgroundMusic() ? "true" : "false");
-                            serializer.attribute(null, "backgroundMusicVolume", Integer.toString(sharedPreferencesRepository.getBackgroundMusicVolume()));
-                            serializer.attribute(null, "entriesLimitPerFeed", Integer.toString(sharedPreferencesRepository.getEntriesLimitPerFeed()));
-                            serializer.attribute(null, "confidenceThreshold", Integer.toString(sharedPreferencesRepository.getConfidenceThreshold()));
-                            serializer.attribute(null, "defaultTranslationLanguage", sharedPreferencesRepository.getDefaultTranslationLanguage());
-                            serializer.attribute(null, "translationMethod", sharedPreferencesRepository.getTranslationMethod());
-                            serializer.attribute(null, "summaryLength", Integer.toString(sharedPreferencesRepository.getSummaryLength()));
-                            serializer.attribute(null, "night", sharedPreferencesRepository.getNight() ? "true" : "false");
-                            serializer.attribute(null, "autoTranslate", sharedPreferencesRepository.getAutoTranslate() ? "true" : "false");
-                            serializer.attribute(null, "autoSummarize", sharedPreferencesRepository.getAutoSummarize() ? "true" : "false");
-                            serializer.attribute(null, "backgroundMusicFile", sharedPreferencesRepository.getBackgroundMusicFile());
-                            serializer.attribute(null, "ai_model", sharedPreferencesRepository.getAiModel());
-                            serializer.attribute(null, "translation_model", sharedPreferencesRepository.getTranslationModel());
-                            serializer.attribute(null, "summarization_model", sharedPreferencesRepository.getSummarizationModel());
-                            serializer.attribute(null, "chatbot_model", sharedPreferencesRepository.getChatbotModel());
-                            serializer.attribute(null, "groq_api_key", sharedPreferencesRepository.getGroqApiKey());
-                            serializer.attribute(null, "abbreviation_list", sharedPreferencesRepository.getAbbreviationList());
-                            serializer.attribute(null, "customTranslationPrompt", sharedPreferencesRepository.getCustomTranslationPrompt());
-                            serializer.attribute(null, "customSummarizationPrompt", sharedPreferencesRepository.getCustomSummarizationPrompt());
-                            serializer.endTag(null, "setting");
-                            List<Feed> feeds = mainActivityViewModel.getAllStaticFeeds();
-                            @SuppressLint("SimpleDateFormat") SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
-                            for (Feed feed : feeds) {
-                                serializer.startTag(null, "outline");
-                                serializer.attribute(null, "text", feed.getTitle() != null ? feed.getTitle() : "");
-                                serializer.attribute(null, "title", feed.getTitle() != null ? feed.getTitle() : "");
-                                serializer.attribute(null, "imageUrl", feed.getImageUrl() != null ? feed.getImageUrl() : "");
-                                serializer.attribute(null, "description", feed.getDescription() != null ? feed.getDescription() : "");
-                                serializer.attribute(null, "language", feed.getLanguage() != null ? feed.getLanguage() : "");
-                                serializer.attribute(null, "xmlUrl", feed.getLink() != null ? feed.getLink() : "");
-                                serializer.attribute(null, "delayTime", Integer.toString(feed.getDelayTime()));
-                                serializer.attribute(null, "ttsSpeechRate", Float.toString(feed.getTtsSpeechRate()));
-                                serializer.attribute(null, "type", "rss");
-                                List<Entry> entries = mainActivityViewModel.getAllStaticEntries(feed.getId());
-                                for (Entry entry : entries) {
-                                    serializer.startTag(null, "entry");
-                                    serializer.attribute(null, "entryTitle", entry.getTitle() != null ? entry.getTitle() : "");
-                                    serializer.attribute(null, "bookmark", entry.getBookmark() != null ? entry.getBookmark() : "");
-                                    serializer.attribute(null, "visitedDate", entry.getVisitedDate() != null ? formatter.format(entry.getVisitedDate()) : "");
-                                    serializer.attribute(null, "link", entry.getLink() != null ? entry.getLink() : "");
-                                    serializer.attribute(null, "description", entry.getDescription() != null ? entry.getDescription() : "");
-                                    serializer.attribute(null, "publishedDate", entry.getPublishedDate() != null ? formatter.format(entry.getPublishedDate()) : "");
-                                    serializer.attribute(null, "entryImageUrl", entry.getImageUrl() != null ? entry.getImageUrl() : "");
-                                    serializer.attribute(null, "entryCategory", entry.getCategory() != null ? entry.getCategory() : "");
-                                    serializer.endTag(null, "entry");
-                                }
-                                serializer.endTag(null, "outline");
+                    if (result.getResultCode() == RESULT_OK && result.getData() != null) {
+                        opmlRepository.exportOpml(result.getData().getData(), (success, error) -> {
+                            if (success) {
+                                Toast.makeText(getApplicationContext(), "Feeds exported successfully", Toast.LENGTH_SHORT).show();
+                            } else {
+                                Toast.makeText(getApplicationContext(), "Export failed: " + error, Toast.LENGTH_SHORT).show();
                             }
-                            serializer.endTag(null, "body");
-                            serializer.endTag(null, "opml");
-                            serializer.endDocument();
-                            os.close();
-                            Toast.makeText(getApplicationContext(), "Feeds exported successfully", Toast.LENGTH_SHORT).show();
-                        } catch (IOException e) {
-                            e.printStackTrace();
-                            Toast.makeText(getApplicationContext(), "Export failed", Toast.LENGTH_SHORT).show();
-                        }
+                        });
                     } else {
-                        // Handle the case where the OPML file export is cancelled or failed
                         Toast.makeText(getApplicationContext(), "Export failed", Toast.LENGTH_SHORT).show();
                     }
                 }

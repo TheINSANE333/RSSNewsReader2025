@@ -355,6 +355,12 @@ public class TextUtil {
         });
     }
 
+    public Single<String> summarizeHtmlRx(String html, String title, int length) {
+        String targetLang = sharedPreferencesRepository.getDefaultTranslationLanguage();
+        return identifyLanguageRx(html)
+                .flatMap(sourceLang -> summarizeHtmlAllAtOnce(sourceLang, targetLang, html, length, 0, title, progress -> {}));
+    }
+
     public Single<String> summarizeHtmlAllAtOnce(String sourceLanguage, String targetLanguage, String html, int length, long articleId, String title, Consumer<Integer> progressCallback) {
         return Single.defer(() -> {
 
@@ -500,7 +506,8 @@ public class TextUtil {
 
                 String baseSystemPrompt = "You are a helpful assistant designed to summarize web articles. " +
                         "Provide a concise summary of the content in targeted language. " +
-                        "If the content is short, do not make it longer. " +
+                        "Strictly adhere to the requested summary length (number of sentences or words as specified). " +
+                        "If the content is short, do not make it longer than original. " +
                         "Format your response exactly like this: [TITLE] <original_article_title_translated_to_target_language> [CONTENT] <summarized_content>. ";
                 String customPrompt = sharedPreferencesRepository.getCustomSummarizationPrompt();
                 if (customPrompt != null && !customPrompt.trim().isEmpty()) {
@@ -519,7 +526,7 @@ public class TextUtil {
                 String prompt = String.format(
                         "Please summarize the following article titled \"%s\".\n" +
                                 "Target Language: %s\n" +
-                                "Length: %s\n" +
+                                "Requested Summary Length: approximately %d words.\n" +
                                 "Content:\n%s",
                         title, targetLanguage, length, cleanContent
                 );

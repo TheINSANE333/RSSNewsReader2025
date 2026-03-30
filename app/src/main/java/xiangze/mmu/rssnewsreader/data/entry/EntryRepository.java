@@ -89,6 +89,18 @@ public class EntryRepository {
         entryDao.updatePriority(priority, id);
     }
 
+    public List<EntryInfo> getAllUnsummarizedEntries() {
+        return entryDao.getUnsummarizedEntriesInfo();
+    }
+
+    public List<EntryInfo> getAllUntranslatedEntries() {
+        return entryDao.getUntranslatedEntriesInfo();
+    }
+
+    public EntryInfo getEntryInfoById(long id) {
+        return entryDao.getEntryInfoById(id);
+    }
+
     public EntryInfo getLastVisitedEntry() {
         long id = getLastVisitedEntryId();
         return entryDao.getEntryInfoById(id);
@@ -183,6 +195,24 @@ public class EntryRepository {
     }
 
 
+    public void insert(EntryInfo info) {
+        Entry entry = new Entry(info.getFeedId(), info.getEntryTitle(), info.getEntryLink(), info.getEntryDescription(), info.getEntryImageUrl(), info.getEntryCategory(), info.getEntryPublishedDate());
+        entry.setId(info.getEntryId());
+        entry.setBookmark(info.getBookmark());
+        entry.setVisitedDate(info.getVisitedDate());
+        entry.setContent(info.getContent());
+        entry.setHtml(info.getHtml());
+        entry.setOriginalHtml(info.getOriginalHtml());
+        entry.setTranslatedHtml(info.getTranslatedHtml());
+        entry.setSummarizedHtml(info.getSummarizedHtml());
+        entry.setTranslated(info.getTranslated());
+        entry.setSummarized(info.getSummarized());
+        
+        historyRepository.insert(new History(entry.getFeedId(), new Date(), entry.getTitle(), textUtil.normalizeUrl(entry.getLink())));
+        entryDao.insert(entry);
+        entryCache.remove(entry.getId());
+    }
+
     public void update(Entry entry) {
         entryDao.update(entry)
                 .subscribeOn(Schedulers.io())
@@ -225,10 +255,6 @@ public class EntryRepository {
                         Log.d(TAG, "delete onError: " + e.getMessage());
                     }
                 });
-    }
-
-    public EntryInfo getEntryInfoById(long entryId) {
-        return entryDao.getEntryInfoById(entryId);
     }
 
     public boolean checkIdExist(long id) {
