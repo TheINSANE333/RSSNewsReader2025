@@ -56,6 +56,80 @@ public class WebViewViewModel extends ViewModel {
         }
     }
 
+    private final MutableLiveData<Long> currentIdLiveData = new MutableLiveData<>();
+    private final MutableLiveData<Boolean> isTranslatedViewLiveData = new MutableLiveData<>();
+    private final MutableLiveData<Boolean> isSummarizedViewLiveData = new MutableLiveData<>();
+    private final MutableLiveData<String> snackbarMessageLiveData = new MutableLiveData<>();
+
+    public LiveData<Long> getCurrentIdLiveData() { return currentIdLiveData; }
+    public LiveData<Boolean> getIsTranslatedViewLiveData() { return isTranslatedViewLiveData; }
+    public LiveData<Boolean> getIsSummarizedViewLiveData() { return isSummarizedViewLiveData; }
+    public LiveData<String> getSnackbarMessageLiveData() { return snackbarMessageLiveData; }
+
+    public void setCurrentId(long id) {
+        setLiveDataValue(currentIdLiveData, id);
+        triggerEntryRefresh(id);
+    }
+
+    public void setIsTranslatedView(boolean isTranslated) {
+        setLiveDataValue(isTranslatedViewLiveData, isTranslated);
+    }
+
+    public void setIsSummarizedView(boolean isSummarized) {
+        setLiveDataValue(isSummarizedViewLiveData, isSummarized);
+    }
+
+    public void makeSnackbar(String message) {
+        setLiveDataValue(snackbarMessageLiveData, message);
+    }
+
+    public String rebuildHtml(EntryInfo entryInfo, boolean isNightMode) {
+        if (entryInfo == null) return null;
+        String html = getHtmlById(entryInfo.getEntryId());
+        if (html == null) return null;
+
+        org.jsoup.nodes.Document doc = org.jsoup.Jsoup.parse(html);
+        doc.head().append(getStyle(isNightMode));
+
+        String titleClass = null;
+        Boolean isSummarized = isSummarizedViewLiveData.getValue();
+        Boolean isTranslated = isTranslatedViewLiveData.getValue();
+        
+        if (isSummarized != null && isSummarized) titleClass = "summarized-title";
+        else if (isTranslated != null && isTranslated) titleClass = "translated-title";
+
+        org.jsoup.nodes.Element body = doc.selectFirst("body");
+        if (body != null) {
+            body.prepend(
+                    getHtml(
+                            entryInfo.getEntryTitle(),
+                            entryInfo.getFeedTitle(),
+                            entryInfo.getEntryPublishedDate(),
+                            entryInfo.getFeedImageUrl(),
+                            isNightMode,
+                            titleClass
+                    )
+            );
+        }
+
+        return doc.html();
+    }
+
+    public void reExtract(long id) {
+        entryRepository.updateHtml(null, id);
+        entryRepository.updateOriginalHtml(null, id);
+        entryRepository.updateTranslatedText(null, id);
+        entryRepository.updateTranslated(null, id);
+        entryRepository.updateTranslatedHtml(null, id);
+        entryRepository.updateSummarized(null, id);
+        entryRepository.updateSummarizedHtml(null, id);
+        entryRepository.updateSummarizedText(null, id);
+        entryRepository.updateContent(null, id);
+        clearViewData();
+        setIsTranslatedView(false);
+        setIsSummarizedView(false);
+    }
+
     @Inject
     public WebViewViewModel(EntryRepository entryRepository, xiangze.mmu.rssnewsreader.data.playlist.PlaylistRepository playlistRepository) {
         this.entryRepository = entryRepository;

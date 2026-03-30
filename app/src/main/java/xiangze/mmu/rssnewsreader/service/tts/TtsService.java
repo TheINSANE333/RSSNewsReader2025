@@ -102,6 +102,7 @@ public class TtsService extends MediaBrowserServiceCompat {
                 .setActions(PlaybackStateCompat.ACTION_PLAY | PlaybackStateCompat.ACTION_PAUSE |
                         PlaybackStateCompat.ACTION_PLAY_PAUSE |
                         PlaybackStateCompat.ACTION_SKIP_TO_NEXT | PlaybackStateCompat.ACTION_SKIP_TO_PREVIOUS |
+                        PlaybackStateCompat.ACTION_FAST_FORWARD | PlaybackStateCompat.ACTION_REWIND |
                         PlaybackStateCompat.ACTION_STOP)
                 .setState(PlaybackStateCompat.STATE_PAUSED, 0, 1.0f)
                 .build();
