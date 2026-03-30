@@ -5,6 +5,10 @@ import android.util.Log;
 
 import androidx.annotation.NonNull;
 import androidx.hilt.work.HiltWorker;
+import androidx.work.Constraints;
+import androidx.work.NetworkType;
+import androidx.work.OneTimeWorkRequest;
+import androidx.work.WorkManager;
 import androidx.work.Worker;
 import androidx.work.WorkerParameters;
 
@@ -85,6 +89,16 @@ public class RssWorker extends Worker {
             } finally {
                 executor.shutdown();
             }
+
+            // Trigger Image Preloading
+            Constraints preloadConstraints = new Constraints.Builder()
+                    .setRequiredNetworkType(NetworkType.UNMETERED)
+                    .build();
+            OneTimeWorkRequest preloadRequest = new OneTimeWorkRequest.Builder(PreloadWorker.class)
+                    .setConstraints(preloadConstraints)
+                    .build();
+            WorkManager.getInstance(context).enqueue(preloadRequest);
+            Log.d(TAG, "Scheduled PreloadWorker for images.");
 
             return Result.success();
         } catch (Exception e) {

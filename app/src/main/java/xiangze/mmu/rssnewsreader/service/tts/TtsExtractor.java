@@ -20,6 +20,9 @@ import androidx.core.content.ContextCompat;
 import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers;
 import io.reactivex.rxjava3.core.Single;
 import io.reactivex.rxjava3.schedulers.Schedulers;
+import androidx.lifecycle.LiveData;
+import androidx.lifecycle.MutableLiveData;
+
 import xiangze.mmu.rssnewsreader.data.entry.Entry;
 import xiangze.mmu.rssnewsreader.data.entry.EntryRepository;
 import xiangze.mmu.rssnewsreader.data.feed.Feed;
@@ -71,7 +74,13 @@ public class TtsExtractor {
     private int delayTime;
     private TtsPlayerListener ttsCallback;
     private TtsPlaylist ttsPlaylist;
-    private WebViewListener webViewCallback;
+
+    private final MutableLiveData<Boolean> finishedSetupLiveData = new MutableLiveData<>();
+    private final MutableLiveData<String> snackbarMessageLiveData = new MutableLiveData<>();
+
+    public LiveData<Boolean> getFinishedSetupLiveData() { return finishedSetupLiveData; }
+    public LiveData<String> getSnackbarMessageLiveData() { return snackbarMessageLiveData; }
+
     private Date playlistDate;
     public final String delimiter = "--####--";
     private final List<Long> failedIds = new ArrayList<>();
@@ -171,10 +180,7 @@ public class TtsExtractor {
             Log.d(TAG, "Not playing this ID. Current: " + currentIdInProgress + ", Playing: " + ttsPlaylist.getPlayingId());
         }
 
-        if (webViewCallback != null) {
-            webViewCallback.finishedSetup();
-            webViewCallback = null;
-        }
+        finishedSetupLiveData.postValue(true);
 
         currentIdInProgress = -1;
         extractionInProgress = false;
@@ -257,14 +263,6 @@ public class TtsExtractor {
 
     public void setCallback(TtsPlayerListener callback) {
         this.ttsCallback = callback;
-    }
-
-    public void setCallback(WebViewListener callback) {
-        this.webViewCallback = callback;
-    }
-
-    public WebViewListener getWebViewCallback() {
-        return webViewCallback;
     }
 
     public void prioritize() {
@@ -784,10 +782,8 @@ public class TtsExtractor {
         Log.e(TAG, "Process Failed for ID: " + id, error);
         extractionInProgress = false;
         currentIdInProgress = -1;
-        if (webViewCallback != null) {
-            webViewCallback.makeSnackbar("Process failed.");
-            webViewCallback.finishedSetup();
-        }
+        snackbarMessageLiveData.postValue("Process failed.");
+        finishedSetupLiveData.postValue(true);
     }
 
     public void setCurrentLanguage(String lang, boolean lock) {

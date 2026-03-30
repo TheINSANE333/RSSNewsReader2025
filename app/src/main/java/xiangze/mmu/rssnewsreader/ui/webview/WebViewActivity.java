@@ -84,7 +84,7 @@ import javax.inject.Inject;
 import dagger.hilt.android.AndroidEntryPoint;
 
 @AndroidEntryPoint
-public class WebViewActivity extends AppCompatActivity implements WebViewListener {
+public class WebViewActivity extends AppCompatActivity implements ReloadDialog.ReloadAction {
     private final static String TAG = "WebViewActivity";
     private LiveData<Entry> autoProcessingObserver;
     private Observer<Entry> checkAutoProcessed;
@@ -396,6 +396,8 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
 
         webViewViewModel = new ViewModelProvider(this).get(WebViewViewModel.class);
 
+        setupObservers();
+
         getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
             @Override
             public void handleOnBackPressed() {
@@ -453,7 +455,6 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
         }
 
         initializeUI();
-        ttsPlayer.setWebViewCallback(this);
 
         targetLanguage = sharedPreferencesRepository.getDefaultTranslationLanguage();
         translationMethod = sharedPreferencesRepository.getTranslationMethod();
@@ -465,6 +466,29 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
         initializeWebViewSettings();
         initializePlaybackModes();
         loadEntryContent();
+    }
+
+    private void setupObservers() {
+        // TtsPlayer Observers
+        ttsPlayer.getHighlightTextLiveData().observe(this, this::highlightText);
+        ttsPlayer.getFinishedSetupLiveData().observe(this, finished -> {
+            if (finished != null && finished) finishedSetup();
+        });
+        ttsPlayer.getLoadingProgressLiveData().observe(this, this::updateLoadingProgress);
+        ttsPlayer.getAskForReloadLiveData().observe(this, this::askForReload);
+        ttsPlayer.getSnackbarMessageLiveData().observe(this, this::makeSnackbar);
+        ttsPlayer.getShowFakeLoadingLiveData().observe(this, show -> {
+            if (show != null) {
+                if (show) showFakeLoading();
+                else hideFakeLoading();
+            }
+        });
+
+        // TtsExtractor Observers
+        ttsExtractor.getFinishedSetupLiveData().observe(this, finished -> {
+            if (finished != null && finished) finishedSetup();
+        });
+        ttsExtractor.getSnackbarMessageLiveData().observe(this, this::makeSnackbar);
     }
 
     @Override
@@ -1252,7 +1276,6 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
                 isReadingMode = false;
                 functionButtonsReadingMode.setVisibility(View.INVISIBLE);
                 switchPlayModeButton.setVisible(false);
-                ttsExtractor.setCallback((WebViewListener) null);
                 switchPlayMode();
                 mMediaBrowserHelper.onStart();
                 functionButtons.setVisibility(View.VISIBLE);
@@ -1263,7 +1286,6 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
                 isReadingMode = true;
                 functionButtons.setVisibility(View.INVISIBLE);
                 switchReadModeButton.setVisible(false);
-                ttsPlayer.setWebViewCallback(null);
                 mMediaBrowserHelper.getTransportControls().stop();
                 mMediaBrowserHelper.onStop();
                 webView.clearMatches();
@@ -1323,7 +1345,6 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
         });
     }
 
-    @Override
     public void showFakeLoading() {
         runOnUiThread(() -> {
             Log.d(TAG, "TTS is preparing, showing fake loading indicator.");
@@ -1332,7 +1353,6 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
         });
     }
 
-    @Override
     public void hideFakeLoading() {
         runOnUiThread(() -> {
             Log.d(TAG, "TTS is ready, hiding fake loading indicator.");
@@ -1340,7 +1360,6 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
         });
     }
 
-    @Override
     public void updateLoadingProgress(int progress) {
         runOnUiThread(() -> {
             if (loading.getVisibility() != View.VISIBLE) {
@@ -1502,7 +1521,6 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
         refreshButtonVisibility();
     }
 
-    @Override
     public void highlightText(String searchText) {
         if (!isReadingMode && sharedPreferencesRepository.getHighlightText()) {
             String text = searchText.trim();
@@ -1612,7 +1630,6 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
         }
     }
 
-    @Override
     public void finishedSetup() {
         ContextCompat.getMainExecutor(getApplicationContext()).execute(new Runnable() {
             @Override
@@ -1645,12 +1662,15 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
         return lang;
     }
 
-    @Override
     public void makeSnackbar(String message) {
         Snackbar.make(findViewById(R.id.webView_view), message, Snackbar.LENGTH_SHORT).show();
     }
 
     @Override
+    public void onReload() {
+        reload();
+    }
+
     public void reload() {
         if (currentId <= 0) {
             Log.w(TAG, "reload() aborted: invalid currentId");
@@ -1686,7 +1706,6 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
         }
     }
 
-    @Override
     public void askForReload(long feedId) {
         ReloadDialog dialog = new ReloadDialog(this, feedId, R.string.reload_confirmation, R.string.reload_suggestion_message);
         dialog.show(getSupportFragmentManager(), ReloadDialog.TAG);
@@ -1718,7 +1737,6 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
     @Override
     public void onStart() {
         super.onStart();
-        ttsPlayer.setWebViewCallback(this);
         if (!isReadingMode) {
             mMediaBrowserHelper.onStart();
 
@@ -1731,14 +1749,7 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
 
     @Override
     public void onStop() {
-        if (isReadingMode) {
-            if (ttsExtractor.getWebViewCallback() == this) {
-                ttsExtractor.setCallback((WebViewListener) null);
-            }
-        } else {
-            if (ttsPlayer.getWebViewCallback() == this) {
-                ttsPlayer.setWebViewCallback(null);
-            }
+        if (!isReadingMode) {
             mMediaBrowserHelper.onStop();
         }
         super.onStop();
@@ -1873,7 +1884,6 @@ public class WebViewActivity extends AppCompatActivity implements WebViewListene
             super.onPageStarted(view, url, favicon);
             Log.d(TAG, "ReadingWebClient: onPageStarted - loadingWebView visible.");
             webViewViewModel.setLoadingState(true);
-            ttsExtractor.setCallback(WebViewActivity.this);
             if (clearHistory) {
                 clearHistory = false;
                 webView.clearHistory();

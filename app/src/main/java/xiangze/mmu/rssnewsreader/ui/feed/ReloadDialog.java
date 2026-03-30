@@ -16,7 +16,6 @@ import androidx.appcompat.app.AppCompatDialogFragment;
 import androidx.lifecycle.ViewModelProvider;
 
 import xiangze.mmu.rssnewsreader.R;
-import xiangze.mmu.rssnewsreader.ui.webview.WebViewListener;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 
 import dagger.hilt.android.AndroidEntryPoint;
@@ -26,8 +25,12 @@ public class ReloadDialog extends AppCompatDialogFragment implements AdapterView
 
     public static final String TAG = ReloadDialog.class.getSimpleName();
 
+    public interface ReloadAction {
+        void onReload();
+    }
+
     private FeedViewModel feedViewModel;
-    private WebViewListener webViewListener;
+    private ReloadAction reloadAction;
     private ManageFeedListener manageFeedListener;
     private Spinner spinner;
     private int delayTime;
@@ -36,8 +39,8 @@ public class ReloadDialog extends AppCompatDialogFragment implements AdapterView
     private long id;
     private String[] options = {"0", "3", "5", "10", "20", "30", "40", "50", "60"};
 
-    public ReloadDialog(WebViewListener webViewListener, long id, int title, int message) {
-        this.webViewListener = webViewListener;
+    public ReloadDialog(ReloadAction reloadAction, long id, int title, int message) {
+        this.reloadAction = reloadAction;
         this.id = id;
         this.title = title;
         this.message = message;
@@ -81,7 +84,7 @@ public class ReloadDialog extends AppCompatDialogFragment implements AdapterView
                 .setNeutralButton(R.string.cancel, new DialogInterface.OnClickListener() {
                     @Override
                     public void onClick(DialogInterface dialogInterface, int i) {
-                        webViewListener = null;
+                        reloadAction = null;
                         manageFeedListener = null;
                     }
                 })
@@ -90,9 +93,9 @@ public class ReloadDialog extends AppCompatDialogFragment implements AdapterView
                     public void onClick(DialogInterface dialogInterface, int i) {
                         feedViewModel.updateDelayTimeById(id, delayTime);
 
-                        if (webViewListener != null) {
-                            webViewListener.reload();
-                            webViewListener = null;
+                        if (reloadAction != null) {
+                            reloadAction.onReload();
+                            reloadAction = null;
                         }
 
                         if (manageFeedListener != null) {

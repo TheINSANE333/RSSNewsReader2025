@@ -16,6 +16,9 @@ import android.util.Log;
 
 import androidx.core.content.ContextCompat;
 
+import androidx.lifecycle.LiveData;
+import androidx.lifecycle.MutableLiveData;
+
 import xiangze.mmu.rssnewsreader.R;
 import xiangze.mmu.rssnewsreader.data.entry.EntryRepository;
 import xiangze.mmu.rssnewsreader.data.sharedpreferences.SharedPreferencesRepository;
@@ -48,7 +51,6 @@ public class TtsPlayer extends PlayerAdapter implements TtsPlayerListener {
     private TextToSpeech tts;
     private PlaybackStateListener listener;
     private MediaSessionCompat.Callback callback;
-    private WebViewListener webViewCallback;
     private Context context;
     private final TtsExtractor ttsExtractor;
     private final EntryRepository entryRepository;
@@ -77,6 +79,20 @@ public class TtsPlayer extends PlayerAdapter implements TtsPlayerListener {
     private boolean hasSpokenAfterSetup = false;
     private PlaybackUiListener playbackUiListener;
     private int currentExtractProgress = 0;
+
+    private final MutableLiveData<String> highlightTextLiveData = new MutableLiveData<>();
+    private final MutableLiveData<Boolean> finishedSetupLiveData = new MutableLiveData<>();
+    private final MutableLiveData<String> snackbarMessageLiveData = new MutableLiveData<>();
+    private final MutableLiveData<Integer> loadingProgressLiveData = new MutableLiveData<>();
+    private final MutableLiveData<Long> askForReloadLiveData = new MutableLiveData<>();
+    private final MutableLiveData<Boolean> showFakeLoadingLiveData = new MutableLiveData<>();
+
+    public LiveData<String> getHighlightTextLiveData() { return highlightTextLiveData; }
+    public LiveData<Boolean> getFinishedSetupLiveData() { return finishedSetupLiveData; }
+    public LiveData<String> getSnackbarMessageLiveData() { return snackbarMessageLiveData; }
+    public LiveData<Integer> getLoadingProgressLiveData() { return loadingProgressLiveData; }
+    public LiveData<Long> getAskForReloadLiveData() { return askForReloadLiveData; }
+    public LiveData<Boolean> getShowFakeLoadingLiveData() { return showFakeLoadingLiveData; }
 
     @Inject
     public TtsPlayer(@ApplicationContext Context context, TtsExtractor ttsExtractor, EntryRepository entryRepository, SharedPreferencesRepository sharedPreferencesRepository) {
@@ -107,17 +123,12 @@ public class TtsPlayer extends PlayerAdapter implements TtsPlayerListener {
         tts.setOnUtteranceProgressListener(new UtteranceProgressListener() {
             @Override
             public void onStart(String utteranceId) {
-                if (utteranceId != null && webViewCallback != null && !sentences.isEmpty()) {
+                if (utteranceId != null && !sentences.isEmpty()) {
                     try {
                         int index = Integer.parseInt(utteranceId);
                         if (index >= 0 && index < sentences.size()) {
                             String sentenceToHighlight = sentences.get(index);
-                            // Ensure highlightText runs on the main thread
-                            ContextCompat.getMainExecutor(context).execute(() -> {
-                                if (webViewCallback != null) {
-                                    webViewCallback.highlightText(sentenceToHighlight);
-                                }
-                            });
+                            highlightTextLiveData.postValue(sentenceToHighlight);
                         }
                     } catch (NumberFormatException e) {
                         Log.e(TAG, "Invalid utterance ID format: " + utteranceId);
@@ -209,9 +220,7 @@ public class TtsPlayer extends PlayerAdapter implements TtsPlayerListener {
         if (content != null && content.equals(this.lastContent) && currentId == this.currentId && 
             (resolvedLanguage == null ? this.language == null : resolvedLanguage.equals(this.language))) {
             Log.d(TAG, "Content, language, and ID are identical to last extraction, skipping redundant extraction.");
-            if (webViewCallback != null) {
-                webViewCallback.finishedSetup();
-            }
+            finishedSetupLiveData.postValue(true);
             return;
         }
 
@@ -314,17 +323,13 @@ public class TtsPlayer extends PlayerAdapter implements TtsPlayerListener {
                     currentExtractProgress = (int) (((double) (i + 1) / totalSentences) * 100);
 
                     if (i % 3 == 0 || i == sentenceList.size() - 1) {
-                        ContextCompat.getMainExecutor(context).execute(() -> {
-                            if (webViewCallback != null) {
-                                webViewCallback.updateLoadingProgress(currentExtractProgress);
-                            }
-                        });
+                        loadingProgressLiveData.postValue(currentExtractProgress);
                     }
                 }
 
                 if (sentences.size() < 1) {
                     Log.w(TAG, "Extraction failed: no sentences found. Resetting state.");
-                    if (webViewCallback != null) webViewCallback.askForReload(feedId);
+                    askForReloadLiveData.postValue(feedId);
                     sentences.clear();
                     actionNeeded = false;
                     isPreparing = false;
@@ -355,15 +360,9 @@ public class TtsPlayer extends PlayerAdapter implements TtsPlayerListener {
             
             isPreparing = false;
 
-            if (webViewCallback != null) {
-                webViewCallback.finishedSetup();
-                webViewCallback.updateLoadingProgress(100);
-                webViewCallback.hideFakeLoading();
-            }
-
-            if (webViewCallback instanceof WebViewActivity) {
-                ((WebViewActivity) webViewCallback).syncLoadingWithTts();
-            }
+            finishedSetupLiveData.setValue(true);
+            loadingProgressLiveData.setValue(100);
+            showFakeLoadingLiveData.setValue(false);
 
             if (sentences == null || sentences.isEmpty()) {
                 Log.w(TAG, "No content to read in setupTts(), skipping...");
@@ -428,9 +427,7 @@ public class TtsPlayer extends PlayerAdapter implements TtsPlayerListener {
 
         if (result == TextToSpeech.LANG_MISSING_DATA || result == TextToSpeech.LANG_NOT_SUPPORTED) {
             Log.d(TAG, "Language not supported" + locale);
-            if (webViewCallback != null) {
-                webViewCallback.makeSnackbar("Language not installed. Required language: " + locale.getDisplayLanguage());
-            }
+            snackbarMessageLiveData.postValue("Language not installed. Required language: " + locale.getDisplayLanguage());
             tts.setLanguage(Locale.ENGLISH);
         }
         else {
@@ -665,30 +662,12 @@ public class TtsPlayer extends PlayerAdapter implements TtsPlayerListener {
         tts.setSpeechRate(speechRate);
     }
 
-    public void setWebViewCallback(WebViewListener listener) {
-        this.webViewCallback = listener;
-        if (listener != null && isSpeaking()) {
-            if (sentenceCounter >= 0 && sentenceCounter < sentences.size()) {
-                String sentence = sentences.get(sentenceCounter);
-                listener.highlightText(sentence);
-            }
-        }
-    }
-
-    public WebViewListener getWebViewCallback() {
-        return webViewCallback;
-    }
-
     public void showFakeLoading() {
-        if (webViewCallback != null) {
-            webViewCallback.showFakeLoading();
-        }
+        showFakeLoadingLiveData.postValue(true);
     }
 
     public void hideFakeLoading() {
-        if (webViewCallback != null) {
-            webViewCallback.hideFakeLoading();
-        }
+        showFakeLoadingLiveData.postValue(false);
     }
 
     public boolean ttsIsNull() {

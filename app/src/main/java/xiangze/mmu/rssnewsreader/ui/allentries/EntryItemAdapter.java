@@ -112,7 +112,7 @@ public class EntryItemAdapter extends ListAdapter<EntryInfo, EntryItemAdapter.En
 
     class EntryItemHolder extends RecyclerView.ViewHolder {
 
-        private TextView textViewEntryTitle, textViewFeedTitle, textViewEntryPubDate;
+        private TextView textViewEntryTitle, textViewFeedTitle, textViewEntryPubDate, textViewEntrySummary;
         private ImageView imageViewEntryImage, imageViewFeedImage;
         private MaterialButton bookmarkButton;
         private MaterialButton moreButton;
@@ -124,6 +124,7 @@ public class EntryItemAdapter extends ListAdapter<EntryInfo, EntryItemAdapter.En
             textViewEntryTitle = itemView.findViewById(R.id.entryTitle);
             textViewFeedTitle = itemView.findViewById(R.id.feedTitle);
             textViewEntryPubDate = itemView.findViewById(R.id.entryPubDate);
+            textViewEntrySummary = itemView.findViewById(R.id.entrySummary);
             imageViewFeedImage = itemView.findViewById(R.id.feedImage);
             imageViewEntryImage = itemView.findViewById(R.id.entryImage);
             bookmarkButton = itemView.findViewById(R.id.bookmark_button);
@@ -141,6 +142,15 @@ public class EntryItemAdapter extends ListAdapter<EntryInfo, EntryItemAdapter.En
 
             String pubDate = covertTimeToText(entryInfo.getEntryPublishedDate());
             textViewEntryPubDate.setText(pubDate);
+
+            // Bind Summary Snippet
+            String summary = entryInfo.getSummarized();
+            if (!TextUtils.isEmpty(summary)) {
+                textViewEntrySummary.setText(summary.trim());
+                textViewEntrySummary.setVisibility(View.VISIBLE);
+            } else {
+                textViewEntrySummary.setVisibility(View.GONE);
+            }
 
             if (entryInfo.getVisitedDate() != null) {
                 textViewEntryTitle.setTextColor(ContextCompat.getColor(context, R.color.unreadText));

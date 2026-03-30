@@ -65,6 +65,19 @@ public class RssWorkManager {
         Log.d(TAG, "One-time RssWorker triggered.");
     }
 
+    public void triggerPreloadWorker() {
+        Constraints constraints = new Constraints.Builder()
+                .setRequiredNetworkType(NetworkType.UNMETERED) // Prefer Wi-Fi for image preloading
+                .build();
+
+        androidx.work.OneTimeWorkRequest request = new androidx.work.OneTimeWorkRequest.Builder(PreloadWorker.class)
+                .setConstraints(constraints)
+                .build();
+
+        WorkManager.getInstance(context).enqueue(request);
+        Log.d(TAG, "PreloadWorker triggered.");
+    }
+
     public void dequeueRssWorker() {
         WorkManager.getInstance(context).cancelUniqueWork(refreshWorkerName);
     }

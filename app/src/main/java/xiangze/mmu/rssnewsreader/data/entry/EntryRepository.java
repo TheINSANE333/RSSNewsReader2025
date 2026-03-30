@@ -30,16 +30,15 @@ public class EntryRepository {
     private final EntryDao entryDao;
     private final HistoryRepository historyRepository;
     private final SharedPreferencesRepository sharedPreferencesRepository;
+    private final TextUtil textUtil;
     private final Map<Long, Entry> entryCache = new HashMap<>();
 
     @Inject
-    TextUtil textUtil;
-
-    @Inject
-    public EntryRepository(EntryDao entryDao, HistoryRepository historyRepository, SharedPreferencesRepository sharedPreferencesRepository) {
+    public EntryRepository(EntryDao entryDao, HistoryRepository historyRepository, SharedPreferencesRepository sharedPreferencesRepository, TextUtil textUtil) {
         this.entryDao = entryDao;
         this.historyRepository = historyRepository;
         this.sharedPreferencesRepository = sharedPreferencesRepository;
+        this.textUtil = textUtil;
     }
 
     public List<Entry> getStaticEntries(long id) {
@@ -95,6 +94,14 @@ public class EntryRepository {
 
     public List<EntryInfo> getAllUntranslatedEntries() {
         return entryDao.getUntranslatedEntriesInfo();
+    }
+
+    public List<Entry> getUncachedEntries() {
+        return entryDao.getUncachedEntries();
+    }
+
+    public void markAsCached(long id) {
+        entryDao.updatePreloadStatus(id, true);
     }
 
     public EntryInfo getEntryInfoById(long id) {

@@ -80,6 +80,23 @@
             app:layout_constraintTop_toBottomOf="@+id/entryTitle"
             tools:text="2 hours ago" />
 
+        <TextView
+            android:id="@+id/entrySummary"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:layout_marginEnd="16dp"
+            android:ellipsize="end"
+            android:maxLines="2"
+            android:textAppearance="?attr/textAppearanceBodySmall"
+            android:textColor="?attr/colorOnSurfaceVariant"
+            android:visibility="gone"
+            app:layout_constraintEnd_toStartOf="@+id/entryImage"
+            app:layout_constraintStart_toEndOf="@+id/selectedCheckbox"
+            app:layout_constraintTop_toBottomOf="@+id/entryPubDate"
+            tools:text="This is a short summary of the article produced by AI..."
+            tools:visibility="visible" />
+
         <LinearLayout
             android:id="@+id/actionsContainer"
             android:layout_width="wrap_content"
@@ -87,7 +104,7 @@
             android:layout_marginTop="12dp"
             android:orientation="horizontal"
             app:layout_constraintStart_toEndOf="@+id/selectedCheckbox"
-            app:layout_constraintTop_toBottomOf="@+id/entryPubDate">
+            app:layout_constraintTop_toBottomOf="@+id/entrySummary">
 
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/bookmark_button"

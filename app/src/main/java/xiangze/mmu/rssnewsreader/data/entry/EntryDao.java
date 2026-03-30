@@ -133,6 +133,9 @@ public interface EntryDao {
     @Query("SELECT * FROM entry_table WHERE isCached = 1 AND priority > 0 ORDER BY priority ASC")
     List<Entry> getPreloadedEntries();
 
+    @Query("SELECT * FROM entry_table WHERE isCached = 0 AND imageUrl IS NOT NULL AND imageUrl != ''")
+    List<Entry> getUncachedEntries();
+
     @Query("UPDATE entry_table SET isCached = :isCached WHERE id = :entryId")
     void updatePreloadStatus(long entryId, boolean isCached);
 

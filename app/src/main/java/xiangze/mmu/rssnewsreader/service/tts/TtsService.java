@@ -457,11 +457,6 @@ public class TtsService extends MediaBrowserServiceCompat {
                 } else {
                     ContextCompat.getMainExecutor(getApplicationContext()).execute(() -> {
                         ttsPlayer.hideFakeLoading();
-
-                        WebViewListener callback = ttsPlayer.getWebViewCallback();
-                        if (callback != null) {
-                            ContextCompat.getMainExecutor(getApplicationContext()).execute(callback::hideFakeLoading);
-                        }
                     });
                 }
             }
