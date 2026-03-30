@@ -385,8 +385,8 @@ public class TtsPlayer extends PlayerAdapter implements TtsPlayerListener {
 
             if (sentences.size() > 0 && !isPausedManually && !hasSpokenAfterSetup) {
                 hasSpokenAfterSetup = true;
-                Log.d(TAG, "Auto-speaking from setupTts");
-                speak();
+                Log.d(TAG, "Auto-speaking from setupTts with 300ms delay");
+                new Handler(Looper.getMainLooper()).postDelayed(this::speak, 300);
             } else {
                 Log.d(TAG, "TTS ready, but paused manually or no content. Waiting for user to resume.");
             }
@@ -502,25 +502,42 @@ public class TtsPlayer extends PlayerAdapter implements TtsPlayerListener {
     }
 
     public void fastForward() {
-        if (tts != null && sentenceCounter < sentences.size() - 1) {
+        if (tts != null && sentences != null && sentenceCounter < sentences.size() - 1) {
             isManualSkip = true;
             sentenceCounter++;
             entryRepository.updateSentCount(sentenceCounter, currentId);
-            tts.stop();
-            speak();
+            
+            String sentence = sentences.get(sentenceCounter);
+            String utteranceId = String.valueOf(sentenceCounter);
+            currentUtteranceID = utteranceId;
+            
+            Log.d(TAG, "FastForward to [#" + sentenceCounter + "]: " + sentence);
+            tts.speak(sentence, TextToSpeech.QUEUE_FLUSH, null, utteranceId);
+            
+            setUiControlPlayback(true);
+            setNewState(PlaybackStateCompat.STATE_PLAYING);
         } else {
+            isManualSkip = true;
             entryRepository.updateSentCount(0, currentId);
             callback.onSkipToNext();
         }
     }
 
     public void fastRewind() {
-        if (tts != null && sentenceCounter > 0) {
+        if (tts != null && sentences != null && sentenceCounter > 0) {
             isManualSkip = true;
             sentenceCounter--;
             entryRepository.updateSentCount(sentenceCounter, currentId);
-            tts.stop(); // interrupt current sentence
-            speak();
+            
+            String sentence = sentences.get(sentenceCounter);
+            String utteranceId = String.valueOf(sentenceCounter);
+            currentUtteranceID = utteranceId;
+            
+            Log.d(TAG, "FastRewind to [#" + sentenceCounter + "]: " + sentence);
+            tts.speak(sentence, TextToSpeech.QUEUE_FLUSH, null, utteranceId);
+            
+            setUiControlPlayback(true);
+            setNewState(PlaybackStateCompat.STATE_PLAYING);
         }
     }
 

@@ -120,6 +120,38 @@ public class TextUtil {
         }
     }
 
+    public String splitIntoSentences(String text, String delimiter) {
+        if (text == null || text.isEmpty()) return "";
+        
+        StringBuilder sb = new StringBuilder();
+        BreakIterator iterator = BreakIterator.getSentenceInstance(Locale.ROOT);
+        iterator.setText(text);
+        
+        int start = iterator.first();
+        int end = iterator.next();
+
+        while (end != BreakIterator.DONE) {
+            String candidate = text.substring(start, end);
+            String trimmed = candidate.trim();
+
+            if (endsWithAbbreviation(trimmed)) {
+                int nextEnd = iterator.next();
+                if (nextEnd != BreakIterator.DONE) {
+                    end = nextEnd;
+                    continue;
+                }
+            }
+
+            if (!trimmed.isEmpty()) {
+                if (sb.length() > 0) sb.append(delimiter);
+                sb.append(trimmed);
+            }
+            start = end;
+            end = iterator.next();
+        }
+        return sb.toString();
+    }
+
     public boolean endsWithAbbreviation(String text) {
         if (text.isEmpty() || !text.endsWith(".")) {
             return false;

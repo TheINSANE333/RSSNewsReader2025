@@ -227,6 +227,11 @@ public class WebViewViewModel extends ViewModel {
                 "        color: black !important;\n" +
                 "        border-radius: 2px;\n" +
                 "    }\n" +
+                "    mark.tts-highlight {\n" +
+                "        background-color: " + highlightColor + " !important;\n" +
+                "        color: black !important;\n" +
+                "        border-radius: 2px;\n" +
+                "    }\n" +
                 "</style>";
     }
 

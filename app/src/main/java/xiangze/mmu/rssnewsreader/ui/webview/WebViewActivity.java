@@ -418,6 +418,12 @@ public class WebViewActivity extends AppCompatActivity implements ReloadDialog.R
             .observeOn(AndroidSchedulers.mainThread())
             .subscribe(res -> {
                 String finalHtml = textUtil.formatAiResponseToHtml(info.getEntryTitle(), res, info.getFeedTitle(), info.getEntryPublishedDate(), info.getFeedImageUrl(), sharedPreferencesRepository.getNight(), "translated-title");
+                
+                // Properly split AI response into sentences and prepend title
+                String splitRes = textUtil.splitIntoSentences(res, ttsExtractor.delimiter);
+                String contentToRead = info.getEntryTitle() + ttsExtractor.delimiter + splitRes;
+                
+                webViewViewModel.updateTranslated(contentToRead, currentId);
                 webViewViewModel.updateTranslatedHtml(finalHtml, currentId);
                 webViewViewModel.setIsTranslatedView(true);
                 loadCurrentViewState();
@@ -444,6 +450,12 @@ public class WebViewActivity extends AppCompatActivity implements ReloadDialog.R
             .observeOn(AndroidSchedulers.mainThread())
             .subscribe(res -> {
                 String finalHtml = textUtil.formatAiResponseToHtml(info.getEntryTitle(), res, info.getFeedTitle(), info.getEntryPublishedDate(), info.getFeedImageUrl(), sharedPreferencesRepository.getNight(), "summarized-title");
+                
+                // Properly split AI response into sentences and prepend title
+                String splitRes = textUtil.splitIntoSentences(res, ttsExtractor.delimiter);
+                String contentToRead = info.getEntryTitle() + ttsExtractor.delimiter + splitRes;
+                
+                webViewViewModel.updateSummarized(contentToRead, currentId);
                 webViewViewModel.updateSummarizedHtml(finalHtml, currentId);
                 webViewViewModel.setIsSummarizedView(true);
                 loadCurrentViewState();
