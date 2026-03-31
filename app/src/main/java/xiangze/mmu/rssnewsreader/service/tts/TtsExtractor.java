@@ -541,7 +541,21 @@ public class TtsExtractor {
                 String tempContent = content.toString().trim();
                 if (title != null && !title.trim().isEmpty()) {
                     String cleanTitle = title.trim();
-                    if (!tempContent.startsWith(cleanTitle)) {
+                    boolean isRedundant = false;
+                    
+                    // Case-insensitive check for redundant title at the start
+                    if (tempContent.toLowerCase().startsWith(cleanTitle.toLowerCase())) {
+                        isRedundant = true;
+                    } else {
+                        // Check if the first sentence/line is basically the title
+                        String firstLine = tempContent.split(delimiter)[0].trim();
+                        if (firstLine.equalsIgnoreCase(cleanTitle) || 
+                            (firstLine.length() < 100 && cleanTitle.toLowerCase().contains(firstLine.toLowerCase()))) {
+                            isRedundant = true;
+                        }
+                    }
+
+                    if (!isRedundant) {
                         content.insert(0, cleanTitle + delimiter);
                     }
                 }

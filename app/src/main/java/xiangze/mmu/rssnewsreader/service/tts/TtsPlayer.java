@@ -190,7 +190,6 @@ public class TtsPlayer extends PlayerAdapter implements TtsPlayerListener {
         }
 
         currentId = -1;
-        isPausedManually = false;
         isPreparing = false;
         isArticleFinished = false;
         isSettingUpNewArticle = false;
@@ -204,8 +203,7 @@ public class TtsPlayer extends PlayerAdapter implements TtsPlayerListener {
         if (tts != null && tts.isSpeaking()) {
             tts.stop();
         }
-        isPausedManually = true;
-        sharedPreferencesRepository.setIsPausedManually(true);
+        setPausedManually(true);
         setNewState(PlaybackStateCompat.STATE_PAUSED);
         setUiControlPlayback(false);
         if (playbackUiListener != null) {
@@ -216,6 +214,11 @@ public class TtsPlayer extends PlayerAdapter implements TtsPlayerListener {
     public void extract(long currentId, long feedId, String content, String language) {
         Log.d(TAG, "Switching to new article: ID=" + currentId);
 
+        boolean wasSpeaking = tts != null && tts.isSpeaking();
+        isPausedManually = !wasSpeaking && sharedPreferencesRepository.getIsPausedManually();
+        sharedPreferencesRepository.setIsPausedManually(isPausedManually);
+        Log.d(TAG, "Detected isPausedManually = " + isPausedManually);
+
         String resolvedLanguage = (language != null && language.equals("Use Language Identifier")) ? null : language;
         if (content != null && content.equals(this.lastContent) && currentId == this.currentId && 
             (resolvedLanguage == null ? this.language == null : resolvedLanguage.equals(this.language))) {
@@ -223,11 +226,6 @@ public class TtsPlayer extends PlayerAdapter implements TtsPlayerListener {
             finishedSetupLiveData.postValue(true);
             return;
         }
-
-        boolean wasSpeaking = tts != null && tts.isSpeaking();
-        isPausedManually = !wasSpeaking && sharedPreferencesRepository.getIsPausedManually();
-        sharedPreferencesRepository.setIsPausedManually(isPausedManually);
-        Log.d(TAG, "Detected isPausedManually = " + isPausedManually);
 
         if (tts != null && tts.isSpeaking()) {
             Log.d(TAG, "stop current TTS");

@@ -448,9 +448,9 @@ public class TextUtil {
                 AiClient aiClient = new AiClient(sharedPreferencesRepository.getContext());
                 List<Message> messages = new ArrayList<>();
 
-                String baseSystemPrompt = "Translate title and html to the target language. " +
-                        "Preserve all HTML exactly." +
-                        "Format your response exactly like this: [TITLE] <translated_title> [CONTENT] <translated_html_content>. ";
+                String baseSystemPrompt = "Translate the provided text to the target language. " +
+                        "Preserve any HTML tags if present, but focus on translating the content. " +
+                        "Return ONLY the translated content, without any markers, headers, or additional text.";
                 String customPrompt = sharedPreferencesRepository.getCustomTranslationPrompt();
                 if (customPrompt != null && !customPrompt.trim().isEmpty()) {
                     baseSystemPrompt += "\n\nAdditional Instructions:\n" + customPrompt;
@@ -465,9 +465,8 @@ public class TextUtil {
                 messages.add(new Message(
                     "user",
                     String.format(
-                            "Target Language: %s\nTitle: %s\nContent: %s",
+                            "Target Language: %s\nText to translate:\n%s",
                             targetLanguage,
-                            title,
                             html
                     )
                 ));
@@ -537,10 +536,9 @@ public class TextUtil {
                 List<Message> messages = new ArrayList<>();
 
                 String baseSystemPrompt = "You are a helpful assistant designed to summarize web articles. " +
-                        "Provide a concise summary of the content in targeted language. " +
-                        "Strictly adhere to the requested summary length (number of sentences or words as specified). " +
-                        "If the content is short, do not make it longer than original. " +
-                        "Format your response exactly like this: [TITLE] <original_article_title_translated_to_target_language> [CONTENT] <summarized_content>. ";
+                        "Provide a concise summary of the content in the target language. " +
+                        "Strictly adhere to the requested summary length. " +
+                        "Return ONLY the summarized content as plain text (or HTML if appropriate), without any markers, headers, or additional metadata.";
                 String customPrompt = sharedPreferencesRepository.getCustomSummarizationPrompt();
                 if (customPrompt != null && !customPrompt.trim().isEmpty()) {
                     baseSystemPrompt += "\n\nAdditional Instructions:\n" + customPrompt;
@@ -556,11 +554,8 @@ public class TextUtil {
 
                 // Build the prompt (matching manual mode format)
                 String prompt = String.format(
-                        "Please summarize the following article titled \"%s\".\n" +
-                                "Target Language: %s\n" +
-                                "Requested Summary Length: approximately %d words.\n" +
-                                "Content:\n%s",
-                        title, targetLanguage, length, cleanContent
+                        "Target Language: %s\nRequested Summary Length: approximately %d words.\nContent to summarize:\n%s",
+                        targetLanguage, length, cleanContent
                 );
 
                 messages.add(new Message("user", prompt));
@@ -743,26 +738,34 @@ public class TextUtil {
         String title = defaultTitle;
         String content = cleaned;
 
-        if (cleaned.contains("[TITLE]") && cleaned.contains("[CONTENT]") &&
-                cleaned.indexOf("[TITLE]") < cleaned.indexOf("[CONTENT]")) {
-            title = cleaned.substring(
-                    cleaned.indexOf("[TITLE]") + 7,
-                    cleaned.indexOf("[CONTENT]")
-            ).trim();
-            content = cleaned.substring(
-                    cleaned.indexOf("[CONTENT]") + 9
-            ).trim();
+        // Try to find markers [TITLE] and [CONTENT] (including common variations or translations)
+        String titleMarker = "[TITLE]";
+        String contentMarker = "[CONTENT]";
+        
+        int titleIndex = cleaned.toUpperCase().indexOf(titleMarker);
+        int contentIndex = cleaned.toUpperCase().indexOf(contentMarker);
 
-            // Strip redundant title at the start of content
-            if (content.toLowerCase().startsWith(title.toLowerCase())) {
-                String potentialContent = content.substring(title.length()).trim();
-                // Check for common separators like ": ", "- ", or " - "
-                if (potentialContent.startsWith(":") || potentialContent.startsWith("-") || potentialContent.startsWith("—")) {
-                    potentialContent = potentialContent.substring(1).trim();
-                }
-                if (!potentialContent.isEmpty()) {
-                    content = potentialContent;
-                }
+        if (titleIndex != -1 && contentIndex != -1 && titleIndex < contentIndex) {
+            title = cleaned.substring(titleIndex + titleMarker.length(), contentIndex).trim();
+            content = cleaned.substring(contentIndex + contentMarker.length()).trim();
+        } else {
+            // If no markers, check if the first sentence/line is the title
+            String firstLine = cleaned.split("\\n")[0].trim();
+            if (firstLine.equalsIgnoreCase(defaultTitle) || 
+                (firstLine.length() < 100 && defaultTitle.toLowerCase().contains(firstLine.toLowerCase()))) {
+                content = cleaned.substring(cleaned.indexOf(firstLine) + firstLine.length()).trim();
+                title = firstLine;
+            }
+        }
+
+        // Final cleanup of the content to remove any leftover redundant title or common summary headers
+        if (content.toLowerCase().startsWith(title.toLowerCase())) {
+            String potentialContent = content.substring(title.length()).trim();
+            if (potentialContent.startsWith(":") || potentialContent.startsWith("-") || potentialContent.startsWith("—")) {
+                potentialContent = potentialContent.substring(1).trim();
+            }
+            if (!potentialContent.isEmpty()) {
+                content = potentialContent;
             }
         }
 

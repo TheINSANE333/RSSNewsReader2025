@@ -417,11 +417,12 @@ public class WebViewActivity extends AppCompatActivity implements ReloadDialog.R
             .subscribeOn(Schedulers.io())
             .observeOn(AndroidSchedulers.mainThread())
             .subscribe(res -> {
-                String finalHtml = textUtil.formatAiResponseToHtml(info.getEntryTitle(), res, info.getFeedTitle(), info.getEntryPublishedDate(), info.getFeedImageUrl(), sharedPreferencesRepository.getNight(), "translated-title");
+                TextUtil.AiResponse aiRes = textUtil.parseAiResponse(res, info.getEntryTitle());
+                String finalHtml = textUtil.formatAiResponseToHtml(aiRes.title, aiRes.content, info.getFeedTitle(), info.getEntryPublishedDate(), info.getFeedImageUrl(), sharedPreferencesRepository.getNight(), "translated-title");
                 
                 // Properly split AI response into sentences and prepend title
-                String splitRes = textUtil.splitIntoSentences(res, ttsExtractor.delimiter);
-                String contentToRead = info.getEntryTitle() + ttsExtractor.delimiter + splitRes;
+                String splitRes = textUtil.splitIntoSentences(aiRes.content, ttsExtractor.delimiter);
+                String contentToRead = aiRes.title + ttsExtractor.delimiter + splitRes;
                 
                 webViewViewModel.updateTranslated(contentToRead, currentId);
                 webViewViewModel.updateTranslatedHtml(finalHtml, currentId);
@@ -449,11 +450,12 @@ public class WebViewActivity extends AppCompatActivity implements ReloadDialog.R
             .subscribeOn(Schedulers.io())
             .observeOn(AndroidSchedulers.mainThread())
             .subscribe(res -> {
-                String finalHtml = textUtil.formatAiResponseToHtml(info.getEntryTitle(), res, info.getFeedTitle(), info.getEntryPublishedDate(), info.getFeedImageUrl(), sharedPreferencesRepository.getNight(), "summarized-title");
+                TextUtil.AiResponse aiRes = textUtil.parseAiResponse(res, info.getEntryTitle());
+                String finalHtml = textUtil.formatAiResponseToHtml(aiRes.title, aiRes.content, info.getFeedTitle(), info.getEntryPublishedDate(), info.getFeedImageUrl(), sharedPreferencesRepository.getNight(), "summarized-title");
                 
                 // Properly split AI response into sentences and prepend title
-                String splitRes = textUtil.splitIntoSentences(res, ttsExtractor.delimiter);
-                String contentToRead = info.getEntryTitle() + ttsExtractor.delimiter + splitRes;
+                String splitRes = textUtil.splitIntoSentences(aiRes.content, ttsExtractor.delimiter);
+                String contentToRead = aiRes.title + ttsExtractor.delimiter + splitRes;
                 
                 webViewViewModel.updateSummarized(contentToRead, currentId);
                 webViewViewModel.updateSummarizedHtml(finalHtml, currentId);
