@@ -224,13 +224,16 @@ public class WebViewActivity extends AppCompatActivity implements ReloadDialog.R
         EntryInfo entryInfo = (currentId != 0) ? webViewViewModel.getEntryInfoById(currentId) : webViewViewModel.getLastVisitedEntry();
         if (entryInfo == null) { makeSnackbar("No article to load."); return; }
 
+        if (currentId != entryInfo.getEntryId()) {
+            userManuallySwitchedToOriginal = false; // Reset for new article
+        }
+
         currentId = entryInfo.getEntryId();
         currentTitle = entryInfo.getEntryTitle();
         feedId = entryInfo.getFeedId();
         currentLink = entryInfo.getEntryLink();
 
         webViewViewModel.prioritizeEntry(currentId);
-        // Do NOT reset userManuallySwitchedToOriginal here as this is called when loading the SAME article (e.g. from Browser)
 
         Entry entry = entryRepository.getEntryById(currentId);
         if (entry == null) return;
@@ -255,7 +258,13 @@ public class WebViewActivity extends AppCompatActivity implements ReloadDialog.R
     }
 
     private void loadCurrentViewState() {
-        Entry entry = entryRepository.getEntryById(currentId);
+        loadCurrentViewState(null);
+    }
+
+    private void loadCurrentViewState(Entry entry) {
+        if (entry == null) {
+            entry = entryRepository.getEntryById(currentId);
+        }
         if (entry == null) return;
 
         String htmlToLoad;
@@ -312,7 +321,8 @@ public class WebViewActivity extends AppCompatActivity implements ReloadDialog.R
                 boolean hasSummary = entry.getSummarizedHtml() != null && !entry.getSummarizedHtml().trim().isEmpty();
                 if (hasSummary) {
                     webViewViewModel.setIsSummarizedView(true);
-                    // No need to call loadCurrentViewState here as the LiveData observer for isSummarizedView will handle it
+                    // Manually trigger loadCurrentViewState with the latest entry to avoid DB lag
+                    loadCurrentViewState(entry);
                     return; 
                 }
             }
@@ -322,7 +332,7 @@ public class WebViewActivity extends AppCompatActivity implements ReloadDialog.R
                                        (entry.getOriginalHtml() != null ? entry.getOriginalHtml() : entry.getHtml()));
 
             if (currentContentInDb != null && !currentContentInDb.equals(lastLoadedHtml)) {
-                loadCurrentViewState();
+                loadCurrentViewState(entry);
             }
             refreshButtonVisibility();
         });

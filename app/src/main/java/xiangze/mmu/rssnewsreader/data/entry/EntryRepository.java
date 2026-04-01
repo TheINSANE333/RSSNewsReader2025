@@ -438,6 +438,14 @@ public class EntryRepository {
         entryDao.updateSummarizedResult(id, html, summarized, summarizedHtml);
     }
 
+    public void updateSummarizedPair(long id, String summarized, String summarizedHtml) {
+        entryDao.updateSummarizedPair(id, summarized, summarizedHtml);
+    }
+
+    public void updateTranslatedPair(long id, String translated, String translatedHtml) {
+        entryDao.updateTranslatedPair(id, translated, translatedHtml);
+    }
+
     public void updateTranslatedResult(long id, String html, String translated, String translatedHtml, String title) {
         entryDao.updateTranslatedResult(id, html, translated, translatedHtml, title);
     }

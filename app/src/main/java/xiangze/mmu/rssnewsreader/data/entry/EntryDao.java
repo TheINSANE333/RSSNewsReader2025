@@ -247,6 +247,12 @@ public interface EntryDao {
     @Query("SELECT * FROM entry_table WHERE id = :id")
     LiveData<Entry> getEntryEntityById(long id);
 
+    @Query("UPDATE entry_table SET translated = :translated, translated_html = :translatedHtml WHERE id = :id")
+    void updateTranslatedPair(long id, String translated, String translatedHtml);
+
+    @Query("UPDATE entry_table SET summarized = :summarized, summarized_html = :summarizedHtml WHERE id = :id")
+    void updateSummarizedPair(long id, String summarized, String summarizedHtml);
+
     @Query("UPDATE entry_table SET html = :html, summarized = :summarized, summarized_html = :summarizedHtml WHERE id = :id")
     void updateSummarizedResult(long id, String html, String summarized, String summarizedHtml);
 

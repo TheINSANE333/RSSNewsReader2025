@@ -165,10 +165,8 @@ public class SummarizationWorker extends ListenableWorker {
                             "summarized-title"
                     );
 
-                    entryRepository.updateSummarizedHtml(finalHtml, entryInfo.getEntryId());
-                    
                     String summarizedContent = textUtil.extractHtmlContent(finalHtml, "--####--");
-                    entryRepository.updateSummarizedText(summarizedContent, entryInfo.getEntryId());
+                    entryRepository.updateSummarizedPair(entryInfo.getEntryId(), summarizedContent, finalHtml);
                     
                     Log.d(TAG, "Summarized entry: " + entryInfo.getEntryTitle());
                 }))

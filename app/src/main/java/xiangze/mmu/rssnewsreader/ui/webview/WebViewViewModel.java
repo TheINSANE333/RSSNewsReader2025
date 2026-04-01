@@ -10,6 +10,7 @@ import androidx.lifecycle.ViewModel;
 
 import xiangze.mmu.rssnewsreader.data.entry.Entry;
 import xiangze.mmu.rssnewsreader.data.entry.EntryRepository;
+import xiangze.mmu.rssnewsreader.data.sharedpreferences.SharedPreferencesRepository;
 import xiangze.mmu.rssnewsreader.model.EntryInfo;
 
 import java.text.SimpleDateFormat;
@@ -25,6 +26,8 @@ public class WebViewViewModel extends ViewModel {
 
     private final EntryRepository entryRepository;
     private final xiangze.mmu.rssnewsreader.data.playlist.PlaylistRepository playlistRepository;
+    private final SharedPreferencesRepository sharedPreferencesRepository;
+    private long currentId;
 
     private final MutableLiveData<String> originalHtmlLiveData = new MutableLiveData<>();
 
@@ -67,15 +70,18 @@ public class WebViewViewModel extends ViewModel {
     public LiveData<String> getSnackbarMessageLiveData() { return snackbarMessageLiveData; }
 
     public void setCurrentId(long id) {
+        this.currentId = id;
         setLiveDataValue(currentIdLiveData, id);
         triggerEntryRefresh(id);
     }
 
     public void setIsTranslatedView(boolean isTranslated) {
+        sharedPreferencesRepository.setIsTranslatedView(currentId, isTranslated);
         setLiveDataValue(isTranslatedViewLiveData, isTranslated);
     }
 
     public void setIsSummarizedView(boolean isSummarized) {
+        sharedPreferencesRepository.setIsSummarizedView(currentId, isSummarized);
         setLiveDataValue(isSummarizedViewLiveData, isSummarized);
     }
 
@@ -131,9 +137,12 @@ public class WebViewViewModel extends ViewModel {
     }
 
     @Inject
-    public WebViewViewModel(EntryRepository entryRepository, xiangze.mmu.rssnewsreader.data.playlist.PlaylistRepository playlistRepository) {
+    public WebViewViewModel(EntryRepository entryRepository, 
+                            xiangze.mmu.rssnewsreader.data.playlist.PlaylistRepository playlistRepository,
+                            SharedPreferencesRepository sharedPreferencesRepository) {
         this.entryRepository = entryRepository;
         this.playlistRepository = playlistRepository;
+        this.sharedPreferencesRepository = sharedPreferencesRepository;
     }
 
     public void resetEntry(long id) {

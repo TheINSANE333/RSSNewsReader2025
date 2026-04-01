@@ -699,15 +699,11 @@ public class TtsExtractor {
                                             "summarized-title"
                                     );
 
-                                    entryRepository.updateTranslatedHtml(finalTranslatedHtml, processingId);
                                     String translatedContent = textUtil.extractHtmlContent(finalTranslatedHtml, delimiter);
-                                    entryRepository.updateTranslatedText(translatedContent, processingId);
-                                    entryRepository.updateTranslated(translatedContent, processingId);
+                                    entryRepository.updateTranslatedPair(processingId, translatedContent, finalTranslatedHtml);
 
-                                    entryRepository.updateSummarizedHtml(finalSummarizedHtml, processingId);
                                     String summarizedContent = textUtil.extractHtmlContent(finalSummarizedHtml, delimiter);
-                                    entryRepository.updateSummarizedText(summarizedContent, processingId);
-                                    entryRepository.updateSummarized(summarizedContent, processingId);
+                                    entryRepository.updateSummarizedPair(processingId, summarizedContent, finalSummarizedHtml);
 
                                     if (processingId == currentIdInProgress) {
                                         handler.postDelayed(this::finishAndMoveToNext, Math.max(WebClient.TRANSLATION_COOLDOWN_MS, WebClient.SUMMARIZATION_COOLDOWN_MS));
@@ -733,10 +729,8 @@ public class TtsExtractor {
                                                     "translated-title"
                                             );
 
-                                            entryRepository.updateTranslatedHtml(finalTranslatedHtml, processingId);
                                             String translatedContent = textUtil.extractHtmlContent(finalTranslatedHtml, delimiter);
-                                            entryRepository.updateTranslatedText(translatedContent, processingId);
-                                            entryRepository.updateTranslated(translatedContent, processingId);
+                                            entryRepository.updateTranslatedPair(processingId, translatedContent, finalTranslatedHtml);
 
                                             if (processingId == currentIdInProgress) {
                                                 handler.postDelayed(this::finishAndMoveToNext, WebClient.TRANSLATION_COOLDOWN_MS);
@@ -762,10 +756,8 @@ public class TtsExtractor {
                                                     "summarized-title"
                                             );
 
-                                            entryRepository.updateSummarizedHtml(finalSummarizedHtml, processingId);
                                             String summarizedContent = textUtil.extractHtmlContent(finalSummarizedHtml, delimiter);
-                                            entryRepository.updateSummarizedText(summarizedContent, processingId);
-                                            entryRepository.updateSummarized(summarizedContent, processingId);
+                                            entryRepository.updateSummarizedPair(processingId, summarizedContent, finalSummarizedHtml);
 
                                             if (processingId == currentIdInProgress) {
                                                 handler.postDelayed(this::finishAndMoveToNext, WebClient.SUMMARIZATION_COOLDOWN_MS);
