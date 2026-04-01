@@ -59,7 +59,11 @@ public class AutoTranslator {
                 .addTag("BatchTranslation")
                 .build();
         
-        WorkManager.getInstance(context).enqueue(workRequest);
+        WorkManager.getInstance(context).enqueueUniqueWork(
+                "BatchTranslationWork",
+                androidx.work.ExistingWorkPolicy.KEEP,
+                workRequest
+        );
         
         if (onComplete != null) {
             onComplete.run();

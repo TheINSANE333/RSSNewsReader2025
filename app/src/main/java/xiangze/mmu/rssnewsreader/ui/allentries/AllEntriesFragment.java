@@ -91,8 +91,8 @@ public class AllEntriesFragment extends Fragment implements EntryItemAdapter.Ent
     AutoTranslator autoTranslator;
     @Inject
     AutoSummarizer autoSummarizer;
-    private static final AtomicBoolean autoTranslationStarted = new AtomicBoolean(false);
-    private static final AtomicBoolean autoSummarizationStarted = new AtomicBoolean(false);
+    private final AtomicBoolean autoTranslationStarted = new AtomicBoolean(false);
+    private final AtomicBoolean autoSummarizationStarted = new AtomicBoolean(false);
 
     @Inject
     TtsPlaylist ttsPlaylist;

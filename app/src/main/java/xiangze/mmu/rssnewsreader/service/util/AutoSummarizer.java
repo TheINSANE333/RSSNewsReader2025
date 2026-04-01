@@ -59,11 +59,13 @@ public class AutoSummarizer {
                 .addTag("BatchSummarization")
                 .build();
         
-        WorkManager.getInstance(context).enqueue(workRequest);
+        WorkManager.getInstance(context).enqueueUniqueWork(
+                "BatchSummarizationWork",
+                androidx.work.ExistingWorkPolicy.KEEP,
+                workRequest
+        );
         
         if (onComplete != null) {
-            // Since WorkManager is asynchronous, we can't easily run onComplete exactly when it finishes 
-            // without observing the work. For simplicity in the current architecture, we'll just run it.
             onComplete.run();
         }
     }

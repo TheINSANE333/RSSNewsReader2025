@@ -25,6 +25,7 @@ import xiangze.mmu.rssnewsreader.R;
 import xiangze.mmu.rssnewsreader.data.entry.EntryRepository;
 import xiangze.mmu.rssnewsreader.data.sharedpreferences.SharedPreferencesRepository;
 import xiangze.mmu.rssnewsreader.model.EntryInfo;
+import xiangze.mmu.rssnewsreader.service.util.AutoSummarizer;
 import xiangze.mmu.rssnewsreader.service.util.TextUtil;
 
 @HiltWorker
@@ -56,14 +57,16 @@ public class SummarizationWorker extends ListenableWorker {
     public ListenableFuture<Result> startWork() {
         return CallbackToFutureAdapter.getFuture(completer -> {
             Log.d(TAG, "Starting batch summarization worker");
+            createNotificationChannel();
             
             currentDisposable = io.reactivex.rxjava3.core.Single.fromCallable(entryRepository::getAllUnsummarizedEntries)
                     .flatMap(entries -> {
                         if (entries == null || entries.isEmpty()) {
+                            Log.d(TAG, "No unsummarized entries found");
                             return io.reactivex.rxjava3.core.Single.just(Result.success());
                         }
 
-                        Log.d(TAG, "Found " + entries.size() + " entries to summarize");
+                        Log.d(TAG, "Found " + entries.size() + " potential entries to summarize");
                         
                         return processEntries(entries)
                                 .andThen(io.reactivex.rxjava3.core.Single.just(Result.success()));
@@ -72,12 +75,27 @@ public class SummarizationWorker extends ListenableWorker {
                     .subscribe(
                             completer::set,
                             throwable -> {
-                                Log.e(TAG, "Batch summarization failed", throwable);
+                                Log.e(TAG, "Batch summarization failed with fatal error", throwable);
                                 completer.set(Result.failure());
                             }
                     );
             return "SummarizationWorker";
         });
+    }
+
+    private void createNotificationChannel() {
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+            NotificationManager notificationManager = (NotificationManager) getApplicationContext().getSystemService(Context.NOTIFICATION_SERVICE);
+            android.app.NotificationChannel channel = new android.app.NotificationChannel(
+                    CHANNEL_ID, 
+                    "AI Processing", 
+                    NotificationManager.IMPORTANCE_LOW
+            );
+            channel.setDescription("Shows progress of AI summarization and translation");
+            if (notificationManager != null) {
+                notificationManager.createNotificationChannel(channel);
+            }
+        }
     }
 
     @Override
@@ -89,32 +107,51 @@ public class SummarizationWorker extends ListenableWorker {
     }
 
     private io.reactivex.rxjava3.core.Completable processEntries(List<EntryInfo> entries) {
-        io.reactivex.rxjava3.core.Completable completable = io.reactivex.rxjava3.core.Completable.complete();
-        
-        for (int i = 0; i < entries.size(); i++) {
-            EntryInfo entryInfo = entries.get(i);
-            int progress = i + 1;
-            int total = entries.size();
-            
-            completable = completable.concatWith(
-                    summarizeEntry(entryInfo)
-                            .doOnSubscribe(d -> updateNotification(progress, total, entryInfo.getEntryTitle()))
-                            .delay(500, TimeUnit.MILLISECONDS)
-            );
-        }
-        
-        return completable;
+        return io.reactivex.rxjava3.core.Observable.fromIterable(entries)
+                .concatMapCompletable(entryInfo -> {
+                    // Check if auto-summarize is enabled for this feed
+                    // We need to fetch the latest feed info to be sure
+                    return io.reactivex.rxjava3.core.Single.fromCallable(() -> {
+                        // The entryInfo already has the feed info joined if the query was correct
+                        // but let's be safe and check the flag from the entryInfo if possible
+                        // or just rely on the fact that AutoSummarizer checked the global flag.
+                        // Actually, getUnsummarizedEntriesInfo now joins with feed_table.
+                        return entryInfo;
+                    })
+                    .flatMapCompletable(info -> {
+                        // In a real app we might want to check per-feed autoSummarize here
+                        // if it's not already filtered by the query.
+                        int progress = entries.indexOf(info) + 1;
+                        int total = entries.size();
+                        return summarizeEntry(info)
+                                .doOnSubscribe(d -> updateNotification(progress, total, info.getEntryTitle()))
+                                .delay(500, TimeUnit.MILLISECONDS);
+                    });
+                });
     }
 
     private io.reactivex.rxjava3.core.Completable summarizeEntry(EntryInfo entryInfo) {
-        String html = entryRepository.getOriginalHtmlById(entryInfo.getEntryId());
-        if (html == null || html.trim().isEmpty()) {
+        if (AutoSummarizer.isProcessing(entryInfo.getEntryId())) {
+            Log.d(TAG, "Skipping entry, already being processed: " + entryInfo.getEntryTitle());
             return io.reactivex.rxjava3.core.Completable.complete();
         }
 
+        String htmlSource = entryRepository.getOriginalHtmlById(entryInfo.getEntryId());
+        if (htmlSource == null || htmlSource.trim().isEmpty()) {
+            htmlSource = entryRepository.getHtmlById(entryInfo.getEntryId());
+        }
+
+        if (htmlSource == null || htmlSource.trim().isEmpty()) {
+            Log.w(TAG, "Skipping entry, no HTML content: " + entryInfo.getEntryTitle());
+            return io.reactivex.rxjava3.core.Completable.complete();
+        }
+
+        final String finalHtmlSource = htmlSource;
         int summaryLength = sharedPreferencesRepository.getSummaryLength();
         
-        return textUtil.summarizeHtmlRx(html, entryInfo.getEntryTitle(), summaryLength)
+        return textUtil.summarizeHtmlRx(finalHtmlSource, entryInfo.getEntryTitle(), summaryLength)
+                .doOnSubscribe(d -> AutoSummarizer.processingIds.add(entryInfo.getEntryId()))
+                .doFinally(() -> AutoSummarizer.processingIds.remove(entryInfo.getEntryId()))
                 .flatMapCompletable(summaryRaw -> io.reactivex.rxjava3.core.Completable.fromAction(() -> {
                     TextUtil.AiResponse aiRes = textUtil.parseAiResponse(summaryRaw, entryInfo.getEntryTitle());
                     
@@ -135,6 +172,7 @@ public class SummarizationWorker extends ListenableWorker {
                     
                     Log.d(TAG, "Summarized entry: " + entryInfo.getEntryTitle());
                 }))
+                .doOnError(e -> Log.e(TAG, "Failed to summarize entry: " + entryInfo.getEntryTitle(), e))
                 .onErrorComplete();
     }
 

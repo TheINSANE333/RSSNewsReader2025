@@ -25,6 +25,7 @@ import xiangze.mmu.rssnewsreader.R;
 import xiangze.mmu.rssnewsreader.data.entry.EntryRepository;
 import xiangze.mmu.rssnewsreader.data.sharedpreferences.SharedPreferencesRepository;
 import xiangze.mmu.rssnewsreader.model.EntryInfo;
+import xiangze.mmu.rssnewsreader.service.util.AutoTranslator;
 import xiangze.mmu.rssnewsreader.service.util.TextUtil;
 
 @HiltWorker
@@ -56,14 +57,16 @@ public class TranslationWorker extends ListenableWorker {
     public ListenableFuture<Result> startWork() {
         return CallbackToFutureAdapter.getFuture(completer -> {
             Log.d(TAG, "Starting batch translation worker");
+            createNotificationChannel();
             
             currentDisposable = io.reactivex.rxjava3.core.Single.fromCallable(entryRepository::getAllUntranslatedEntries)
                     .flatMap(entries -> {
                         if (entries == null || entries.isEmpty()) {
+                            Log.d(TAG, "No untranslated entries found");
                             return io.reactivex.rxjava3.core.Single.just(Result.success());
                         }
 
-                        Log.d(TAG, "Found " + entries.size() + " entries to translate");
+                        Log.d(TAG, "Found " + entries.size() + " potential entries to translate");
                         return processEntries(entries)
                                 .andThen(io.reactivex.rxjava3.core.Single.just(Result.success()));
                     })
@@ -71,12 +74,27 @@ public class TranslationWorker extends ListenableWorker {
                     .subscribe(
                             completer::set,
                             throwable -> {
-                                Log.e(TAG, "Batch translation failed", throwable);
+                                Log.e(TAG, "Batch translation failed with fatal error", throwable);
                                 completer.set(Result.failure());
                             }
                     );
             return "TranslationWorker";
         });
+    }
+
+    private void createNotificationChannel() {
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+            NotificationManager notificationManager = (NotificationManager) getApplicationContext().getSystemService(Context.NOTIFICATION_SERVICE);
+            android.app.NotificationChannel channel = new android.app.NotificationChannel(
+                    CHANNEL_ID, 
+                    "AI Processing", 
+                    NotificationManager.IMPORTANCE_LOW
+            );
+            channel.setDescription("Shows progress of AI summarization and translation");
+            if (notificationManager != null) {
+                notificationManager.createNotificationChannel(channel);
+            }
+        }
     }
 
     @Override
@@ -88,37 +106,43 @@ public class TranslationWorker extends ListenableWorker {
     }
 
     private io.reactivex.rxjava3.core.Completable processEntries(List<EntryInfo> entries) {
-        io.reactivex.rxjava3.core.Completable completable = io.reactivex.rxjava3.core.Completable.complete();
-        
-        for (int i = 0; i < entries.size(); i++) {
-            EntryInfo entryInfo = entries.get(i);
-            int progress = i + 1;
-            int total = entries.size();
-            
-            completable = completable.concatWith(
-                    translateEntry(entryInfo)
+        return io.reactivex.rxjava3.core.Observable.fromIterable(entries)
+                .concatMapCompletable(entryInfo -> {
+                    int progress = entries.indexOf(entryInfo) + 1;
+                    int total = entries.size();
+                    return translateEntry(entryInfo)
                             .doOnSubscribe(d -> updateNotification(progress, total, entryInfo.getEntryTitle()))
-                            .delay(500, TimeUnit.MILLISECONDS)
-            );
-        }
-        
-        return completable;
+                            .delay(500, TimeUnit.MILLISECONDS);
+                });
     }
 
     private io.reactivex.rxjava3.core.Completable translateEntry(EntryInfo entryInfo) {
-        String html = entryRepository.getOriginalHtmlById(entryInfo.getEntryId());
-        if (html == null || html.trim().isEmpty()) {
+        if (AutoTranslator.isProcessing(entryInfo.getEntryId())) {
+            Log.d(TAG, "Skipping entry, already being processed: " + entryInfo.getEntryTitle());
             return io.reactivex.rxjava3.core.Completable.complete();
         }
 
+        String htmlSource = entryRepository.getOriginalHtmlById(entryInfo.getEntryId());
+        if (htmlSource == null || htmlSource.trim().isEmpty()) {
+            htmlSource = entryRepository.getHtmlById(entryInfo.getEntryId());
+        }
+
+        if (htmlSource == null || htmlSource.trim().isEmpty()) {
+            Log.w(TAG, "Skipping entry, no HTML content: " + entryInfo.getEntryTitle());
+            return io.reactivex.rxjava3.core.Completable.complete();
+        }
+
+        final String finalHtmlSource = htmlSource;
         String targetLanguage = sharedPreferencesRepository.getDefaultTranslationLanguage();
         
-        return textUtil.identifyLanguageRx(html)
+        return textUtil.identifyLanguageRx(finalHtmlSource)
+                .doOnSubscribe(d -> AutoTranslator.processingIds.add(entryInfo.getEntryId()))
+                .doFinally(() -> AutoTranslator.processingIds.remove(entryInfo.getEntryId()))
                 .flatMap(sourceLang -> {
                     if (sourceLang != null && sourceLang.equalsIgnoreCase(targetLanguage)) {
                         return io.reactivex.rxjava3.core.Single.error(new Exception("Already in target language"));
                     }
-                    return textUtil.translateHtmlAllAtOnce(sourceLang, targetLanguage, html, entryInfo.getEntryTitle(), entryInfo.getEntryId(), p -> {});
+                    return textUtil.translateHtmlAllAtOnce(sourceLang, targetLanguage, finalHtmlSource, entryInfo.getEntryTitle(), entryInfo.getEntryId(), p -> {});
                 })
                 .flatMapCompletable(translatedRaw -> io.reactivex.rxjava3.core.Completable.fromAction(() -> {
                     TextUtil.AiResponse aiRes = textUtil.parseAiResponse(translatedRaw, entryInfo.getEntryTitle());
@@ -140,6 +164,7 @@ public class TranslationWorker extends ListenableWorker {
                     
                     Log.d(TAG, "Translated entry: " + entryInfo.getEntryTitle());
                 }))
+                .doOnError(e -> Log.e(TAG, "Failed to translate entry: " + entryInfo.getEntryTitle(), e))
                 .onErrorComplete();
     }
 
