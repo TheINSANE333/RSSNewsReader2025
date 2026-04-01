@@ -43,6 +43,7 @@ import java.io.StringReader;
 import java.util.Date;
 import java.util.List;
 import java.util.Objects;
+import java.util.UUID;
 
 import javax.inject.Inject;
 
@@ -88,12 +89,15 @@ public class WebViewActivity extends AppCompatActivity implements ReloadDialog.R
     private String currentLink;
     private String currentTitle;
     private String lastLoadedHtml = "";
+    private String currentLoadToken = "";
+    private boolean hasProcessedCurrentToken = false;
 
     @Inject TtsPlayer ttsPlayer;
     @Inject TtsPlaylist ttsPlaylist;
     @Inject TtsExtractor ttsExtractor;
     @Inject SharedPreferencesRepository sharedPreferencesRepository;
     @Inject EntryRepository entryRepository;
+    @Inject xiangze.mmu.rssnewsreader.data.feed.FeedRepository feedRepository;
 
     private final MediaControllerCompat.Callback mediaControllerCallback = new MediaControllerCompat.Callback() {
         @Override
@@ -563,22 +567,69 @@ public class WebViewActivity extends AppCompatActivity implements ReloadDialog.R
     @Override protected void onDestroy() { compositeDisposable.dispose(); super.onDestroy(); }
 
     private class WebClient extends WebViewClient {
+        @Override
+        public void onPageStarted(WebView view, String url, Bitmap favicon) {
+            super.onPageStarted(view, url, favicon);
+            currentLoadToken = java.util.UUID.randomUUID().toString();
+            hasProcessedCurrentToken = false;
+        }
+
         @Override public void onPageFinished(WebView v, String u) { 
+            super.onPageFinished(v, u);
             if (u != null && !u.startsWith("file:///android_res/")) {
-                triggerExtraction(v);
+                final String executionToken = currentLoadToken;
+                int delay = feedRepository.getDelayTimeById(feedId);
+                new Handler(Looper.getMainLooper()).postDelayed(() -> checkReadyState(v, executionToken, 1), delay * 1000L);
             }
         }
     }
     private class ReadingWebClient extends WebViewClient {
+        @Override
+        public void onPageStarted(WebView view, String url, Bitmap favicon) {
+            super.onPageStarted(view, url, favicon);
+            currentLoadToken = java.util.UUID.randomUUID().toString();
+            hasProcessedCurrentToken = false;
+        }
+
         @Override public void onPageFinished(WebView v, String u) {
+            super.onPageFinished(v, u);
             if (u != null && !u.startsWith("file:///android_res/")) {
-                triggerExtraction(v);
+                final String executionToken = currentLoadToken;
+                int delay = feedRepository.getDelayTimeById(feedId);
+                new Handler(Looper.getMainLooper()).postDelayed(() -> checkReadyState(v, executionToken, 1), delay * 1000L);
             }
         }
     }
 
-    private void triggerExtraction(WebView v) {
-        v.evaluateJavascript("(function() { return document.getElementsByTagName('html')[0].outerHTML; })();", val -> {
+    private void checkReadyState(WebView view, String executionToken, int attempt) {
+        if (!executionToken.equals(currentLoadToken) || hasProcessedCurrentToken) return;
+
+        view.evaluateJavascript("(function() { return document.readyState; })();", value -> {
+            if (!executionToken.equals(currentLoadToken) || hasProcessedCurrentToken) return;
+
+            if (value != null && value.contains("complete")) {
+                new Handler(Looper.getMainLooper()).postDelayed(() -> extractHtml(view, executionToken), 5000);
+            } else if (value != null && value.contains("interactive")) {
+                if (attempt < 15) {
+                    new Handler(Looper.getMainLooper()).postDelayed(() -> checkReadyState(view, executionToken, attempt + 1), 2000);
+                } else {
+                    new Handler(Looper.getMainLooper()).postDelayed(() -> extractHtml(view, executionToken), 5000);
+                }
+            } else {
+                if (attempt < 20) {
+                    new Handler(Looper.getMainLooper()).postDelayed(() -> checkReadyState(view, executionToken, attempt + 1), 2000);
+                } else {
+                    new Handler(Looper.getMainLooper()).postDelayed(() -> extractHtml(view, executionToken), 5000);
+                }
+            }
+        });
+    }
+
+    private void extractHtml(WebView view, String executionToken) {
+        if (!executionToken.equals(currentLoadToken) || hasProcessedCurrentToken) return;
+        hasProcessedCurrentToken = true;
+
+        view.evaluateJavascript("(function() { return document.getElementsByTagName('html')[0].outerHTML; })();", val -> {
             try {
                 JsonReader r = new JsonReader(new StringReader(val));
                 r.setLenient(true);

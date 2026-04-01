@@ -376,23 +376,23 @@ public class TtsExtractor {
                  
                  // Value is JSON string, e.g. "complete"
                  if (value != null && value.contains("complete")) {
-                     Log.d(TAG, "Page ready (" + value + "). Waiting 3s settle time...");
-                     handler.postDelayed(() -> extractHtml(view, executionToken), 3000);
+                     Log.d(TAG, "Page ready (" + value + "). Waiting 5s settle time...");
+                     handler.postDelayed(() -> extractHtml(view, executionToken), 5000);
                  } else if (value != null && value.contains("interactive")) {
                      if (attempt < 15) { 
                          Log.d(TAG, "Page interactive. Attempt " + attempt + "/15. Waiting 2s for complete...");
                          handler.postDelayed(() -> checkReadyState(view, executionToken, attempt + 1), 2000);
                      } else {
-                         Log.w(TAG, "Page stuck at interactive. Proceeding with 3s settle...");
-                         handler.postDelayed(() -> extractHtml(view, executionToken), 3000);
+                         Log.w(TAG, "Page stuck at interactive. Proceeding with 5s settle...");
+                         handler.postDelayed(() -> extractHtml(view, executionToken), 5000);
                      }
                  } else {
                      if (attempt < 20) {
                          Log.d(TAG, "Page loading (" + value + "). Attempt " + attempt + "/20. Waiting 2s...");
                          handler.postDelayed(() -> checkReadyState(view, executionToken, attempt + 1), 2000);
                      } else {
-                         Log.w(TAG, "Page ready check timed out. Forcing extraction with 3s settle.");
-                         handler.postDelayed(() -> extractHtml(view, executionToken), 3000);
+                         Log.w(TAG, "Page ready check timed out. Forcing extraction with 5s settle.");
+                         handler.postDelayed(() -> extractHtml(view, executionToken), 5000);
                      }
                  }
              });
