@@ -89,6 +89,11 @@ public class AllEntriesViewModel extends ViewModel {
                     public void accept(List<EntryInfo> entriesInfo) throws Throwable {
                         allEntries.postValue(entriesInfo);
                     }
+                }, new Consumer<Throwable>() {
+                    @Override
+                    public void accept(Throwable throwable) throws Throwable {
+                        Log.e("AllEntriesViewModel", "Error fetching entries", throwable);
+                    }
                 });
 
         disposableCount = entryRepository.getUnreadCount(id, filter)
@@ -98,6 +103,11 @@ public class AllEntriesViewModel extends ViewModel {
                     @Override
                     public void accept(Integer integer) throws Throwable {
                         unreadCount.postValue(integer);
+                    }
+                }, new Consumer<Throwable>() {
+                    @Override
+                    public void accept(Throwable throwable) throws Throwable {
+                        Log.e("AllEntriesViewModel", "Error fetching unread count", throwable);
                     }
                 });
     }
@@ -183,7 +193,7 @@ public class AllEntriesViewModel extends ViewModel {
 
                     @Override
                     public void onError(@NonNull Throwable e) {
-
+                        Log.e("AllEntriesViewModel", "Error deleting visited entries", e);
                     }
                 });
     }
@@ -230,7 +240,7 @@ public class AllEntriesViewModel extends ViewModel {
 
                     @Override
                     public void onError(@io.reactivex.rxjava3.annotations.NonNull Throwable e) {
-
+                        Log.e("AllEntriesViewModel", "Error deleting entry", e);
                     }
                 });
     }
@@ -257,7 +267,7 @@ public class AllEntriesViewModel extends ViewModel {
 
                     @Override
                     public void onError(@NonNull Throwable e) {
-
+                        Log.e("AllEntriesViewModel", "Error refreshing entries", e);
                     }
                 });
     }
@@ -287,7 +297,7 @@ public class AllEntriesViewModel extends ViewModel {
 
                     @Override
                     public void onError(@NonNull Throwable e) {
-
+                        Log.e("AllEntriesViewModel", "Error updating bookmark", e);
                     }
                 });
     }

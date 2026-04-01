@@ -61,6 +61,11 @@ public class FeedViewModel extends ViewModel {
                     public void accept(List<Feed> feeds) throws Throwable {
                         allFeeds.postValue(feeds);
                     }
+                }, new Consumer<Throwable>() {
+                    @Override
+                    public void accept(Throwable throwable) throws Throwable {
+                        Log.e("FeedViewModel", "Error fetching all feeds", throwable);
+                    }
                 });
 
         compositeDisposable.add(disposable);
@@ -122,6 +127,7 @@ public class FeedViewModel extends ViewModel {
 
                     @Override
                     public void onError(@NonNull Throwable e) {
+                        Log.e("FeedViewModel", "Error checking new feed", e);
                         toastMessage.postValue("Failed: This feed seems to be broken or inaccessible now");
                         isLoading.postValue(false);
                     }
@@ -150,6 +156,7 @@ public class FeedViewModel extends ViewModel {
 
                     @Override
                     public void onError(@NonNull Throwable e) {
+                        Log.e("FeedViewModel", "Error adding new feed", e);
                         toastMessage.postValue("Failed: This feed seems to be broken");
                         isLoading.postValue(false);
                     }
@@ -181,6 +188,7 @@ public class FeedViewModel extends ViewModel {
 
                     @Override
                     public void onError(@NonNull Throwable e) {
+                        Log.e("FeedViewModel", "Error re-extracting feed", e);
                         toastMessage.postValue("Failed on re-extracting");
                         isLoading.postValue(false);
                     }
@@ -188,19 +196,16 @@ public class FeedViewModel extends ViewModel {
     }
 
     public void deleteFeed(Feed feed) {
-        Completable.fromAction(new Action() {
-            @Override
-            public void run() throws Throwable {
-                long currentId = ttsPlayer.getCurrentId();
-                if (currentId != 0) {
-                    List<Long> ids = entryRepository.getIdsByFeedId(feed.getId());
-                    if (ids.contains(currentId)) {
-                        ttsPlayer.stop();
-                    }
+        Completable.fromAction(() -> {
+            long currentId = ttsPlayer.getCurrentId();
+            if (currentId != 0) {
+                List<Long> ids = entryRepository.getIdsByFeedId(feed.getId());
+                if (ids.contains(currentId)) {
+                    ttsPlayer.stop();
                 }
-                feedRepository.delete(feed);
             }
-        }).subscribeOn(Schedulers.io())
+        }).andThen(feedRepository.delete(feed))
+                .subscribeOn(Schedulers.io())
                 .observeOn(AndroidSchedulers.mainThread())
                 .subscribe(new CompletableObserver() {
                     @Override
@@ -216,6 +221,7 @@ public class FeedViewModel extends ViewModel {
 
                     @Override
                     public void onError(@NonNull Throwable e) {
+                        Log.e("FeedViewModel", "deleteFeed onError: " + e.getMessage());
                         toastMessage.postValue("Failed on deleting feed");
                         isLoading.postValue(false);
                     }

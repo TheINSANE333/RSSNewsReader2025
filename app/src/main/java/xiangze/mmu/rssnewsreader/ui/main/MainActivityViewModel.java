@@ -1,5 +1,7 @@
 package xiangze.mmu.rssnewsreader.ui.main;
 
+import android.util.Log;
+
 import androidx.lifecycle.LiveData;
 import androidx.lifecycle.MutableLiveData;
 import androidx.lifecycle.ViewModel;
@@ -48,6 +50,11 @@ public class MainActivityViewModel extends ViewModel {
                     public void accept(List<Feed> feeds) throws Throwable {
                         allFeeds.postValue(feeds);
                     }
+                }, new Consumer<Throwable>() {
+                    @Override
+                    public void accept(Throwable throwable) throws Throwable {
+                        Log.e("MainActivityViewModel", "Error fetching feeds", throwable);
+                    }
                 });
 
         compositeDisposable.add(disposable);
@@ -83,7 +90,11 @@ public class MainActivityViewModel extends ViewModel {
                     }
                 }).subscribeOn(Schedulers.io())
                 .observeOn(AndroidSchedulers.mainThread())
-                .subscribe();
+                .subscribe(() -> {
+                    Log.d("MainActivityViewModel", "Entry added successfully");
+                }, throwable -> {
+                    Log.e("MainActivityViewModel", "Error adding entry", throwable);
+                });
     }
 
     public boolean getNight() {

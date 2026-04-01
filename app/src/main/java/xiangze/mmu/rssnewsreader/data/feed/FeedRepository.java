@@ -96,37 +96,25 @@ public class FeedRepository {
 
                     @Override
                     public void onError(@NonNull Throwable e) {
-                        Log.d(TAG, "update onError: " + e.getMessage());
+                        Log.e(TAG, "update onError: ", e);
                     }
                 });
     }
 
-    public void delete(Feed feed) {
-        entryRepository.deleteByFeedId(feed.getId());
-        feedDao.delete(feed)
-                .subscribeOn(Schedulers.io())
-                .observeOn(AndroidSchedulers.mainThread())
-                .subscribe(new CompletableObserver() {
-                    @Override
-                    public void onSubscribe(@NonNull Disposable d) {
-                        Log.d(TAG, "delete onSubscribe: called");
+    public Completable delete(Feed feed) {
+        return entryRepository.deleteByFeedId(feed.getId())
+                .andThen(feedDao.delete(feed))
+                .andThen(Completable.fromAction(() -> historyRepository.deleteByFeedId(feed.getId())))
+                .doOnComplete(() -> {
+                    if (getFeedCount() == 0 && rssWorkManager.isWorkScheduled()) {
+                        rssWorkManager.dequeueRssWorker();
                     }
-
-                    @Override
-                    public void onComplete() {
-                        Log.d(TAG, "delete onComplete: called");
-                        if (getFeedCount() == 0 && rssWorkManager.isWorkScheduled()) {
-                            rssWorkManager.dequeueRssWorker();
-                        }
-                        isLoading.postValue(false);
-                    }
-
-                    @Override
-                    public void onError(@NonNull Throwable e) {
-                        Log.d(TAG, "delete onError: " + e.getMessage());
-                    }
+                    isLoading.postValue(false);
+                })
+                .doOnError(e -> {
+                    Log.e(TAG, "delete error: " + e.getMessage());
+                    isLoading.postValue(false);
                 });
-        historyRepository.deleteByFeedId(feed.getId());
     }
 
     public int getFeedCount() {
@@ -151,7 +139,7 @@ public class FeedRepository {
 
                     @Override
                     public void onError(@NonNull Throwable e) {
-                        Log.d(TAG, "deleteAllFeeds onError: " + e.getMessage());
+                        Log.e(TAG, "deleteAllFeeds onError: ", e);
                     }
                 });
     }
@@ -358,7 +346,7 @@ public class FeedRepository {
             feedDao.updateFeedSettings(title, desc, finalLanguage, autoSummarize, autoTranslate, link);
         })
         .subscribeOn(Schedulers.io())
-        .subscribe();
+        .subscribe(() -> {}, e -> Log.e(TAG, "Error updating feed settings", e));
     }
 
     public float getTtsSpeechRateById(long id) {

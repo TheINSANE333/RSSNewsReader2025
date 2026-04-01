@@ -19,6 +19,7 @@ import javax.inject.Inject;
 
 import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers;
 import io.reactivex.rxjava3.annotations.NonNull;
+import io.reactivex.rxjava3.core.Completable;
 import io.reactivex.rxjava3.core.CompletableObserver;
 import io.reactivex.rxjava3.core.Flowable;
 import io.reactivex.rxjava3.disposables.Disposable;
@@ -237,7 +238,7 @@ public class EntryRepository {
 
                     @Override
                     public void onError(@NonNull Throwable e) {
-                        Log.d(TAG, "update onError: " + e.getMessage());
+                        Log.e(TAG, "update onError: ", e);
                     }
                 });
     }
@@ -259,7 +260,7 @@ public class EntryRepository {
 
                     @Override
                     public void onError(@NonNull Throwable e) {
-                        Log.d(TAG, "delete onError: " + e.getMessage());
+                        Log.e(TAG, "delete onError: ", e);
                     }
                 });
     }
@@ -284,26 +285,8 @@ public class EntryRepository {
         entryDao.deleteById(id);
     }
 
-    public void deleteByFeedId(long feedId) {
-        entryDao.deleteByFeedId(feedId)
-                .subscribeOn(Schedulers.io())
-                .observeOn(AndroidSchedulers.mainThread())
-                .subscribe(new CompletableObserver() {
-                    @Override
-                    public void onSubscribe(@NonNull Disposable d) {
-                        Log.d(TAG, "deleteAllEntries onSubscribe: called");
-                    }
-
-                    @Override
-                    public void onComplete() {
-                        Log.d(TAG, "deleteAllEntries onComplete: called");
-                    }
-
-                    @Override
-                    public void onError(@NonNull Throwable e) {
-                        Log.d(TAG, "deleteAllEntries onError: " + e.getMessage());
-                    }
-                });
+    public Completable deleteByFeedId(long feedId) {
+        return entryDao.deleteByFeedId(feedId);
     }
 
     public void preloadEntries(List<Entry> entries) {
