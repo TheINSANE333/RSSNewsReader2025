@@ -91,6 +91,7 @@ public class WebViewActivity extends AppCompatActivity implements ReloadDialog.R
     private String lastLoadedHtml = "";
     private String currentLoadToken = "";
     private boolean hasProcessedCurrentToken = false;
+    private boolean userManuallySwitchedToOriginal = false;
 
     @Inject TtsPlayer ttsPlayer;
     @Inject TtsPlaylist ttsPlaylist;
@@ -178,7 +179,8 @@ public class WebViewActivity extends AppCompatActivity implements ReloadDialog.R
                 Boolean.TRUE.equals(webViewViewModel.getIsSummarizedViewLiveData().getValue());
             if (active) {
                 String lang = getLanguageForCurrentView(currentId, active, "en");
-                ttsPlayer.extract(currentId, feedId, text, lang);
+                String viewMode = isTranslation ? "translated" : "summarized";
+                ttsPlayer.extract(currentId, feedId, text, lang, viewMode);
                 if (mMediaBrowserHelper != null && mMediaBrowserHelper.getTransportControls() != null) {
                     mMediaBrowserHelper.getTransportControls().prepare();
                 }
@@ -228,6 +230,8 @@ public class WebViewActivity extends AppCompatActivity implements ReloadDialog.R
         currentLink = entryInfo.getEntryLink();
 
         webViewViewModel.prioritizeEntry(currentId);
+        // Do NOT reset userManuallySwitchedToOriginal here as this is called when loading the SAME article (e.g. from Browser)
+
         Entry entry = entryRepository.getEntryById(currentId);
         if (entry == null) return;
 
@@ -240,8 +244,11 @@ public class WebViewActivity extends AppCompatActivity implements ReloadDialog.R
         boolean hasSummary = entry.getSummarized() != null && !entry.getSummarized().trim().isEmpty();
         boolean hasTranslation = entry.getTranslated() != null && !entry.getTranslated().trim().isEmpty();
 
-        webViewViewModel.setIsSummarizedView(hasSummary);
-        webViewViewModel.setIsTranslatedView(!hasSummary && hasTranslation);
+        // Only auto-summarize if the user hasn't explicitly said they want the original content for this article
+        if (!userManuallySwitchedToOriginal) {
+            webViewViewModel.setIsSummarizedView(hasSummary);
+            webViewViewModel.setIsTranslatedView(!hasSummary && hasTranslation);
+        }
         
         loadCurrentViewState();
         syncLoadingWithTts();
@@ -281,12 +288,13 @@ public class WebViewActivity extends AppCompatActivity implements ReloadDialog.R
 
         if (contentToRead != null && !contentToRead.trim().isEmpty()) {
             String lang = getLanguageForCurrentView(currentId, isSummarized || isTranslated, "en");
-            ttsPlayer.extract(currentId, feedId, contentToRead, lang);
+            String viewMode = isSummarized ? "summarized" : (isTranslated ? "translated" : "original");
+            ttsPlayer.extract(currentId, feedId, contentToRead, lang, viewMode);
             if (mMediaBrowserHelper != null && mMediaBrowserHelper.getTransportControls() != null) {
                 mMediaBrowserHelper.getTransportControls().prepare();
             }
         } else {
-            ttsPlayer.extract(currentId, feedId, null, "en");
+            ttsPlayer.extract(currentId, feedId, null, "en", "original");
         }
         refreshButtonVisibility();
     }
@@ -297,6 +305,17 @@ public class WebViewActivity extends AppCompatActivity implements ReloadDialog.R
 
             boolean isSummarized = Boolean.TRUE.equals(webViewViewModel.getIsSummarizedViewLiveData().getValue());
             boolean isTranslated = Boolean.TRUE.equals(webViewViewModel.getIsTranslatedViewLiveData().getValue());
+
+            // Auto-switch to summarized view if it just became available, we are in original view,
+            // AND the user hasn't manually chosen to see the original content.
+            if (!isSummarized && !isTranslated && !userManuallySwitchedToOriginal) {
+                boolean hasSummary = entry.getSummarizedHtml() != null && !entry.getSummarizedHtml().trim().isEmpty();
+                if (hasSummary) {
+                    webViewViewModel.setIsSummarizedView(true);
+                    // No need to call loadCurrentViewState here as the LiveData observer for isSummarizedView will handle it
+                    return; 
+                }
+            }
 
             String currentContentInDb = isSummarized ? entry.getSummarizedHtml() : 
                                        (isTranslated ? entry.getTranslatedHtml() : 
@@ -377,15 +396,46 @@ public class WebViewActivity extends AppCompatActivity implements ReloadDialog.R
     }
     @Override public void onOpenInBrowser() { 
         sharedPreferencesRepository.setWebViewMode(currentId, true);
+        lastLoadedHtml = ""; // Clear cache to force reload when exiting browser mode
         webView.loadUrl(currentLink);
         refreshButtonVisibility();
     }
     @Override public void onExitBrowser() {
         sharedPreferencesRepository.setWebViewMode(currentId, false);
+        lastLoadedHtml = ""; // Ensure we force a fresh load of the extracted HTML
+        userManuallySwitchedToOriginal = false; // Reset to allow auto-summarization logic
         loadEntryContent();
     }
     @Override public void onSwitchPlayMode() { isReadingMode = false; switchPlayMode(); }
     @Override public void onSwitchReadMode() { isReadingMode = true; switchReadMode(); }
+
+    @Override
+    public void onToggleTranslation() {
+        Boolean current = webViewViewModel.getIsTranslatedViewLiveData().getValue();
+        boolean newVal = (current == null) || !current;
+        lastLoadedHtml = ""; // Force reload UI
+        webViewViewModel.setIsTranslatedView(newVal);
+        if (newVal) {
+            webViewViewModel.setIsSummarizedView(false);
+            userManuallySwitchedToOriginal = false;
+        } else {
+            userManuallySwitchedToOriginal = true;
+        }
+    }
+
+    @Override
+    public void onToggleSummarization() {
+        Boolean current = webViewViewModel.getIsSummarizedViewLiveData().getValue();
+        boolean newVal = (current == null) || !current;
+        lastLoadedHtml = ""; // Force reload UI
+        webViewViewModel.setIsSummarizedView(newVal);
+        if (newVal) {
+            webViewViewModel.setIsTranslatedView(false);
+            userManuallySwitchedToOriginal = false;
+        } else {
+            userManuallySwitchedToOriginal = true;
+        }
+    }
 
     @Override
     public void onReload() {

@@ -37,6 +37,8 @@ public class WebViewMenuHandler {
         void onOpenInBrowser();
         void onReload();
         void onReExtract();
+        void onToggleTranslation();
+        void onToggleSummarization();
     }
 
     private final MenuActionListener listener;
@@ -102,16 +104,10 @@ public class WebViewMenuHandler {
                 activity.startActivity(new Intent("com.android.settings.TTS_SETTINGS"));
                 return true;
             } else if (itemId == R.id.toggleTranslation) {
-                Boolean current = viewModel.getIsTranslatedViewLiveData().getValue();
-                boolean newVal = (current == null) || !current;
-                viewModel.setIsTranslatedView(newVal);
-                if (newVal) viewModel.setIsSummarizedView(false);
+                listener.onToggleTranslation();
                 return true;
             } else if (itemId == R.id.toggleSummarization) {
-                Boolean current = viewModel.getIsSummarizedViewLiveData().getValue();
-                boolean newVal = (current == null) || !current;
-                viewModel.setIsSummarizedView(newVal);
-                if (newVal) viewModel.setIsTranslatedView(false);
+                listener.onToggleSummarization();
                 return true;
             }
             return false;
