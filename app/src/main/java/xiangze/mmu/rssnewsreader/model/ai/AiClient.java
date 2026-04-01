@@ -93,12 +93,28 @@ public class AiClient {
             throw new IOException("groq API key not configured! Please set it in Settings.");
         }
 
+        // Check token limits before making the request
+        try {
+            TokenUsageGuard.getInstance(context).checkLimits();
+        } catch (IllegalStateException e) {
+            throw new IOException(e.getMessage());
+        }
+
         ChatRequest request = new ChatRequest(model, messages, 0.0, 6000);
 
         retrofit2.Response<ChatResponse> response = service.chatCompletion(request).execute();
 
         if (response.isSuccessful() && response.body() != null) {
             ChatResponse chatResponse = response.body();
+            
+            // Record usage if available
+            if (chatResponse.usage != null) {
+                TokenUsageGuard.getInstance(context).recordUsage(chatResponse.usage.total_tokens);
+            } else {
+                // Fallback: estimate or just count as 1 request if usage not provided
+                TokenUsageGuard.getInstance(context).recordUsage(0); 
+            }
+
             if (chatResponse.choices != null && !chatResponse.choices.isEmpty()) {
                 ChatResponse.Choice choice = chatResponse.choices.get(0);
                 if (choice != null && choice.message != null) {
