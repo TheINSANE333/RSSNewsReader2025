@@ -512,7 +512,7 @@ public class AllEntriesFragment extends Fragment implements EntryItemAdapter.Ent
                     }
                     return textUtil.translateHtmlAllAtOnce(sourceLang, targetLanguage, sourceHtml, entryInfo.getEntryTitle(), entryId, progress -> {
                         // Optional progress update
-                    });
+                    }, true);
                 })
                 .subscribeOn(Schedulers.io())
                 .observeOn(AndroidSchedulers.mainThread())

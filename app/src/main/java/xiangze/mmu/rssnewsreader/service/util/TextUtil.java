@@ -314,15 +314,22 @@ public class TextUtil {
     // 2. The choice of delimiter can affect the translation. After testing various options like <br>, &nbsp;, and other character combinations, "++++++@@@@@@++++++" gave the best results.
     // 3. The accuracy of translation can sometimes be compromised, resulting in unusual or unexpected translations.
     // 4. MLKit uses English as an intermediate language for translation. For example, when translating from Chinese to Malay, the process is actually Chinese -> English -> Malay. This indirect translation process may affect the quality of the final translation.
-    public Single<String> translateHtmlAllAtOnce(String sourceLanguage, String targetLanguage, String html, String title, long articleId, Consumer<Integer> progressCallback) {
+    public Single<String> translateHtmlAllAtOnce(String sourceLanguage, String targetLanguage, String html, String title, long articleId, Consumer<Integer> progressCallback, boolean isPriority) {
         return Single.defer(() -> {
 
-            Log.d(TAG, "Attempting to acquire Translation Lock for ID: " + articleId);
+            Log.d(TAG, "Attempting to acquire Translation Lock for ID: " + articleId + " (Priority: " + isPriority + ")");
 
-            // 1. BLOCK: This pauses the flow until the lock is free.
-            // If WebClient is translating, AutoTranslator waits here (and vice versa).
             try {
-                GLOBAL_TRANSLATION_LOCK.acquire();
+                if (isPriority) {
+                    // To jump a fair semaphore's queue, we can't use acquire().
+                    // We need to use tryAcquire() repeatedly or use a different sync primitive.
+                    // For now, let's use a loop with tryAcquire to "cut" the line.
+                    while (!GLOBAL_TRANSLATION_LOCK.tryAcquire()) {
+                        Thread.sleep(50); // Small wait to avoid spinning too hard
+                    }
+                } else {
+                    GLOBAL_TRANSLATION_LOCK.acquire();
+                }
             } catch (InterruptedException e) {
                 return Single.error(e);
             }
@@ -342,20 +349,28 @@ public class TextUtil {
     }
 
     public Single<String> summarizeHtmlRx(String html, String title, int length) {
-        String targetLang = sharedPreferencesRepository.getDefaultTranslationLanguage();
-        return identifyLanguageRx(html)
-                .flatMap(sourceLang -> summarizeHtmlAllAtOnce(sourceLang, targetLang, html, length, 0, title, progress -> {}));
+        return summarizeHtmlRx(html, title, length, false);
     }
 
-    public Single<String> summarizeHtmlAllAtOnce(String sourceLanguage, String targetLanguage, String html, int length, long articleId, String title, Consumer<Integer> progressCallback) {
+    public Single<String> summarizeHtmlRx(String html, String title, int length, boolean isPriority) {
+        String targetLang = sharedPreferencesRepository.getDefaultTranslationLanguage();
+        return identifyLanguageRx(html)
+                .flatMap(sourceLang -> summarizeHtmlAllAtOnce(sourceLang, targetLang, html, length, 0, title, progress -> {}, isPriority));
+    }
+
+    public Single<String> summarizeHtmlAllAtOnce(String sourceLanguage, String targetLanguage, String html, int length, long articleId, String title, Consumer<Integer> progressCallback, boolean isPriority) {
         return Single.defer(() -> {
 
-            Log.d(TAG, "Attempting to acquire Summarization Lock for ID: " + articleId);
+            Log.d(TAG, "Attempting to acquire Summarization Lock for ID: " + articleId + " (Priority: " + isPriority + ")");
 
-            // 1. BLOCK: This pauses the flow until the lock is free.
-            // If WebClient is translating, AutoTranslator waits here (and vice versa).
             try {
-                GLOBAL_SUMMARIZATION_LOCK.acquire();
+                if (isPriority) {
+                    while (!GLOBAL_SUMMARIZATION_LOCK.tryAcquire()) {
+                        Thread.sleep(50);
+                    }
+                } else {
+                    GLOBAL_SUMMARIZATION_LOCK.acquire();
+                }
             } catch (InterruptedException e) {
                 return Single.error(e);
             }

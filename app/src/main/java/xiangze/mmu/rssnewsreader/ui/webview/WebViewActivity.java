@@ -417,7 +417,7 @@ public class WebViewActivity extends AppCompatActivity implements ReloadDialog.R
 
         loading.setVisibility(View.VISIBLE);
         compositeDisposable.add(textUtil.identifyLanguageRx(sourceHtml)
-            .flatMap(sLang -> textUtil.translateHtmlAllAtOnce(sLang, targetLang, sourceHtml, info.getEntryTitle(), currentId, p -> runOnUiThread(() -> loading.setProgress(p))))
+            .flatMap(sLang -> textUtil.translateHtmlAllAtOnce(sLang, targetLang, sourceHtml, info.getEntryTitle(), currentId, p -> runOnUiThread(() -> loading.setProgress(p)), true))
             .subscribeOn(Schedulers.io())
             .observeOn(AndroidSchedulers.mainThread())
             .subscribe(res -> {
@@ -450,7 +450,7 @@ public class WebViewActivity extends AppCompatActivity implements ReloadDialog.R
 
         loading.setVisibility(View.VISIBLE);
         compositeDisposable.add(textUtil.identifyLanguageRx(sourceHtml)
-            .flatMap(sLang -> textUtil.summarizeHtmlAllAtOnce(sLang, targetLang, sourceHtml, length, currentId, info.getEntryTitle(), p -> runOnUiThread(() -> loading.setProgress(p))))
+            .flatMap(sLang -> textUtil.summarizeHtmlAllAtOnce(sLang, targetLang, sourceHtml, length, currentId, info.getEntryTitle(), p -> runOnUiThread(() -> loading.setProgress(p)), true))
             .subscribeOn(Schedulers.io())
             .observeOn(AndroidSchedulers.mainThread())
             .subscribe(res -> {

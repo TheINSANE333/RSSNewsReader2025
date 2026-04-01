@@ -149,7 +149,7 @@ public class SummarizationWorker extends ListenableWorker {
         final String finalHtmlSource = htmlSource;
         int summaryLength = sharedPreferencesRepository.getSummaryLength();
         
-        return textUtil.summarizeHtmlRx(finalHtmlSource, entryInfo.getEntryTitle(), summaryLength)
+        return textUtil.summarizeHtmlRx(finalHtmlSource, entryInfo.getEntryTitle(), summaryLength, false)
                 .doOnSubscribe(d -> AutoSummarizer.processingIds.add(entryInfo.getEntryId()))
                 .doFinally(() -> AutoSummarizer.processingIds.remove(entryInfo.getEntryId()))
                 .flatMapCompletable(summaryRaw -> io.reactivex.rxjava3.core.Completable.fromAction(() -> {

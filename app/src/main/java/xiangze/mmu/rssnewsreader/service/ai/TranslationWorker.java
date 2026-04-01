@@ -142,7 +142,7 @@ public class TranslationWorker extends ListenableWorker {
                     if (sourceLang != null && sourceLang.equalsIgnoreCase(targetLanguage)) {
                         return io.reactivex.rxjava3.core.Single.error(new Exception("Already in target language"));
                     }
-                    return textUtil.translateHtmlAllAtOnce(sourceLang, targetLanguage, finalHtmlSource, entryInfo.getEntryTitle(), entryInfo.getEntryId(), p -> {});
+                    return textUtil.translateHtmlAllAtOnce(sourceLang, targetLanguage, finalHtmlSource, entryInfo.getEntryTitle(), entryInfo.getEntryId(), p -> {}, false);
                 })
                 .flatMapCompletable(translatedRaw -> io.reactivex.rxjava3.core.Completable.fromAction(() -> {
                     TextUtil.AiResponse aiRes = textUtil.parseAiResponse(translatedRaw, entryInfo.getEntryTitle());
