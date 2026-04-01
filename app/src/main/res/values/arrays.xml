@@ -33,18 +33,18 @@
     </string-array>
 
     <string-array name="ai_model">
+        <item>Moonshot: Kimi K2</item>
+        <item>Groq: Llama 4 Scout 17B (16e)</item>
         <item>Groq: Llama 3.3 70B Versatile</item>
         <item>Groq: Llama 3.1 8B Instant</item>
-        <item>Groq: Mixtral 8x7B</item>
-        <item>Groq: Gemma 2 9B IT</item>
         <item>Local Qwen2.5 (1.5B)</item>
     </string-array>
 
     <string-array name="ai_model_values">
+        <item>moonshotai/kimi-k2-instruct</item>
+        <item>meta-llama/llama-4-scout-17b-16e-instruct</item>
         <item>llama-3.3-70b-versatile</item>
         <item>llama-3.1-8b-instant</item>
-        <item>mixtral-8x7b-32768</item>
-        <item>gemma2-9b-it</item>
         <item>local_qwen_2_5_1_5b</item>
     </string-array>
 

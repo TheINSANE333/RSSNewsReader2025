@@ -285,65 +285,19 @@ public class TextUtil {
 //    }
 
     private String translateChunkWithRetry(AiClient aiClient, List<Message> messages, String model) {
-
-        int maxRetries = 5;
-        int delayMs = 30000;
-
-        for (int attempt = 1; attempt <= maxRetries; attempt++) {
-            try {
-                return aiClient.getChatResponse(messages, model);
-
-            } catch (Exception e) {
-
-                boolean isRateLimit =
-                        e.getMessage() != null &&
-                                (e.getMessage().contains("429") ||
-                                        e.getMessage().toLowerCase().contains("rate"));
-
-                if (isRateLimit && attempt < maxRetries) {
-
-                    Log.e(TAG, "Rate limit hit, retry " + attempt);
-
-                    try { Thread.sleep(delayMs); } catch (InterruptedException ignored) {}
-
-                } else {
-                    throw new RuntimeException(e);
-                }
-            }
+        try {
+            return aiClient.getChatResponse(messages, model);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
         }
-
-        return null;
     }
 
     private String summarizeChunkWithRetry(AiClient aiClient, List<Message> messages, String model) {
-
-        int maxRetries = 5;
-        int delayMs = 30000;
-
-        for (int attempt = 1; attempt <= maxRetries; attempt++) {
-            try {
-                return aiClient.getChatResponse(messages, model);
-
-            } catch (Exception e) {
-
-                boolean isRateLimit =
-                        e.getMessage() != null &&
-                                (e.getMessage().contains("429") ||
-                                        e.getMessage().toLowerCase().contains("rate"));
-
-                if (isRateLimit && attempt < maxRetries) {
-
-                    Log.e(TAG, "Rate limit hit, retry " + attempt);
-
-                    try { Thread.sleep(delayMs); } catch (InterruptedException ignored) {}
-
-                } else {
-                    throw new RuntimeException(e);
-                }
-            }
+        try {
+            return aiClient.getChatResponse(messages, model);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
         }
-
-        return null;
     }
 
     // Translation Method: Concat texts from all the elements then translate the concatenated text

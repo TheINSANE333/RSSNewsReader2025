@@ -34,6 +34,7 @@ public class AiClient {
                 .connectTimeout(300, TimeUnit.SECONDS)
                 .readTimeout(300, TimeUnit.SECONDS)
                 .writeTimeout(300, TimeUnit.SECONDS)
+                .retryOnConnectionFailure(false)
                 .addInterceptor(chain -> {
                     Request original = chain.request();
                     Request.Builder requestBuilder = original.newBuilder()
@@ -92,7 +93,7 @@ public class AiClient {
             throw new IOException("groq API key not configured! Please set it in Settings.");
         }
 
-        ChatRequest request = new ChatRequest(model, messages, 0.0, 8192);
+        ChatRequest request = new ChatRequest(model, messages, 0.0, 6000);
 
         retrofit2.Response<ChatResponse> response = service.chatCompletion(request).execute();
 
