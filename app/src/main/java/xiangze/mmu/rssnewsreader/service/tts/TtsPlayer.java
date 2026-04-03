@@ -227,16 +227,17 @@ public class TtsPlayer extends PlayerAdapter implements TtsPlayerListener {
             this.lastCurrentId = currentId;
         }
 
-        boolean wasSpeaking = tts != null && tts.isSpeaking();
+        boolean wasSpeaking = (tts != null && tts.isSpeaking()) || (currentState == PlaybackStateCompat.STATE_PLAYING) || isArticleFinished;
         isPausedManually = !wasSpeaking && sharedPreferencesRepository.getIsPausedManually();
         sharedPreferencesRepository.setIsPausedManually(isPausedManually);
-        Log.d(TAG, "Detected isPausedManually = " + isPausedManually);
+        Log.d(TAG, "Detected isPausedManually = " + isPausedManually + " (wasSpeaking=" + wasSpeaking + ", state=" + currentState + ", finished=" + isArticleFinished + ")");
 
         String resolvedLanguage = (language != null && language.equals("Use Language Identifier")) ? null : language;
         if (content != null && content.equals(this.lastContent) && currentId == this.currentId && 
             (resolvedLanguage == null ? this.language == null : resolvedLanguage.equals(this.language)) &&
             (viewMode != null && viewMode.equals(this.lastViewMode))) {
             Log.d(TAG, "Content, language, viewMode and ID are identical to last extraction, skipping redundant extraction.");
+            isArticleFinished = false;
             finishedSetupLiveData.postValue(true);
             return;
         }

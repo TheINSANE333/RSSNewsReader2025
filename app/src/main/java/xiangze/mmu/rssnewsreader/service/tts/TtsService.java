@@ -290,8 +290,8 @@ public class TtsService extends MediaBrowserServiceCompat {
         @Override
         public void onPlay() {
             Log.d(TAG, "onPlay called");
+            ttsPlayer.setPausedManually(false);
             if (!ttsPlayer.isPreparing()) {
-                ttsPlayer.setPausedManually(false);
                 ttsPlayer.setupMediaPlayer(false);
                 play();
             }
@@ -330,6 +330,7 @@ public class TtsService extends MediaBrowserServiceCompat {
 
             if (ttsPlayer != null) {
                 ttsPlayer.stopTtsPlayback();
+                updatePlaybackState(PlaybackStateCompat.STATE_BUFFERING);
                 ContextCompat.getMainExecutor(getApplicationContext()).execute(() -> ttsPlayer.showFakeLoading());
             }
 
@@ -344,6 +345,7 @@ public class TtsService extends MediaBrowserServiceCompat {
                 onPrepare();
             } else {
                 if (ttsPlayer != null) {
+                    updatePlaybackState(PlaybackStateCompat.STATE_PAUSED);
                     ContextCompat.getMainExecutor(getApplicationContext()).execute(() -> ttsPlayer.hideFakeLoading());
                     ttsPlayer.stopMediaPlayer();
                 }
@@ -356,6 +358,7 @@ public class TtsService extends MediaBrowserServiceCompat {
 
             if (ttsPlayer != null) {
                 ttsPlayer.stopTtsPlayback();
+                updatePlaybackState(PlaybackStateCompat.STATE_BUFFERING);
                 ContextCompat.getMainExecutor(getApplicationContext()).execute(() -> ttsPlayer.showFakeLoading());
             }
 
@@ -370,6 +373,7 @@ public class TtsService extends MediaBrowserServiceCompat {
                 onPrepare();
             } else {
                 if (ttsPlayer != null) {
+                    updatePlaybackState(PlaybackStateCompat.STATE_PAUSED);
                     ContextCompat.getMainExecutor(getApplicationContext()).execute(() -> ttsPlayer.hideFakeLoading());
                     ttsPlayer.stopMediaPlayer();
                 }
