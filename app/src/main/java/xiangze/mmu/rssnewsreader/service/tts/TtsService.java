@@ -157,7 +157,11 @@ public class TtsService extends MediaBrowserServiceCompat {
         @SuppressLint("CheckResult")
         @Override
         public void onPrepare() {
-            Log.d(TAG, "onPrepare called - Resolving Waterfall Content");
+            onPrepare(false);
+        }
+
+        private void onPrepare(final boolean ignoreViewingId) {
+            Log.d(TAG, "onPrepare called - ignoreViewingId=" + ignoreViewingId);
 
             Completable.fromAction(() -> {
                 // 1. Initialize TTS Engine and Player
@@ -173,7 +177,8 @@ public class TtsService extends MediaBrowserServiceCompat {
                 long currentViewingId = GlobalState.getCurrentViewingId();
 
                 // If user is currently looking at an article, onPrepare should ideally respect that
-                if (currentViewingId != 0 && currentViewingId != currentReadingId) {
+                // unless we are explicitly skipping (ignoreViewingId = true)
+                if (!ignoreViewingId && currentViewingId != 0 && currentViewingId != currentReadingId) {
                     Log.d(TAG, "onPrepare: Viewing " + currentViewingId + " but reading " + currentReadingId + ". Syncing to view.");
                     currentReadingId = currentViewingId;
                     sharedPreferencesRepository.setCurrentReadingEntryId(currentReadingId);
@@ -353,7 +358,7 @@ public class TtsService extends MediaBrowserServiceCompat {
                             Long.parseLong(metadata.getString(MediaMetadataCompat.METADATA_KEY_MEDIA_ID))
                     );
                 }
-                onPrepare();
+                onPrepare(true);
             } else {
                 if (ttsPlayer != null) {
                     updatePlaybackState(PlaybackStateCompat.STATE_PAUSED);
@@ -381,7 +386,7 @@ public class TtsService extends MediaBrowserServiceCompat {
                             Long.parseLong(metadata.getString(MediaMetadataCompat.METADATA_KEY_MEDIA_ID))
                     );
                 }
-                onPrepare();
+                onPrepare(true);
             } else {
                 if (ttsPlayer != null) {
                     updatePlaybackState(PlaybackStateCompat.STATE_PAUSED);
