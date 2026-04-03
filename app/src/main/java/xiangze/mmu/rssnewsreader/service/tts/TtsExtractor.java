@@ -111,7 +111,7 @@ public class TtsExtractor {
                 WebSettings settings = webView.getSettings();
                 settings.setJavaScriptEnabled(true);
                 settings.setDomStorageEnabled(true);
-                settings.setDatabaseEnabled(true);
+//                settings.setDatabaseEnabled(true);
                 settings.setLoadsImagesAutomatically(true);
                 settings.setBlockNetworkImage(false);
                 settings.setMixedContentMode(WebSettings.MIXED_CONTENT_ALWAYS_ALLOW);
@@ -164,9 +164,11 @@ public class TtsExtractor {
 
                 if (isTranslated && entry != null && entry.getTranslated() != null && !entry.getTranslated().trim().isEmpty()) {
                     contentToRead = entry.getTranslated();
+                    lang = sharedPreferencesRepository.getDefaultTranslationLanguage();
                     Log.d(TAG, "[TtsExtractor] Using translated content for TTS");
                 } else if (isSummarized && entry != null && entry.getSummarized() != null && !entry.getSummarized().trim().isEmpty()) {
                     contentToRead = entry.getSummarized();
+                    lang = sharedPreferencesRepository.getDefaultTranslationLanguage();
                     Log.d(TAG, "[TtsExtractor] Using summarized content for TTS");
                 } else {
                     contentToRead = entry != null ? entry.getContent() : "";
@@ -644,7 +646,7 @@ public class TtsExtractor {
                         .subscribe(detectedLang -> {
                             // Localize the language for this specific processing chain
                             final String localizedLang = detectedLang; 
-                            currentLanguage = detectedLang; // Sync back for legacy compatibility
+                            setCurrentLanguage(detectedLang, false); // Sync back for legacy compatibility, respecting lock
                             
                             String targetLang = sharedPreferencesRepository.getDefaultTranslationLanguage();
                             boolean isSameLanguage = localizedLang.equalsIgnoreCase(targetLang);

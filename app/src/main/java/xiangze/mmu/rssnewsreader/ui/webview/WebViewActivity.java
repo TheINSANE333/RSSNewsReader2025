@@ -609,6 +609,9 @@ public class WebViewActivity extends AppCompatActivity implements ReloadDialog.R
     private void reload() { webViewViewModel.resetEntry(currentId); finish(); startActivity(getIntent()); }
 
     private String getLanguageForCurrentView(long id, boolean p, String d) {
+        if (p) {
+            return sharedPreferencesRepository.getDefaultTranslationLanguage();
+        }
         EntryInfo info = webViewViewModel.getEntryInfoById(id);
         return (info != null && info.getFeedLanguage() != null) ? info.getFeedLanguage() : d;
     }
