@@ -23,6 +23,7 @@ import io.reactivex.rxjava3.schedulers.Schedulers;
 import androidx.lifecycle.LiveData;
 import androidx.lifecycle.MutableLiveData;
 
+import xiangze.mmu.rssnewsreader.data.GlobalState;
 import xiangze.mmu.rssnewsreader.data.entry.Entry;
 import xiangze.mmu.rssnewsreader.data.entry.EntryRepository;
 import xiangze.mmu.rssnewsreader.data.feed.Feed;
@@ -152,7 +153,7 @@ public class TtsExtractor {
         }
 
         // Your existing cleanup logic
-        if (currentIdInProgress == ttsPlaylist.getPlayingId()) {
+        if (currentIdInProgress == GlobalState.getCurrentViewingId()) {
             if (ttsCallback != null) {
                 String lang = currentLanguage != null ? currentLanguage : "en";
                 Entry entry = entryRepository.getEntryById(currentIdInProgress);
@@ -179,7 +180,7 @@ public class TtsExtractor {
                 ttsCallback = null; // Consume the callback so it doesn't fire again unexpectedly
             }
         } else {
-            Log.d(TAG, "Not playing this ID. Current: " + currentIdInProgress + ", Playing: " + ttsPlaylist.getPlayingId());
+            Log.d(TAG, "Not viewing this ID. CurrentInProgress: " + currentIdInProgress + ", GlobalViewing: " + GlobalState.getCurrentViewingId());
         }
 
         finishedSetupLiveData.postValue(true);
@@ -199,12 +200,31 @@ public class TtsExtractor {
             extractionInProgress = false;
         }
 
-        Entry entry = entryRepository.getEmptyContentEntry();
-
-        if (entry != null && failedIds.contains(entry.getId())) {
-            entry = null;
+        if (extractionInProgress) {
+            Log.d(TAG, "Extraction already in progress for ID: " + currentIdInProgress);
+            return;
         }
 
+        // 1. PRIORITIZE: Check if the currently viewing article needs extraction
+        long viewingId = GlobalState.getCurrentViewingId();
+        Entry entry = null;
+        if (viewingId != 0 && !failedIds.contains(viewingId)) {
+            Entry viewingEntry = entryRepository.getEntryById(viewingId);
+            if (viewingEntry != null && (viewingEntry.getContent() == null || viewingEntry.getContent().trim().isEmpty())) {
+                entry = viewingEntry;
+                Log.d(TAG, "Prioritizing currently viewing article from GlobalState: " + viewingId);
+            }
+        }
+
+        // 2. FALLBACK: Get the next highest priority empty entry
+        if (entry == null) {
+            entry = entryRepository.getEmptyContentEntry();
+            if (entry != null && failedIds.contains(entry.getId())) {
+                entry = null;
+            }
+        }
+
+        // 3. RETRY LOGIC: If no new empty entries, try retrying a failed one
         if (entry == null && !failedIds.isEmpty()) {
             long retryId = failedIds.remove(0);
             int attempts = retryCountMap.getOrDefault(retryId, 0);
@@ -239,11 +259,12 @@ public class TtsExtractor {
 
                 Log.d(TAG, "Delay for ID " + entry.getId() + " is " + delayTime + "s (Attempt " + attempts + ")");
 
+                final String linkToLoad = currentLink;
                 ContextCompat.getMainExecutor(context).execute(new Runnable() {
                     @Override
                     public void run() {
-                        webView.loadUrl(currentLink);
-                        Log.d("Test url",currentLink);
+                        webView.loadUrl(linkToLoad);
+                        Log.d("Test url", linkToLoad);
                     }
                 });
                 lastExtractStart = System.currentTimeMillis();
@@ -258,7 +279,7 @@ public class TtsExtractor {
                     }
                 }, 30000);
             }
-        }else {
+        } else {
             Log.d(TAG, "No entry returned by getEmptyContentEntry()");
         }
     }

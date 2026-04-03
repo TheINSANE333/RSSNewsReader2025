@@ -52,6 +52,7 @@ import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers;
 import io.reactivex.rxjava3.disposables.CompositeDisposable;
 import io.reactivex.rxjava3.schedulers.Schedulers;
 import xiangze.mmu.rssnewsreader.R;
+import xiangze.mmu.rssnewsreader.data.GlobalState;
 import xiangze.mmu.rssnewsreader.data.entry.Entry;
 import xiangze.mmu.rssnewsreader.data.entry.EntryRepository;
 import xiangze.mmu.rssnewsreader.data.sharedpreferences.SharedPreferencesRepository;
@@ -69,7 +70,7 @@ import xiangze.mmu.rssnewsreader.service.util.TextUtil;
 import xiangze.mmu.rssnewsreader.ui.feed.ReloadDialog;
 
 @AndroidEntryPoint
-public class WebViewActivity extends AppCompatActivity implements ReloadDialog.ReloadAction, WebViewMenuHandler.MenuActionListener {
+public class WebViewActivity extends AppCompatActivity implements ReloadDialog.ReloadAction, WebViewMenuHandler.MenuActionListener, WebViewListener {
     private final static String TAG = "WebViewActivity";
     private ActivityWebviewBinding binding;
     private WebViewViewModel webViewViewModel;
@@ -113,11 +114,17 @@ public class WebViewActivity extends AppCompatActivity implements ReloadDialog.R
                 String mediaIdStr = metadata.getString(MediaMetadataCompat.METADATA_KEY_MEDIA_ID);
                 if (mediaIdStr != null) {
                     long newId = Long.parseLong(mediaIdStr);
+                    // Only switch if it's a legitimate ID change and it matches what we think we are viewing
+                    // OR if it's a legitimate next article skip.
                     if (newId != currentId && newId != 0) {
-                        currentId = newId;
-                        webViewViewModel.setCurrentId(currentId);
-                        sharedPreferencesRepository.setCurrentReadingEntryId(currentId);
-                        loadEntryContent();
+                        if (newId == GlobalState.getCurrentViewingId() || ttsPlaylist.getPlayingId() == newId) {
+                            currentId = newId;
+                            webViewViewModel.setCurrentId(currentId);
+                            sharedPreferencesRepository.setCurrentReadingEntryId(currentId);
+                            loadEntryContent();
+                        } else {
+                            Log.d(TAG, "Ignoring metadata change for ID: " + newId + ". Current viewing: " + GlobalState.getCurrentViewingId());
+                        }
                     }
                 }
             }
@@ -143,7 +150,7 @@ public class WebViewActivity extends AppCompatActivity implements ReloadDialog.R
         toolbar = binding.toolbar;
         toolbar.setNavigationOnClickListener(v -> getOnBackPressedDispatcher().onBackPressed());
         textUtil = new TextUtil(sharedPreferencesRepository);
-        contentManager = new WebViewContentManager(webView, webViewViewModel, sharedPreferencesRepository);
+        contentManager = new WebViewContentManager(webView, webViewViewModel, sharedPreferencesRepository, this);
         menuHandler = new WebViewMenuHandler(this, webViewViewModel, sharedPreferencesRepository, toolbar, this);
         menuHandler.setupMenu();
         
@@ -206,7 +213,19 @@ public class WebViewActivity extends AppCompatActivity implements ReloadDialog.R
             isReadingMode = savedInstanceState.getBoolean("is_reading_mode");
         } else {
             isReadingMode = getIntent().getBooleanExtra("read", false);
-            currentId = getIntent().getLongExtra("entry_id", 0);
+            boolean forceId = getIntent().getBooleanExtra("force_id", false);
+            
+            if (forceId) {
+                currentId = getIntent().getLongExtra("entry_id", 0);
+            } else {
+                // Check if there's already something playing/reading in the background
+                long playingId = sharedPreferencesRepository.getCurrentReadingEntryId();
+                if (playingId != 0) {
+                    currentId = playingId;
+                } else {
+                    currentId = getIntent().getLongExtra("entry_id", 0);
+                }
+            }
         }
 
         webViewViewModel.setCurrentId(currentId);
@@ -229,6 +248,7 @@ public class WebViewActivity extends AppCompatActivity implements ReloadDialog.R
         }
 
         currentId = entryInfo.getEntryId();
+        GlobalState.setCurrentViewingId(currentId); // SYNC GLOBAL STATE
         currentTitle = entryInfo.getEntryTitle();
         feedId = entryInfo.getFeedId();
         currentLink = entryInfo.getEntryLink();
@@ -265,7 +285,7 @@ public class WebViewActivity extends AppCompatActivity implements ReloadDialog.R
         if (entry == null) {
             entry = entryRepository.getEntryById(currentId);
         }
-        if (entry == null) return;
+        if (entry == null || entry.getId() != currentId) return;
 
         String htmlToLoad;
         String contentToRead;
@@ -298,12 +318,18 @@ public class WebViewActivity extends AppCompatActivity implements ReloadDialog.R
         if (contentToRead != null && !contentToRead.trim().isEmpty()) {
             String lang = getLanguageForCurrentView(currentId, isSummarized || isTranslated, "en");
             String viewMode = isSummarized ? "summarized" : (isTranslated ? "translated" : "original");
-            ttsPlayer.extract(currentId, feedId, contentToRead, lang, viewMode);
-            if (mMediaBrowserHelper != null && mMediaBrowserHelper.getTransportControls() != null) {
-                mMediaBrowserHelper.getTransportControls().prepare();
+            
+            // Only extract if this is still the current article the user is looking at
+            if (entry.getId() == currentId) {
+                ttsPlayer.extract(currentId, feedId, contentToRead, lang, viewMode);
+                if (mMediaBrowserHelper != null && mMediaBrowserHelper.getTransportControls() != null) {
+                    mMediaBrowserHelper.getTransportControls().prepare();
+                }
             }
         } else {
-            ttsPlayer.extract(currentId, feedId, null, "en", "original");
+            if (entry.getId() == currentId) {
+                ttsPlayer.extract(currentId, feedId, null, "en", "original");
+            }
         }
         refreshButtonVisibility();
     }
@@ -589,6 +615,13 @@ public class WebViewActivity extends AppCompatActivity implements ReloadDialog.R
         webView.setWebChromeClient(new WebChromeClient());
     }
 
+    @Override
+    public void highlightText(String searchText) {
+        if (contentManager != null) {
+            contentManager.highlightText(searchText);
+        }
+    }
+
     public void finishedSetup() {
         runOnUiThread(() -> {
             loading.setVisibility(View.INVISIBLE);
@@ -605,8 +638,8 @@ public class WebViewActivity extends AppCompatActivity implements ReloadDialog.R
     public void updateLoadingProgress(int p) { loading.setProgress(p); if (p >= 100) hideFakeLoading(); }
     public void syncLoadingWithTts() { /* Logic to sync */ }
     public void askForReload(long fid) { new ReloadDialog(this, fid, R.string.reload_confirmation, R.string.reload_suggestion_message).show(getSupportFragmentManager(), ReloadDialog.TAG); }
-    public void makeSnackbar(String m) { Snackbar.make(binding.getRoot(), m, Snackbar.LENGTH_SHORT).show(); }
-    private void reload() { webViewViewModel.resetEntry(currentId); finish(); startActivity(getIntent()); }
+    @Override public void makeSnackbar(String m) { Snackbar.make(binding.getRoot(), m, Snackbar.LENGTH_SHORT).show(); }
+    @Override public void reload() { webViewViewModel.resetEntry(currentId); finish(); startActivity(getIntent()); }
 
     private String getLanguageForCurrentView(long id, boolean p, String d) {
         if (p) {
@@ -708,6 +741,7 @@ public class WebViewActivity extends AppCompatActivity implements ReloadDialog.R
         public MediaBrowserConnection(Context c) { super(c, TtsService.class); }
         @Override protected void onConnected(@NonNull MediaControllerCompat c) {
             c.registerCallback(mediaControllerCallback);
+            mediaControllerCallback.onMetadataChanged(c.getMetadata());
             mediaControllerCallback.onPlaybackStateChanged(c.getPlaybackState());
         }
     }

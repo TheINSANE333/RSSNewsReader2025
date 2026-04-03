@@ -30,6 +30,7 @@ import dagger.hilt.android.AndroidEntryPoint;
 import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers;
 import io.reactivex.rxjava3.core.Completable;
 import io.reactivex.rxjava3.schedulers.Schedulers;
+import xiangze.mmu.rssnewsreader.data.GlobalState;
 import xiangze.mmu.rssnewsreader.data.entry.Entry;
 import xiangze.mmu.rssnewsreader.data.entry.EntryRepository;
 import xiangze.mmu.rssnewsreader.data.sharedpreferences.SharedPreferencesRepository;
@@ -169,6 +170,16 @@ public class TtsService extends MediaBrowserServiceCompat {
 
                 // 2. Fetch the current Entry from Database
                 long currentReadingId = sharedPreferencesRepository.getCurrentReadingEntryId();
+                long currentViewingId = GlobalState.getCurrentViewingId();
+
+                // If user is currently looking at an article, onPrepare should ideally respect that
+                if (currentViewingId != 0 && currentViewingId != currentReadingId) {
+                    Log.d(TAG, "onPrepare: Viewing " + currentViewingId + " but reading " + currentReadingId + ". Syncing to view.");
+                    currentReadingId = currentViewingId;
+                    sharedPreferencesRepository.setCurrentReadingEntryId(currentReadingId);
+                    ttsPlaylist.updatePlayingId(currentReadingId);
+                }
+
                 Entry entry = entryRepository.getEntryById(currentReadingId);
 
                 if (entry == null) {

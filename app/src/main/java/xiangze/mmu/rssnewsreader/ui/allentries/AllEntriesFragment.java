@@ -616,6 +616,7 @@ public class AllEntriesFragment extends Fragment implements EntryItemAdapter.Ent
         Intent intent = new Intent(context, WebViewActivity.class);
         intent.putExtra("read", false);
         intent.putExtra("entry_id", entryId);
+        intent.putExtra("force_id", true);
 
         List<Long> allLinks = new ArrayList<>();
         for (EntryInfo entryInfo : entries) {
@@ -637,6 +638,7 @@ public class AllEntriesFragment extends Fragment implements EntryItemAdapter.Ent
         Intent intent = new Intent(context, WebViewActivity.class);
         intent.putExtra("read", true);
         intent.putExtra("entry_id", entryId);
+        intent.putExtra("force_id", true);
 
         List<Long> allLinks = new ArrayList<>();
         for (EntryInfo entryInfo : entries) {

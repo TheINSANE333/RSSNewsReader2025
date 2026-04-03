@@ -133,16 +133,45 @@ public class AllEntriesViewModel extends ViewModel {
     }
 
     public void insertPlaylist(List<Long> allEntryIds, long entryId) {
-        Date date = new Date();
-
-        Playlist playlist = new Playlist(date, longListToString(allEntryIds));
-        playlistRepository.deleteAllPlaylists();
-        playlistRepository.insert(playlist);
+        Completable.fromAction(() -> {
+            Date date = new Date();
+            Playlist playlist = new Playlist(date, longListToString(allEntryIds));
+            playlistRepository.deleteAllPlaylists();
+            playlistRepository.insert(playlist);
+        }).subscribeOn(Schedulers.io())
+                .observeOn(AndroidSchedulers.mainThread())
+                .subscribe(new CompletableObserver() {
+                    @Override
+                    public void onSubscribe(@NonNull Disposable d) {}
+                    @Override
+                    public void onComplete() {
+                        Log.d("AllEntriesViewModel", "Playlist inserted successfully");
+                    }
+                    @Override
+                    public void onError(@NonNull Throwable e) {
+                        Log.e("AllEntriesViewModel", "Error inserting playlist", e);
+                    }
+                });
     }
 
     public void updateVisitedDate(long entryId) {
-        Date date = new Date();
-        entryRepository.updateDate(date, entryId);
+        Completable.fromAction(() -> {
+            Date date = new Date();
+            entryRepository.updateDate(date, entryId);
+        }).subscribeOn(Schedulers.io())
+                .observeOn(AndroidSchedulers.mainThread())
+                .subscribe(new CompletableObserver() {
+                    @Override
+                    public void onSubscribe(@NonNull Disposable d) {}
+                    @Override
+                    public void onComplete() {
+                        Log.d("AllEntriesViewModel", "Visited date updated successfully");
+                    }
+                    @Override
+                    public void onError(@NonNull Throwable e) {
+                        Log.e("AllEntriesViewModel", "Error updating visited date", e);
+                    }
+                });
     }
 
     @Override

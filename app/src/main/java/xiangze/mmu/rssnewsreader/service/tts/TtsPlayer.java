@@ -34,6 +34,7 @@ import java.text.BreakIterator;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.regex.Pattern;
 
@@ -57,7 +58,7 @@ public class TtsPlayer extends PlayerAdapter implements TtsPlayerListener {
     private final SharedPreferencesRepository sharedPreferencesRepository;
 
     private int sentenceCounter;
-    private List<String> sentences = new ArrayList<>();
+    private List<String> sentences = new CopyOnWriteArrayList<>();
 
     private CountDownLatch countDownLatch;
     private int currentState;
@@ -73,6 +74,7 @@ public class TtsPlayer extends PlayerAdapter implements TtsPlayerListener {
     private boolean isManualSkip = false;
     private boolean isArticleFinished = false;
     private boolean isSettingUpNewArticle = false;
+    private boolean isSentenceSplittingInProgress = false;
     private MediaPlayer mediaPlayer;
     private String currentUtteranceID = null;
     private String lastContent = null;
@@ -155,13 +157,18 @@ public class TtsPlayer extends PlayerAdapter implements TtsPlayerListener {
                     sentenceCounter++;
                     speak();
                     entryRepository.updateSentCount(sentenceCounter, currentId);
-                    Log.d(TAG, "Finished [#" + sentenceCounter + "]: " + sentences.get(sentenceCounter));
+                    Log.d(TAG, "Finished [#" + (sentenceCounter - 1) + "], speaking [#" + sentenceCounter + "]");
                 } else {
-                    Log.d(TAG, "Finished last sentence. Moving to next article.");
-                    entryRepository.updateSentCount(0, currentId);
-                    sentenceCounter = 0;
-                    isArticleFinished = true;
-                    callback.onSkipToNext();
+                    if (isSentenceSplittingInProgress) {
+                        Log.d(TAG, "Reached end of current batch, but splitting is still in progress. Waiting...");
+                        // We don't increment sentenceCounter here, we wait for extractToTts to resume us
+                    } else {
+                        Log.d(TAG, "Finished last sentence. Moving to next article.");
+                        entryRepository.updateSentCount(0, currentId);
+                        sentenceCounter = 0;
+                        isArticleFinished = true;
+                        callback.onSkipToNext();
+                    }
                 }
             }
 
@@ -329,6 +336,8 @@ public class TtsPlayer extends PlayerAdapter implements TtsPlayerListener {
         int totalSentences = sentenceList.size();
 
         new Thread(() -> {
+            isSentenceSplittingInProgress = true;
+            boolean firstBatchSignaled = false;
             try {
                 for (int i = 0; i < sentenceList.size(); i++) {
                     if (extractionId != currentExtractionId) return;
@@ -339,10 +348,30 @@ public class TtsPlayer extends PlayerAdapter implements TtsPlayerListener {
                         iterator.setText(sentence);
                         int start = iterator.first();
                         for (int end = iterator.next(); end != BreakIterator.DONE; start = end, end = iterator.next()) {
-                            localSentences.add(sentence.substring(start, end));
+                            sentences.add(sentence.substring(start, end));
                         }
                     } else {
-                        localSentences.add(sentence);
+                        sentences.add(sentence);
+                    }
+
+                    // If we were at the end of the list and stopped, but more sentences are now available, resume speaking
+                    if (firstBatchSignaled && !isSpeaking() && !isPausedManually && currentState == PlaybackStateCompat.STATE_PLAYING && sentenceCounter == sentences.size() - 2) {
+                        Log.d(TAG, "Resuming playback as more sentences arrived.");
+                        sentenceCounter++;
+                        speak();
+                    }
+
+                    // Signal ready after a small batch of sentences are processed (e.g., 5 sentences)
+                    if (!firstBatchSignaled && sentences.size() >= 5) {
+                        firstBatchSignaled = true;
+                        int savedProgress = entryRepository.getSentCount(currentId);
+                        sentenceCounter = Math.min(savedProgress, sentences.size() - 1);
+                        if (isInit) {
+                            setupTts(extractionId);
+                        } else {
+                            actionNeeded = true;
+                        }
+                        if (countDownLatch != null) countDownLatch.countDown();
                     }
 
                     currentExtractProgress = (int) (((double) (i + 1) / totalSentences) * 100);
@@ -354,28 +383,25 @@ public class TtsPlayer extends PlayerAdapter implements TtsPlayerListener {
 
                 if (extractionId != currentExtractionId) return;
 
-                if (localSentences.size() < 1) {
+                if (sentences.isEmpty()) {
                     Log.w(TAG, "Extraction failed: no sentences found. Resetting state.");
                     askForReloadLiveData.postValue(feedId);
-                    sentences = new ArrayList<>();
                     actionNeeded = false;
                     isPreparing = false;
                     isSettingUpNewArticle = false;
-                } else {
-                    sentences = localSentences;
+                } else if (!firstBatchSignaled) {
+                    // If the article is very short and we haven't signaled yet
                     int savedProgress = entryRepository.getSentCount(currentId);
                     sentenceCounter = Math.min(savedProgress, sentences.size() - 1);
-
-                    if (!isInit) {
-                        Log.d(TAG, "TTS not initialized yet");
-                        actionNeeded = true;
-                    } else {
-                        Log.d(TAG, "TTS is initialized");
+                    if (isInit) {
                         setupTts(extractionId);
+                    } else {
+                        actionNeeded = true;
                     }
                 }
             } finally {
-                if (countDownLatch != null) {
+                isSentenceSplittingInProgress = false;
+                if (countDownLatch != null && countDownLatch.getCount() > 0) {
                     countDownLatch.countDown();
                 }
             }

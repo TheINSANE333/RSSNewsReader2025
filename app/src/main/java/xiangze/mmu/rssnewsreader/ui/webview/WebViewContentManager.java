@@ -8,50 +8,69 @@ import androidx.appcompat.app.AppCompatActivity;
 import xiangze.mmu.rssnewsreader.data.sharedpreferences.SharedPreferencesRepository;
 import xiangze.mmu.rssnewsreader.model.EntryInfo;
 
+import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers;
+import io.reactivex.rxjava3.core.Single;
+import io.reactivex.rxjava3.schedulers.Schedulers;
+
 public class WebViewContentManager {
     private static final String TAG = "WebViewContentManager";
     private final WebView webView;
     private final WebViewViewModel viewModel;
     private final SharedPreferencesRepository sharedPreferencesRepository;
+    private final WebViewListener listener;
 
-    public WebViewContentManager(WebView webView, WebViewViewModel viewModel, SharedPreferencesRepository sharedPreferencesRepository) {
+    public WebViewContentManager(WebView webView, WebViewViewModel viewModel, SharedPreferencesRepository sharedPreferencesRepository, WebViewListener listener) {
         this.webView = webView;
         this.viewModel = viewModel;
         this.sharedPreferencesRepository = sharedPreferencesRepository;
+        this.listener = listener;
     }
 
     public void loadHtml(String html, long currentId) {
         if (html == null || html.trim().isEmpty()) return;
 
-        String processedHtml = html;
-        if (html.contains("--####--")) {
-            processedHtml = html.replace("--####--", "<br><br>");
-        }
+        Single.fromCallable(() -> {
+            String processedHtml = html;
+            if (html.contains("--####--")) {
+                processedHtml = html.replace("--####--", "<br><br>");
+            }
 
-        org.jsoup.nodes.Document doc = org.jsoup.Jsoup.parse(processedHtml);
-        doc.head().append(viewModel.getStyle(sharedPreferencesRepository.getNight()));
+            org.jsoup.nodes.Document doc = org.jsoup.Jsoup.parse(processedHtml);
+            doc.head().append(viewModel.getStyle(sharedPreferencesRepository.getNight()));
 
-        EntryInfo entryInfo = viewModel.getEntryInfoById(currentId);
-        if (entryInfo != null && doc.selectFirst(".entry-header") == null) {
-            doc.selectFirst("body").prepend(
-                    viewModel.getHtml(
-                            entryInfo.getEntryTitle(),
-                            entryInfo.getFeedTitle(),
-                            entryInfo.getEntryPublishedDate(),
-                            entryInfo.getFeedImageUrl(),
-                            sharedPreferencesRepository.getNight()
-                    )
-            );
-        }
+            EntryInfo entryInfo = viewModel.getEntryInfoById(currentId);
+            if (entryInfo != null && doc.selectFirst(".entry-header") == null) {
+                doc.selectFirst("body").prepend(
+                        viewModel.getHtml(
+                                entryInfo.getEntryTitle(),
+                                entryInfo.getFeedTitle(),
+                                entryInfo.getEntryPublishedDate(),
+                                entryInfo.getFeedImageUrl(),
+                                sharedPreferencesRepository.getNight()
+                        )
+                );
+            }
+            return doc.html();
+        })
+        .subscribeOn(Schedulers.io())
+        .observeOn(AndroidSchedulers.mainThread())
+        .subscribe(htmlResult -> {
+            webView.loadDataWithBaseURL("file:///android_res/", htmlResult, "text/html", "UTF-8", null);
+            webView.setAlpha(1.0f);
+            
+            if (listener != null) {
+                listener.hideFakeLoading();
+                listener.finishedSetup();
+            }
 
-        webView.loadDataWithBaseURL("file:///android_res/", doc.html(), "text/html", "UTF-8", null);
-        webView.animate().alpha(1.0f).setDuration(300).start();
-
-        webView.postDelayed(() -> {
-            int scrollX = sharedPreferencesRepository.getScrollX(currentId);
-            int scrollY = sharedPreferencesRepository.getScrollY(currentId);
-            webView.scrollTo(scrollX, scrollY);
-        }, 300);
+            webView.postDelayed(() -> {
+                int scrollX = sharedPreferencesRepository.getScrollX(currentId);
+                int scrollY = sharedPreferencesRepository.getScrollY(currentId);
+                webView.scrollTo(scrollX, scrollY);
+            }, 300);
+        }, throwable -> {
+            Log.e(TAG, "Error processing HTML", throwable);
+        });
     }
 
     public void highlightText(String searchText) {
