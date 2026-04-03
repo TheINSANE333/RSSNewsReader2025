@@ -474,12 +474,17 @@ public class WebViewActivity extends AppCompatActivity implements ReloadDialog.R
     }
 
     @Override
-    public void onReload() {
+    public void onShowReloadDialog() {
         EntryInfo info = webViewViewModel.getEntryInfoById(currentId);
         if (info != null) {
             ReloadDialog dialog = new ReloadDialog(this, info.getFeedId(), R.string.reload_confirmation, R.string.reload_message);
             dialog.show(getSupportFragmentManager(), ReloadDialog.TAG);
         }
+    }
+
+    @Override
+    public void onReload() {
+        reload();
     }
 
     @Override
@@ -637,7 +642,16 @@ public class WebViewActivity extends AppCompatActivity implements ReloadDialog.R
     public void hideFakeLoading() { loading.setVisibility(View.GONE); }
     public void updateLoadingProgress(int p) { loading.setProgress(p); if (p >= 100) hideFakeLoading(); }
     public void syncLoadingWithTts() { /* Logic to sync */ }
-    public void askForReload(long fid) { new ReloadDialog(this, fid, R.string.reload_confirmation, R.string.reload_suggestion_message).show(getSupportFragmentManager(), ReloadDialog.TAG); }
+    private long lastHandledReloadFeedId = -1;
+
+    public void askForReload(long fid) { 
+        if (fid == lastHandledReloadFeedId) {
+            Log.d(TAG, "Reload dialog already shown for feed " + fid + ", skipping.");
+            return;
+        }
+        lastHandledReloadFeedId = fid;
+        new ReloadDialog(this, fid, R.string.reload_confirmation, R.string.reload_suggestion_message).show(getSupportFragmentManager(), ReloadDialog.TAG); 
+    }
     @Override public void makeSnackbar(String m) { Snackbar.make(binding.getRoot(), m, Snackbar.LENGTH_SHORT).show(); }
     @Override public void reload() { webViewViewModel.resetEntry(currentId); finish(); startActivity(getIntent()); }
 

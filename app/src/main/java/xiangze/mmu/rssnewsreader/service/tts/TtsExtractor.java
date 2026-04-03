@@ -284,6 +284,21 @@ public class TtsExtractor {
         }
     }
 
+    public void cancelExtraction() {
+        Log.d(TAG, "cancelExtraction called - resetting extraction state");
+        extractionInProgress = false;
+        currentIdInProgress = -1;
+        ttsCallback = null;
+        
+        // Reset WebView
+        ContextCompat.getMainExecutor(context).execute(() -> {
+            if (webView != null) {
+                webView.stopLoading();
+                webView.loadUrl("about:blank");
+            }
+        });
+    }
+
     public void setCallback(TtsPlayerListener callback) {
         this.ttsCallback = callback;
     }

@@ -35,7 +35,7 @@ public class WebViewMenuHandler {
         void onToggleHighlight();
         void onExitBrowser();
         void onOpenInBrowser();
-        void onReload();
+        void onShowReloadDialog();
         void onReExtract();
         void onToggleTranslation();
         void onToggleSummarization();
@@ -129,7 +129,7 @@ public class WebViewMenuHandler {
                 .setTitle("Reload Options")
                 .setItems(options, (dialog, which) -> {
                     if (which == 0) {
-                        listener.onReload();
+                        listener.onShowReloadDialog();
                     } else {
                         listener.onReExtract();
                     }
