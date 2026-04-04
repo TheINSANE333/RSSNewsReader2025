@@ -112,15 +112,19 @@ public interface EntryDao {
     @RewriteQueriesToDropUnusedColumns
     @Query("SELECT e.id as entryId, e.title as entryTitle, e.content as content, e.priority as priority, e.link as entryLink, e.description as entryDescription, e.imageUrl as entryImageUrl, e.publishedDate as entryPublishedDate, e.visitedDate as visitedDate, e.category as entryCategory, e.bookmark as bookmark, e.original_html as originalHtml, e.html as html, e.translated_html as translatedHtml, e.summarized_html as summarizedHtml, e.translated as translated, e.summarized as summarized, f.id as feedId, f.ttsSpeechRate as ttsSpeechRate, f.language as feedLanguage, f.title as feedTitle, f.imageUrl as feedImageUrl " +
             "FROM entry_table e " +
-            "LEFT JOIN feed_table f ON e.feedId = f.id " +
-            "WHERE (summarized_html IS NULL OR summarized_html = '') AND original_html IS NOT NULL AND original_html != ''")
+            "INNER JOIN feed_table f ON e.feedId = f.id " +
+            "WHERE (e.summarized_html IS NULL OR e.summarized_html NOT LIKE '%summarized-title%') AND (e.original_html IS NOT NULL AND e.original_html != '') " +
+            "AND f.autoSummarize = 1 " +
+            "ORDER BY CASE WHEN e.priority = 0 THEN 999999 ELSE e.priority END ASC, e.id DESC")
     List<EntryInfo> getUnsummarizedEntriesInfo();
 
     @RewriteQueriesToDropUnusedColumns
     @Query("SELECT e.id as entryId, e.title as entryTitle, e.content as content, e.priority as priority, e.link as entryLink, e.description as entryDescription, e.imageUrl as entryImageUrl, e.publishedDate as entryPublishedDate, e.visitedDate as visitedDate, e.category as entryCategory, e.bookmark as bookmark, e.original_html as originalHtml, e.html as html, e.translated_html as translatedHtml, e.summarized_html as summarizedHtml, e.translated as translated, e.summarized as summarized, f.id as feedId, f.ttsSpeechRate as ttsSpeechRate, f.language as feedLanguage, f.title as feedTitle, f.imageUrl as feedImageUrl " +
             "FROM entry_table e " +
-            "LEFT JOIN feed_table f ON e.feedId = f.id " +
-            "WHERE (translated_html IS NULL OR translated_html = '') AND original_html IS NOT NULL AND original_html != ''")
+            "INNER JOIN feed_table f ON e.feedId = f.id " +
+            "WHERE (e.translated_html IS NULL OR e.translated_html NOT LIKE '%translated-title%') AND (e.original_html IS NOT NULL AND e.original_html != '') " +
+            "AND f.autoTranslate = 1 " +
+            "ORDER BY CASE WHEN e.priority = 0 THEN 999999 ELSE e.priority END ASC, e.id DESC")
     List<EntryInfo> getUntranslatedEntriesInfo();
 
     @RewriteQueriesToDropUnusedColumns
