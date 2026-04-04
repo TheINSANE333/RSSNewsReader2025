@@ -1,11 +1,9 @@
 package xiangze.mmu.rssnewsreader.ui.main;
 
-import android.annotation.SuppressLint;
 import android.content.Intent;
 import android.net.Uri;
 import android.os.Bundle;
 import android.util.Log;
-import android.util.Xml;
 import android.view.GestureDetector;
 import android.view.MotionEvent;
 import android.view.View;
@@ -36,7 +34,6 @@ import androidx.navigation.ui.NavigationUI;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
-import xiangze.mmu.rssnewsreader.data.entry.Entry;
 import xiangze.mmu.rssnewsreader.data.feed.Feed;
 import xiangze.mmu.rssnewsreader.data.sharedpreferences.SharedPreferencesRepository;
 import xiangze.mmu.rssnewsreader.service.rss.RssWorkManager;
@@ -44,17 +41,6 @@ import xiangze.mmu.rssnewsreader.service.tts.TtsExtractor;
 
 import com.google.android.material.materialswitch.MaterialSwitch;
 
-import org.xmlpull.v1.XmlPullParser;
-import org.xmlpull.v1.XmlPullParserException;
-import org.xmlpull.v1.XmlPullParserFactory;
-import org.xmlpull.v1.XmlSerializer;
-
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
-import java.nio.charset.StandardCharsets;
-import java.text.ParseException;
-import java.text.SimpleDateFormat;
 import java.util.List;
 
 import javax.inject.Inject;
@@ -371,7 +357,6 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onResume() {
         super.onResume();
-        ttsExtractor.extractAllEntries();
     }
 
     @Override

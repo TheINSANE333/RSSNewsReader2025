@@ -8,7 +8,7 @@ import javax.inject.Inject;
 
 public class HistoryRepository {
 
-    private HistoryDao historyDao;
+    private final HistoryDao historyDao;
 
     @Inject
     public HistoryRepository(HistoryDao historyDao) {

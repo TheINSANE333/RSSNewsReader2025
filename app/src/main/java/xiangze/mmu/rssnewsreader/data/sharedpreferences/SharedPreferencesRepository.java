@@ -12,8 +12,8 @@ import dagger.hilt.android.qualifiers.ApplicationContext;
 public class SharedPreferencesRepository {
 
     private static final String TAG = "SharedPreferencesRepository";
-    private SharedPreferences sharedPreferences;
-    private SharedPreferences.Editor editor;
+    private final SharedPreferences sharedPreferences;
+    private final SharedPreferences.Editor editor;
     private final Context context;
     private static final String KEY_TOGGLE_STATE_PREFIX = "is_translated_view_";
     private static final String KEY_TOGGLE_STATE_PREFIX2 = "is_summarized_view_";

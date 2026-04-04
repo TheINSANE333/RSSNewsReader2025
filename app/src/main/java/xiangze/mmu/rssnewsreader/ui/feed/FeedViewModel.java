@@ -33,16 +33,16 @@ import io.reactivex.rxjava3.schedulers.Schedulers;
 @HiltViewModel
 public class FeedViewModel extends ViewModel {
 
-    private CompositeDisposable compositeDisposable = new CompositeDisposable();
+    private final CompositeDisposable compositeDisposable = new CompositeDisposable();
 
-    private FeedRepository feedRepository;
-    private EntryRepository entryRepository;
-    private HistoryRepository historyRepository;
-    private TtsPlayer ttsPlayer;
+    private final FeedRepository feedRepository;
+    private final EntryRepository entryRepository;
+    private final HistoryRepository historyRepository;
+    private final TtsPlayer ttsPlayer;
     private final TtsExtractor ttsExtractor;
-    private MutableLiveData<Boolean> isLoading = new MutableLiveData<>();
-    private MutableLiveData<String> toastMessage = new MutableLiveData<>();
-    private MutableLiveData<List<Feed>> allFeeds = new MutableLiveData<>();
+    private final MutableLiveData<Boolean> isLoading = new MutableLiveData<>();
+    private final MutableLiveData<String> toastMessage = new MutableLiveData<>();
+    private final MutableLiveData<List<Feed>> allFeeds = new MutableLiveData<>();
     private RssFeed rssFeed;
 
     @Inject
@@ -135,12 +135,8 @@ public class FeedViewModel extends ViewModel {
     }
 
     public void addNewFeed(RssFeed feed) {
-        Completable.fromAction(new Action() {
-            @Override
-            public void run() throws Throwable {
-                feedRepository.addNewFeed(feed);
-            }
-        }).subscribeOn(Schedulers.io())
+        feedRepository.addNewFeed(feed)
+                .subscribeOn(Schedulers.io())
                 .observeOn(AndroidSchedulers.mainThread())
                 .subscribe(new CompletableObserver() {
                     @Override

@@ -38,12 +38,12 @@ import io.reactivex.rxjava3.schedulers.Schedulers;
 public class FeedRepository {
 
     private static final String TAG = "FeedRepository";
-    private FeedDao feedDao;
-    private EntryRepository entryRepository;
-    private HistoryRepository historyRepository;
-    private MutableLiveData<Boolean> isLoading = new MutableLiveData<>();
-    private RssWorkManager rssWorkManager;
-    private SharedPreferencesRepository preferencesRepository;
+    private final FeedDao feedDao;
+    private final EntryRepository entryRepository;
+    private final HistoryRepository historyRepository;
+    private final MutableLiveData<Boolean> isLoading = new MutableLiveData<>();
+    private final RssWorkManager rssWorkManager;
+    private final SharedPreferencesRepository preferencesRepository;
     private final Provider<TtsExtractor> ttsExtractorProvider;
     private final TextUtil textUtil;
 
@@ -144,8 +144,7 @@ public class FeedRepository {
                 });
     }
 
-    public void addNewFeed(RssFeed feed) {
-        String language = "Use Language Identifier";
+    public io.reactivex.rxjava3.core.Completable addNewFeed(RssFeed feed) {
         StringBuilder sampleText = new StringBuilder();
         if (feed.getTitle() != null) sampleText.append(feed.getTitle()).append(". ");
 
@@ -160,60 +159,61 @@ public class FeedRepository {
                 .toString()
                 .replaceAll("(?i)https?://[^\\s]+", "")
                 .trim();
+
+        io.reactivex.rxjava3.core.Single<String> languageSingle;
         if (!textToIdentify.isEmpty()) {
-            try {
-                // Using 5% confidence since titles are short and don't form full sentences
-                String detected = textUtil.identifyLanguageRx(textToIdentify, 0.05f).blockingGet();
-                if (detected != null && !detected.equals("und")) {
-                    language = detected;
-                    Log.d(TAG, "Detected language for feed: " + language);
-                }
-            } catch (Exception e) {
-                Log.e(TAG, "Failed to identify feed language", e);
-            }
-        }
-
-        // 1. Try to detect.
-        // 2. If valid detection, use it.
-        // 3. If detection fails/und, use declared feed language.
-        // 4. If declared is also null, use "Use Language Identifier" (which presumably triggers per-article detection).
-
-        if (language.equals("Use Language Identifier") && feed.getLanguage() != null && !feed.getLanguage().isEmpty()) {
-             language = feed.getLanguage();
-        }
-
-        String imageUrl = "https://www.google.com/s2/favicons?sz=64&domain_url=" + feed.getLink();
-        Feed newFeed = new Feed(feed.getTitle(), feed.getLink(), feed.getDescription(), imageUrl, language);
-
-        feedDao.insert(newFeed);
-        long feedId = feedDao.getIdByLink(feed.getLink());
-
-        List<Entry> entriesToPreload = new ArrayList<>();
-        for (RssItem rssItem : feed.getRssItems()) {
-            Entry entry = new Entry(feedId, rssItem.getTitle(), rssItem.getLink(), rssItem.getDescription(), rssItem.getImageUrl(), rssItem.getCategory(), rssItem.getPubDate());
-
-            long insertedId = entryRepository.insert(feedId, entry);
-            if (insertedId > 0 && rssItem.getPriority() > 0) { // Check for successful insertion
-                entry.setPriority(rssItem.getPriority());
-                entriesToPreload.add(entry);
-            }
-        }
-
-        if (!entriesToPreload.isEmpty()) {
-            entryRepository.preloadEntries(entriesToPreload);
-        }
-        markFeedAsPreloaded(feedId);
-
-        entryRepository.requeueMissingEntries();
-        if (entryRepository.hasEmptyContentEntries()) {
-            ttsExtractorProvider.get().extractAllEntries();
+            languageSingle = textUtil.identifyLanguageRx(textToIdentify, 0.05f)
+                    .map(detected -> {
+                        if (detected != null && !detected.equals("und")) {
+                            Log.d(TAG, "Detected language for feed: " + detected);
+                            return detected;
+                        }
+                        return "Use Language Identifier";
+                    })
+                    .onErrorReturnItem("Use Language Identifier");
         } else {
-            Log.d(TAG, "No entries to extract.");
+            languageSingle = io.reactivex.rxjava3.core.Single.just("Use Language Identifier");
         }
 
-        if (!rssWorkManager.isWorkScheduled()) {
-            rssWorkManager.enqueueRssWorker();
-        }
+        return languageSingle.flatMapCompletable(language -> io.reactivex.rxjava3.core.Completable.fromAction(() -> {
+            String finalLanguage = language;
+            if (finalLanguage.equals("Use Language Identifier") && feed.getLanguage() != null && !feed.getLanguage().isEmpty()) {
+                 finalLanguage = feed.getLanguage();
+            }
+
+            String imageUrl = "https://www.google.com/s2/favicons?sz=64&domain_url=" + feed.getLink();
+            Feed newFeed = new Feed(feed.getTitle(), feed.getLink(), feed.getDescription(), imageUrl, finalLanguage);
+
+            feedDao.insert(newFeed);
+            long feedId = feedDao.getIdByLink(feed.getLink());
+
+            List<Entry> entriesToPreload = new ArrayList<>();
+            for (RssItem rssItem : feed.getRssItems()) {
+                Entry entry = new Entry(feedId, rssItem.getTitle(), rssItem.getLink(), rssItem.getDescription(), rssItem.getImageUrl(), rssItem.getCategory(), rssItem.getPubDate());
+
+                long insertedId = entryRepository.insert(feedId, entry);
+                if (insertedId > 0 && rssItem.getPriority() > 0) { // Check for successful insertion
+                    entry.setPriority(rssItem.getPriority());
+                    entriesToPreload.add(entry);
+                }
+            }
+
+            if (!entriesToPreload.isEmpty()) {
+                entryRepository.preloadEntries(entriesToPreload);
+            }
+            markFeedAsPreloaded(feedId);
+
+            entryRepository.requeueMissingEntries();
+            if (entryRepository.hasEmptyContentEntries()) {
+                ttsExtractorProvider.get().extractAllEntries();
+            } else {
+                Log.d(TAG, "No entries to extract.");
+            }
+
+            if (!rssWorkManager.isWorkScheduled()) {
+                rssWorkManager.enqueueRssWorker();
+            }
+        }));
     }
 
     public EntryRepository getEntryRepository() {

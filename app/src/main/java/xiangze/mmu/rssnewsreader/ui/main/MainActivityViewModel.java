@@ -28,13 +28,13 @@ import io.reactivex.rxjava3.schedulers.Schedulers;
 @HiltViewModel
 public class MainActivityViewModel extends ViewModel {
 
-    private CompositeDisposable compositeDisposable = new CompositeDisposable();
+    private final CompositeDisposable compositeDisposable = new CompositeDisposable();
 
-    private FeedRepository feedRepository;
-    private EntryRepository entryRepository;
-    private SharedPreferencesRepository sharedPreferencesRepository;
+    private final FeedRepository feedRepository;
+    private final EntryRepository entryRepository;
+    private final SharedPreferencesRepository sharedPreferencesRepository;
 
-    private MutableLiveData<List<Feed>> allFeeds = new MutableLiveData<>();
+    private final MutableLiveData<List<Feed>> allFeeds = new MutableLiveData<>();
 
     @Inject
     public MainActivityViewModel(FeedRepository feedRepository, EntryRepository entryRepository, SharedPreferencesRepository sharedPreferencesRepository) {
@@ -105,4 +105,9 @@ public class MainActivityViewModel extends ViewModel {
         sharedPreferencesRepository.setNight(isNight);
     }
 
+    @Override
+    protected void onCleared() {
+        super.onCleared();
+        compositeDisposable.clear();
+    }
 }

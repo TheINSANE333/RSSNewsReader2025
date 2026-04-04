@@ -37,16 +37,16 @@ public class AllEntriesViewModel extends ViewModel {
     private Disposable disposableEntries;
     private Disposable disposableCount;
 
-    private FeedRepository feedRepository;
-    private EntryRepository entryRepository;
-    private PlaylistRepository playlistRepository;
-    private SharedPreferencesRepository sharedPreferencesRepository;
-    private TtsExtractor ttsExtractor;
-    private TtsPlayer ttsPlayer;
-    private MutableLiveData<List<EntryInfo>> allEntries = new MutableLiveData<>();
-    private MutableLiveData<String> toastMessage = new MutableLiveData<>();
-    private MutableLiveData<Integer> unreadCount = new MutableLiveData<>();
-    private LiveData<List<EntryInfo>> liveEntries;
+    private final FeedRepository feedRepository;
+    private final EntryRepository entryRepository;
+    private final PlaylistRepository playlistRepository;
+    private final SharedPreferencesRepository sharedPreferencesRepository;
+    private final TtsExtractor ttsExtractor;
+    private final TtsPlayer ttsPlayer;
+    private final MutableLiveData<List<EntryInfo>> allEntries = new MutableLiveData<>();
+    private final MutableLiveData<String> toastMessage = new MutableLiveData<>();
+    private final MutableLiveData<Integer> unreadCount = new MutableLiveData<>();
+    private final LiveData<List<EntryInfo>> liveEntries;
 
     private String filter = "all";
     private long id;
