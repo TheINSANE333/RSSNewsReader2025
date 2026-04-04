@@ -10,9 +10,8 @@ import javax.inject.Inject;
 
 public class PlaylistRepository {
 
-    private static final String TAG = "PlaylistRepository";
-    private PlaylistDao playlistDao;
-    private EntryRepository entryRepository;
+    private final PlaylistDao playlistDao;
+    private final EntryRepository entryRepository;
 
     @Inject
     public PlaylistRepository(PlaylistDao playlistDao, EntryRepository entryRepository) {
@@ -34,7 +33,7 @@ public class PlaylistRepository {
 
     public void deleteAllPlaylists() {
         playlistDao.deleteAllPlaylists();
-    };
+    }
 
     public Date getLatestPlaylistCreatedDate() {
         return playlistDao.getLatestPlaylistCreatedDate();
@@ -42,10 +41,6 @@ public class PlaylistRepository {
 
     public String getLatestPlaylist() {
         return playlistDao.getLatestPlaylist();
-    }
-
-    public long updatePlaylistToPrevious() {
-        return updatePlaylistToPrevious(0);
     }
 
     public long updatePlaylistToPrevious(long fromId) {
@@ -68,10 +63,6 @@ public class PlaylistRepository {
             }
         }
         return 0;
-    }
-
-    public long updatePlayListToNext() {
-        return updatePlayListToNext(0);
     }
 
     public long updatePlayListToNext(long fromId) {

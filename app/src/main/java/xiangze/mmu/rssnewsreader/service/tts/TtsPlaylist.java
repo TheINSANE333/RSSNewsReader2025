@@ -22,12 +22,7 @@ public class TtsPlaylist {
     private final EntryRepository entryRepository;
     private final PlaylistRepository playlistRepository;
     private MediaMetadataCompat metadata;
-    private EntryInfo entryInfo;
-    private String content;
-    private String html;
-    private Bitmap feedImage;
     private long playingId;
-    private String translated;
 
     @Inject
     public TtsPlaylist(EntryRepository entryRepository, PlaylistRepository playlistRepository) {
@@ -53,51 +48,48 @@ public class TtsPlaylist {
         final String[] localSummarized = new String[1];
         final Bitmap[] localFeedImage = new Bitmap[1];
 
-        Thread thread = new Thread(new Runnable() {
-            @Override
-            public void run() {
-                if (entryRepository == null) return;
-                if (playingId != 0) {
-                    localEntryInfo[0] = entryRepository.getEntryInfoById(playingId);
-                } else {
-                    localEntryInfo[0] = entryRepository.getLastVisitedEntry();
-                    if (localEntryInfo[0] != null) {
-                        playingId = localEntryInfo[0].getEntryId();
-                    }
+        Thread thread = new Thread(() -> {
+            if (entryRepository == null) return;
+            if (playingId != 0) {
+                localEntryInfo[0] = entryRepository.getEntryInfoById(playingId);
+            } else {
+                localEntryInfo[0] = entryRepository.getLastVisitedEntry();
+                if (localEntryInfo[0] != null) {
+                    playingId = localEntryInfo[0].getEntryId();
                 }
+            }
 
-                if (localEntryInfo[0] == null) return;
+            if (localEntryInfo[0] == null) return;
 
-                long entryId = localEntryInfo[0].getEntryId();
-                localContent[0] = entryRepository.getContentById(entryId);
-                localHtml[0] = entryRepository.getHtmlById(entryId);
-                localTranslated[0] = entryRepository.getTranslatedTextById(entryId);
-                localSummarized[0] = entryRepository.getSummarizedTextById(entryId);
+            long entryId = localEntryInfo[0].getEntryId();
+            localContent[0] = entryRepository.getContentById(entryId);
+            localHtml[0] = entryRepository.getHtmlById(entryId);
+            localTranslated[0] = entryRepository.getTranslatedTextById(entryId);
+            localSummarized[0] = entryRepository.getSummarizedTextById(entryId);
 
-                try {
-                    String imageUrl = localEntryInfo[0].getFeedImageUrl();
-                    if (imageUrl != null && !imageUrl.isEmpty()) {
-                        localFeedImage[0] = Picasso.get().load(imageUrl).get();
-                    }
-                } catch (IOException e) {
-                    e.printStackTrace();
+            try {
+                String imageUrl = localEntryInfo[0].getFeedImageUrl();
+                if (imageUrl != null && !imageUrl.isEmpty()) {
+                    localFeedImage[0] = Picasso.get().load(imageUrl).get();
                 }
+            } catch (IOException e) {
+                android.util.Log.e("TtsPlaylist", "Error loading feed image", e);
             }
         });
         thread.start();
         try {
             thread.join();
         } catch (InterruptedException e) {
-            e.printStackTrace();
+            android.util.Log.e("TtsPlaylist", "Metadata thread interrupted", e);
         }
 
         if (localEntryInfo[0] == null) return null;
 
-        this.entryInfo = localEntryInfo[0];
-        this.content = localContent[0];
-        this.html = localHtml[0];
-        this.translated = localTranslated[0];
-        this.feedImage = localFeedImage[0];
+        EntryInfo entryInfo = localEntryInfo[0];
+        String content = localContent[0];
+        String html = localHtml[0];
+        String translated = localTranslated[0];
+        Bitmap feedImage = localFeedImage[0];
 
         metadata = new MediaMetadataCompat.Builder()
                 .putString(MediaMetadataCompat.METADATA_KEY_MEDIA_ID, Long.toString(entryInfo.getEntryId()))
@@ -136,10 +128,6 @@ public class TtsPlaylist {
             return true;
         }
         return false;
-    }
-
-    public void updatePlayingIdToLatest() {
-        this.playingId = entryRepository.getLastVisitedEntryId();
     }
 
     public void updatePlayingId(long id) {
