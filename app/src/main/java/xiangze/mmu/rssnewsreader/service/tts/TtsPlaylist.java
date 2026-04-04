@@ -121,7 +121,7 @@ public class TtsPlaylist {
     }
 
     public boolean skipPrevious() {
-        long newId = playlistRepository.updatePlaylistToPrevious();
+        long newId = playlistRepository.updatePlaylistToPrevious(playingId);
         if (newId != 0) {
             this.playingId = newId;
             return true;
@@ -130,7 +130,7 @@ public class TtsPlaylist {
     }
 
     public boolean skipNext() {
-        long newId = playlistRepository.updatePlayListToNext();
+        long newId = playlistRepository.updatePlayListToNext(playingId);
         if (newId != 0) {
             this.playingId = newId;
             return true;

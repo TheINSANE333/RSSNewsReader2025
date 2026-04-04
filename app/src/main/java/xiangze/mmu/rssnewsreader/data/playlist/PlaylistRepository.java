@@ -45,9 +45,13 @@ public class PlaylistRepository {
     }
 
     public long updatePlaylistToPrevious() {
+        return updatePlaylistToPrevious(0);
+    }
+
+    public long updatePlaylistToPrevious(long fromId) {
         boolean loop = true;
         List<Long> playlist = stringToLongList(playlistDao.getLatestPlaylist());
-        long lastId = entryRepository.getLastVisitedEntryId();
+        long lastId = fromId != 0 ? fromId : entryRepository.getLastVisitedEntryId();
         int index = playlist.indexOf(lastId);
 
         while (loop) {
@@ -67,9 +71,13 @@ public class PlaylistRepository {
     }
 
     public long updatePlayListToNext() {
+        return updatePlayListToNext(0);
+    }
+
+    public long updatePlayListToNext(long fromId) {
         boolean loop = true;
         List<Long> playlist = stringToLongList(playlistDao.getLatestPlaylist());
-        long lastId = entryRepository.getLastVisitedEntryId();
+        long lastId = fromId != 0 ? fromId : entryRepository.getLastVisitedEntryId();
         int index = playlist.indexOf(lastId);
 
         while (loop) {
