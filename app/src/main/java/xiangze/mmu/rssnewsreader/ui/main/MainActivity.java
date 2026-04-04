@@ -49,8 +49,6 @@ import dagger.hilt.android.AndroidEntryPoint;
 @AndroidEntryPoint
 public class MainActivity extends AppCompatActivity {
 
-    private static final String TAG = "MainActivity";
-
     private AppBarConfiguration appBarConfiguration;
     private ActivityMainBinding binding;
     private DrawerLayout drawerLayout;
@@ -70,21 +68,18 @@ public class MainActivity extends AppCompatActivity {
     // Define the ActivityResultLauncher for importing OPML file
     private final ActivityResultLauncher<String[]> importOpmlLauncher = registerForActivityResult(
             new ActivityResultContracts.OpenMultipleDocuments(),
-            new ActivityResultCallback<List<Uri>>() {
-                @Override
-                public void onActivityResult(List<Uri> uris) {
-                    if (uris != null && !uris.isEmpty()) {
-                        for (Uri uri : uris) {
-                            if (uri != null) {
-                                opmlRepository.importOpml(uri, (success, error) -> {
-                                    if (success) {
-                                        updateThemeSwitch();
-                                        Toast.makeText(getApplicationContext(), "Feeds imported successfully", Toast.LENGTH_SHORT).show();
-                                    } else {
-                                        Toast.makeText(getApplicationContext(), "Import failed: " + error, Toast.LENGTH_SHORT).show();
-                                    }
-                                });
-                            }
+            uris -> {
+                if (uris != null && !uris.isEmpty()) {
+                    for (Uri uri : uris) {
+                        if (uri != null) {
+                            opmlRepository.importOpml(uri, (success, error) -> {
+                                if (success) {
+                                    updateThemeSwitch();
+                                    Toast.makeText(getApplicationContext(), "Feeds imported successfully", Toast.LENGTH_SHORT).show();
+                                } else {
+                                    Toast.makeText(getApplicationContext(), "Import failed: " + error, Toast.LENGTH_SHORT).show();
+                                }
+                            });
                         }
                     }
                 }
@@ -93,20 +88,17 @@ public class MainActivity extends AppCompatActivity {
     // Define the ActivityResultLauncher for exporting OPML file
     private final ActivityResultLauncher<Intent> exportOpmlLauncher = registerForActivityResult(
             new ActivityResultContracts.StartActivityForResult(),
-            new ActivityResultCallback<ActivityResult>() {
-                @Override
-                public void onActivityResult(ActivityResult result) {
-                    if (result.getResultCode() == RESULT_OK && result.getData() != null) {
-                        opmlRepository.exportOpml(result.getData().getData(), (success, error) -> {
-                            if (success) {
-                                Toast.makeText(getApplicationContext(), "Feeds exported successfully", Toast.LENGTH_SHORT).show();
-                            } else {
-                                Toast.makeText(getApplicationContext(), "Export failed: " + error, Toast.LENGTH_SHORT).show();
-                            }
-                        });
-                    } else {
-                        Toast.makeText(getApplicationContext(), "Export failed", Toast.LENGTH_SHORT).show();
-                    }
+            result -> {
+                if (result.getResultCode() == RESULT_OK && result.getData() != null) {
+                    opmlRepository.exportOpml(result.getData().getData(), (success, error) -> {
+                        if (success) {
+                            Toast.makeText(getApplicationContext(), "Feeds exported successfully", Toast.LENGTH_SHORT).show();
+                        } else {
+                            Toast.makeText(getApplicationContext(), "Export failed: " + error, Toast.LENGTH_SHORT).show();
+                        }
+                    });
+                } else {
+                    Toast.makeText(getApplicationContext(), "Export failed", Toast.LENGTH_SHORT).show();
                 }
             });
 
@@ -205,22 +197,19 @@ public class MainActivity extends AppCompatActivity {
 
         RecyclerView recyclerView = binding.navigationView.findViewById(R.id.navigationFeedsRecycler);
         recyclerView.setLayoutManager(new LinearLayoutManager(getBaseContext()));
-        adapter = new NavigationFeedItemAdapter(new NavigationFeedItemAdapter.FeedItemClickInterface() {
-            @Override
-            public void onClick(long id, String feedTitle) {
-                drawerLayout.closeDrawer(GravityCompat.START);
-                Bundle args = new Bundle();
-                args.putLong("id", id);
-                args.putString("title", feedTitle);
-                NavOptions navOptions = new NavOptions.Builder()
-                        .setPopUpTo(R.id.allEntriesFragment, false)
-                        .setEnterAnim(R.anim.feed_open_enter)
-                        .setExitAnim(R.anim.feed_open_exit)
-                        .setPopEnterAnim(R.anim.feed_pop_enter)
-                        .setPopExitAnim(R.anim.feed_pop_exit)
-                        .build();
-                navController.navigate(R.id.allEntriesFragment, args, navOptions);
-            }
+        adapter = new NavigationFeedItemAdapter((id, feedTitle) -> {
+            drawerLayout.closeDrawer(GravityCompat.START);
+            Bundle args = new Bundle();
+            args.putLong("id", id);
+            args.putString("title", feedTitle);
+            NavOptions navOptions = new NavOptions.Builder()
+                    .setPopUpTo(R.id.allEntriesFragment, false)
+                    .setEnterAnim(R.anim.feed_open_enter)
+                    .setExitAnim(R.anim.feed_open_exit)
+                    .setPopEnterAnim(R.anim.feed_pop_enter)
+                    .setPopExitAnim(R.anim.feed_pop_exit)
+                    .build();
+            navController.navigate(R.id.allEntriesFragment, args, navOptions);
         });
         recyclerView.setAdapter(adapter);
 
@@ -237,119 +226,88 @@ public class MainActivity extends AppCompatActivity {
             return handled;
         });
 
-        binding.navigationView.findViewById(R.id.allFeedsButton).setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                drawerLayout.closeDrawer(GravityCompat.START);
-                Bundle args = new Bundle();
-                args.putInt("id", 0);
-                args.putString("title", "All feeds");
-                NavOptions navOptions = new NavOptions.Builder()
-                        .setPopUpTo(R.id.allEntriesFragment, false)
-                        .setEnterAnim(R.anim.feed_open_enter)
-                        .setExitAnim(R.anim.feed_open_exit)
-                        .setPopEnterAnim(R.anim.feed_pop_enter)
-                        .setPopExitAnim(R.anim.feed_pop_exit)
-                        .build();
-                navController.navigate(R.id.allEntriesFragment, args, navOptions);
-            }
+        binding.navigationView.findViewById(R.id.allFeedsButton).setOnClickListener(view -> {
+            drawerLayout.closeDrawer(GravityCompat.START);
+            Bundle args = new Bundle();
+            args.putInt("id", 0);
+            args.putString("title", "All feeds");
+            NavOptions navOptions = new NavOptions.Builder()
+                    .setPopUpTo(R.id.allEntriesFragment, false)
+                    .setEnterAnim(R.anim.feed_open_enter)
+                    .setExitAnim(R.anim.feed_open_exit)
+                    .setPopEnterAnim(R.anim.feed_pop_enter)
+                    .setPopExitAnim(R.anim.feed_pop_exit)
+                    .build();
+            navController.navigate(R.id.allEntriesFragment, args, navOptions);
         });
 
-        binding.navigationView.findViewById(R.id.addFeedButton).setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                NavOptions navOptions = new NavOptions.Builder()
-                        .setPopUpTo(R.id.allEntriesFragment, false)
-                        .setEnterAnim(R.anim.fade_in)
-                        .setExitAnim(R.anim.fade_out)
-                        .setPopEnterAnim(R.anim.fade_in)
-                        .setPopExitAnim(R.anim.fade_out)
-                        .build();
-                navController.navigate(R.id.feedFragment, null, navOptions);
-                drawerLayout.closeDrawer(GravityCompat.START);
-            }
+        binding.navigationView.findViewById(R.id.addFeedButton).setOnClickListener(view -> {
+            NavOptions navOptions = new NavOptions.Builder()
+                    .setPopUpTo(R.id.allEntriesFragment, false)
+                    .setEnterAnim(R.anim.fade_in)
+                    .setExitAnim(R.anim.fade_out)
+                    .setPopEnterAnim(R.anim.fade_in)
+                    .setPopExitAnim(R.anim.fade_out)
+                    .build();
+            navController.navigate(R.id.feedFragment, null, navOptions);
+            drawerLayout.closeDrawer(GravityCompat.START);
         });
 
-        binding.navigationView.findViewById(R.id.navigationImportOpmlButton).setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                // Create an intent for selecting multiple documents of OPML MIME type
-                Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
-                intent.setType("text/xml");
-                intent.putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true);
+        binding.navigationView.findViewById(R.id.navigationImportOpmlButton).setOnClickListener(view -> {
+            // Create an intent for selecting multiple documents of OPML MIME type
+            Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
+            intent.setType("text/xml");
+            intent.putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true);
 
-                // Launch the activity for selecting the OPML file(s) to import
-                importOpmlLauncher.launch(new String[]{"text/xml"});
-            }
+            // Launch the activity for selecting the OPML file(s) to import
+            importOpmlLauncher.launch(new String[]{"text/xml"});
         });
 
-        binding.navigationView.findViewById(R.id.navigationExportOpmlButton).setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                // Create an intent for exporting the OPML file
-                Intent intent = new Intent(Intent.ACTION_CREATE_DOCUMENT);
-                intent.addCategory(Intent.CATEGORY_OPENABLE);
-                intent.setType("text/xml");
-                intent.putExtra(Intent.EXTRA_TITLE, "rss_news_reader.opml");
+        binding.navigationView.findViewById(R.id.navigationExportOpmlButton).setOnClickListener(view -> {
+            // Create an intent for exporting the OPML file
+            Intent intent = new Intent(Intent.ACTION_CREATE_DOCUMENT);
+            intent.addCategory(Intent.CATEGORY_OPENABLE);
+            intent.setType("text/xml");
+            intent.putExtra(Intent.EXTRA_TITLE, "rss_news_reader.opml");
 
-                // Launch the activity for exporting the OPML file
-                exportOpmlLauncher.launch(intent);
-            }
+            // Launch the activity for exporting the OPML file
+            exportOpmlLauncher.launch(intent);
         });
 
-        binding.navigationView.findViewById(R.id.settingsButton).setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                NavOptions navOptions = new NavOptions.Builder()
-                        .setPopUpTo(R.id.allEntriesFragment, false)
-                        .setEnterAnim(R.anim.slide_in_right)
-                        .setExitAnim(R.anim.slide_out_left_fade)
-                        .setPopEnterAnim(R.anim.slide_in_left_fade)
-                        .setPopExitAnim(R.anim.slide_out_right_fade)
-                        .build();
-                navController.navigate(R.id.settingsFragment, null, navOptions);
-                drawerLayout.closeDrawer(GravityCompat.START);
-            }
+        binding.navigationView.findViewById(R.id.settingsButton).setOnClickListener(view -> {
+            NavOptions navOptions = new NavOptions.Builder()
+                    .setPopUpTo(R.id.allEntriesFragment, false)
+                    .setEnterAnim(R.anim.slide_in_right)
+                    .setExitAnim(R.anim.slide_out_left_fade)
+                    .setPopEnterAnim(R.anim.slide_in_left_fade)
+                    .setPopExitAnim(R.anim.slide_out_right_fade)
+                    .build();
+            navController.navigate(R.id.settingsFragment, null, navOptions);
+            drawerLayout.closeDrawer(GravityCompat.START);
         });
 
-        binding.navigationView.findViewById(R.id.helpButton).setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                NavOptions navOptions = new NavOptions.Builder()
-                        .setPopUpTo(R.id.allEntriesFragment, false)
-                        .setEnterAnim(R.anim.slide_in_right)
-                        .setExitAnim(R.anim.slide_out_left_fade)
-                        .setPopEnterAnim(R.anim.slide_in_left_fade)
-                        .setPopExitAnim(R.anim.slide_out_right_fade)
-                        .build();
-                navController.navigate(R.id.helpFragment, null, navOptions);
-                drawerLayout.closeDrawer(GravityCompat.START);
-            }
+        binding.navigationView.findViewById(R.id.helpButton).setOnClickListener(view -> {
+            NavOptions navOptions = new NavOptions.Builder()
+                    .setPopUpTo(R.id.allEntriesFragment, false)
+                    .setEnterAnim(R.anim.slide_in_right)
+                    .setExitAnim(R.anim.slide_out_left_fade)
+                    .setPopEnterAnim(R.anim.slide_in_left_fade)
+                    .setPopExitAnim(R.anim.slide_out_right_fade)
+                    .build();
+            navController.navigate(R.id.helpFragment, null, navOptions);
+            drawerLayout.closeDrawer(GravityCompat.START);
         });
 
         themeSwitch = binding.navigationView.findViewById(R.id.themeSwitch);
 
-        binding.navigationView.findViewById(R.id.themeButton).setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                themeSwitch.setChecked(!themeSwitch.isChecked());
-                switchTheme();
-            }
+        binding.navigationView.findViewById(R.id.themeButton).setOnClickListener(view -> {
+            themeSwitch.setChecked(!themeSwitch.isChecked());
+            switchTheme();
         });
 
-        themeSwitch.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                switchTheme();
-            }
-        });
+        themeSwitch.setOnClickListener(view -> switchTheme());
 
-        mainActivityViewModel.getAllFeeds().observe(this, new Observer<List<Feed>>() {
-            @Override
-            public void onChanged(List<Feed> feeds) {
-                adapter.submitList(feeds);
-            }
-        });
+        mainActivityViewModel.getAllFeeds().observe(this, feeds -> adapter.submitList(feeds));
 
         ttsExtractor.extractAllEntries();
     }

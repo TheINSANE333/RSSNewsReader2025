@@ -11,7 +11,6 @@ import dagger.hilt.android.qualifiers.ApplicationContext;
 
 public class SharedPreferencesRepository {
 
-    private static final String TAG = "SharedPreferencesRepository";
     private final SharedPreferences sharedPreferences;
     private final SharedPreferences.Editor editor;
     private final Context context;

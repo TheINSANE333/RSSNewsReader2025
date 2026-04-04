@@ -37,7 +37,6 @@ public class FeedViewModel extends ViewModel {
 
     private final FeedRepository feedRepository;
     private final EntryRepository entryRepository;
-    private final HistoryRepository historyRepository;
     private final TtsPlayer ttsPlayer;
     private final TtsExtractor ttsExtractor;
     private final MutableLiveData<Boolean> isLoading = new MutableLiveData<>();
@@ -49,24 +48,14 @@ public class FeedViewModel extends ViewModel {
     public FeedViewModel(FeedRepository feedRepository, EntryRepository entryRepository, HistoryRepository historyRepository, TtsPlayer ttsPlayer, TtsExtractor ttsExtractor) {
         this.feedRepository = feedRepository;
         this.entryRepository = entryRepository;
-        this.historyRepository = historyRepository;
         this.ttsPlayer = ttsPlayer;
         this.ttsExtractor = ttsExtractor;
 
         Disposable disposable = feedRepository.getAllFeeds()
                 .subscribeOn(Schedulers.io())
                 .observeOn(AndroidSchedulers.mainThread())
-                .subscribe(new Consumer<List<Feed>>() {
-                    @Override
-                    public void accept(List<Feed> feeds) throws Throwable {
-                        allFeeds.postValue(feeds);
-                    }
-                }, new Consumer<Throwable>() {
-                    @Override
-                    public void accept(Throwable throwable) throws Throwable {
-                        Log.e("FeedViewModel", "Error fetching all feeds", throwable);
-                    }
-                });
+                .subscribe(feeds -> allFeeds.postValue(feeds),
+                        throwable -> Log.e("FeedViewModel", "Error fetching all feeds", throwable));
 
         compositeDisposable.add(disposable);
     }

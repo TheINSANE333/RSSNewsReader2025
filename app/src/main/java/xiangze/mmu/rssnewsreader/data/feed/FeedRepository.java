@@ -82,23 +82,10 @@ public class FeedRepository {
         feedDao.update(feed)
                 .subscribeOn(Schedulers.io())
                 .observeOn(AndroidSchedulers.mainThread())
-                .subscribe(new CompletableObserver() {
-                    @Override
-                    public void onSubscribe(@NonNull Disposable d) {
-                        Log.d(TAG, "update onSubscribe: called");
-                    }
-
-                    @Override
-                    public void onComplete() {
-                        Log.d(TAG, "update onComplete: called");
-                        isLoading.postValue(false);
-                    }
-
-                    @Override
-                    public void onError(@NonNull Throwable e) {
-                        Log.e(TAG, "update onError: ", e);
-                    }
-                });
+                .subscribe(() -> {
+                    Log.d(TAG, "update onComplete: called");
+                    isLoading.postValue(false);
+                }, e -> Log.e(TAG, "update onError: ", e));
     }
 
     public Completable delete(Feed feed) {
@@ -125,23 +112,10 @@ public class FeedRepository {
         feedDao.deleteAllFeeds()
                 .subscribeOn(Schedulers.io())
                 .observeOn(AndroidSchedulers.mainThread())
-                .subscribe(new CompletableObserver() {
-                    @Override
-                    public void onSubscribe(@NonNull Disposable d) {
-                        Log.d(TAG, "deleteAllFeeds onSubscribe: called");
-                    }
-
-                    @Override
-                    public void onComplete() {
-                        Log.d(TAG, "deleteAllFeeds onComplete: called");
-                        isLoading.postValue(false);
-                    }
-
-                    @Override
-                    public void onError(@NonNull Throwable e) {
-                        Log.e(TAG, "deleteAllFeeds onError: ", e);
-                    }
-                });
+                .subscribe(() -> {
+                    Log.d(TAG, "deleteAllFeeds onComplete: called");
+                    isLoading.postValue(false);
+                }, e -> Log.e(TAG, "deleteAllFeeds onError: ", e));
     }
 
     public io.reactivex.rxjava3.core.Completable addNewFeed(RssFeed feed) {
@@ -231,26 +205,13 @@ public class FeedRepository {
             feedDao.update(feed)
                     .subscribeOn(Schedulers.io())
                     .observeOn(AndroidSchedulers.mainThread())
-                    .subscribe(new CompletableObserver() {
-                        @Override
-                        public void onSubscribe(@NonNull Disposable d) {
-                            Log.d(TAG, "markFeedAsPreloaded: Feed marked as preloaded" + feed.getTitle());
-                        }
-
-                        @Override
-                        public void onComplete() {
-                            Log.d(TAG, "markFeedAsPreloaded: Complete");
-                        }
-
-                        @Override
-                        public void onError(@NonNull Throwable e) {
-                            Log.e(TAG, "markFeedAsPreloaded: Error " + e.getMessage());
-                        }
-                    });
+                    .subscribe(() -> Log.d(TAG, "markFeedAsPreloaded: Complete"),
+                            e -> Log.e(TAG, "markFeedAsPreloaded: Error " + e.getMessage()));
         } else {
             Log.w(TAG, "markFeedAsPreloaded: Feed not found for ID " + feedId);
         }
     }
+
 
     public String refreshEntries() {
         List<Feed> feeds = getAllStaticFeeds();

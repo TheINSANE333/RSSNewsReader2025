@@ -45,17 +45,8 @@ public class MainActivityViewModel extends ViewModel {
         Disposable disposable = feedRepository.getAllFeeds()
                 .subscribeOn(Schedulers.io())
                 .observeOn(AndroidSchedulers.mainThread())
-                .subscribe(new Consumer<List<Feed>>() {
-                    @Override
-                    public void accept(List<Feed> feeds) throws Throwable {
-                        allFeeds.postValue(feeds);
-                    }
-                }, new Consumer<Throwable>() {
-                    @Override
-                    public void accept(Throwable throwable) throws Throwable {
-                        Log.e("MainActivityViewModel", "Error fetching feeds", throwable);
-                    }
-                });
+                .subscribe(feeds -> allFeeds.postValue(feeds),
+                        throwable -> Log.e("MainActivityViewModel", "Error fetching feeds", throwable));
 
         compositeDisposable.add(disposable);
     }
@@ -83,12 +74,8 @@ public class MainActivityViewModel extends ViewModel {
     }
 
     public void addEntry(long feedId, Entry entry) {
-        Completable.fromAction(new Action() {
-                    @Override
-                    public void run() throws Throwable {
-                        entryRepository.insert(feedId, entry);
-                    }
-                }).subscribeOn(Schedulers.io())
+        Completable.fromAction(() -> entryRepository.insert(feedId, entry))
+                .subscribeOn(Schedulers.io())
                 .observeOn(AndroidSchedulers.mainThread())
                 .subscribe(() -> {
                     Log.d("MainActivityViewModel", "Entry added successfully");
@@ -108,6 +95,6 @@ public class MainActivityViewModel extends ViewModel {
     @Override
     protected void onCleared() {
         super.onCleared();
-        compositeDisposable.clear();
+        compositeDisposable.dispose();
     }
 }

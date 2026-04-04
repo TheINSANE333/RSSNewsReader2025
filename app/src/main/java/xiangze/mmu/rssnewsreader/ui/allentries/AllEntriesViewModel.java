@@ -48,7 +48,6 @@ public class AllEntriesViewModel extends ViewModel {
     private final MutableLiveData<Integer> unreadCount = new MutableLiveData<>();
     private final LiveData<List<EntryInfo>> liveEntries;
 
-    private String filter = "all";
     private long id;
 
     @Inject
@@ -74,8 +73,10 @@ public class AllEntriesViewModel extends ViewModel {
     }
 
     public void getEntriesByFeed(long id, String filter) {
-        if (disposableEntries != null && disposableCount != null && !disposableCount.isDisposed() && !disposableEntries.isDisposed()) {
+        if (disposableEntries != null && !disposableEntries.isDisposed()) {
             disposableEntries.dispose();
+        }
+        if (disposableCount != null && !disposableCount.isDisposed()) {
             disposableCount.dispose();
         }
 
@@ -84,32 +85,14 @@ public class AllEntriesViewModel extends ViewModel {
         disposableEntries = entryRepository.getEntries(id, filter)
                 .subscribeOn(Schedulers.io())
                 .observeOn(AndroidSchedulers.mainThread())
-                .subscribe(new Consumer<List<EntryInfo>>() {
-                    @Override
-                    public void accept(List<EntryInfo> entriesInfo) throws Throwable {
-                        allEntries.postValue(entriesInfo);
-                    }
-                }, new Consumer<Throwable>() {
-                    @Override
-                    public void accept(Throwable throwable) throws Throwable {
-                        Log.e("AllEntriesViewModel", "Error fetching entries", throwable);
-                    }
-                });
+                .subscribe(entriesInfo -> allEntries.postValue(entriesInfo),
+                        throwable -> Log.e("AllEntriesViewModel", "Error fetching entries", throwable));
 
         disposableCount = entryRepository.getUnreadCount(id, filter)
                 .subscribeOn(Schedulers.io())
                 .observeOn(AndroidSchedulers.mainThread())
-                .subscribe(new Consumer<Integer>() {
-                    @Override
-                    public void accept(Integer integer) throws Throwable {
-                        unreadCount.postValue(integer);
-                    }
-                }, new Consumer<Throwable>() {
-                    @Override
-                    public void accept(Throwable throwable) throws Throwable {
-                        Log.e("AllEntriesViewModel", "Error fetching unread count", throwable);
-                    }
-                });
+                .subscribe(integer -> unreadCount.postValue(integer),
+                        throwable -> Log.e("AllEntriesViewModel", "Error fetching unread count", throwable));
     }
 
     public LiveData<List<EntryInfo>> getAllEntries() {
@@ -177,55 +160,55 @@ public class AllEntriesViewModel extends ViewModel {
     @Override
     protected void onCleared() {
         super.onCleared();
-        disposableEntries.dispose();
-        disposableCount.dispose();
+        if (disposableEntries != null) {
+            disposableEntries.dispose();
+        }
+        if (disposableCount != null) {
+            disposableCount.dispose();
+        }
     }
 
     public String longListToString(List<Long> list) {
-        String genreIds = "";
-        if (!list.isEmpty()) {
-            genreIds = list.get(0).toString();
-            list.remove(0);
-            for (long s : list) {
-                genreIds += "," + s;
+        if (list == null || list.isEmpty()) {
+            return "";
+        }
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < list.size(); i++) {
+            sb.append(list.get(i));
+            if (i < list.size() - 1) {
+                sb.append(",");
             }
         }
-        return genreIds;
+        return sb.toString();
     }
 
     public void deleteAllVisitedEntries() {
-        Completable.fromAction(new Action() {
-                    @Override
-                    public void run() throws Throwable {
-                        long currentId = ttsPlayer.getCurrentId();
-                        if (currentId != 0) {
-                            List<Long> ids = entryRepository.getAllVisitedEntriesId();
-                            if (ids.contains(currentId)) {
-                                ttsPlayer.stop();
-                            }
-                        }
+        Completable.fromAction(() -> {
+            long currentId = ttsPlayer.getCurrentId();
+            if (currentId != 0) {
+                List<Long> ids = entryRepository.getAllVisitedEntriesId();
+                if (ids.contains(currentId)) {
+                    ttsPlayer.stop();
+                }
+            }
 
-                        entryRepository.deleteAllVisitedEntries();
-                    }
-                }).subscribeOn(Schedulers.io())
+            entryRepository.deleteAllVisitedEntries();
+        }).subscribeOn(Schedulers.io())
                 .observeOn(AndroidSchedulers.mainThread())
                 .subscribe(new CompletableObserver() {
                     @Override
-                    public void onSubscribe(@NonNull Disposable d) {
-
-                    }
-
+                    public void onSubscribe(@NonNull Disposable d) {}
                     @Override
                     public void onComplete() {
                         toastMessage.postValue("All visited entries are deleted");
                     }
-
                     @Override
                     public void onError(@NonNull Throwable e) {
                         Log.e("AllEntriesViewModel", "Error deleting visited entries", e);
                     }
                 });
     }
+
 
     public void insertEntry(EntryInfo entryInfo) {
         Completable.fromAction(() -> entryRepository.insert(entryInfo))
