@@ -680,6 +680,15 @@ public class TtsExtractor {
                         .subscribeOn(Schedulers.io())
                         .observeOn(AndroidSchedulers.mainThread())
                         .subscribe(detectedLang -> {
+                            // Safety Check: Entry could have been deleted or database could be in a transient state
+                            if (entryObj == null) {
+                                Log.e(TAG, "entryObj is null in sourceLangSingle. Skipping processing for ID: " + processingId);
+                                if (processingId == currentIdInProgress) {
+                                    finishAndMoveToNext();
+                                }
+                                return;
+                            }
+
                             // Localize the language for this specific processing chain
                             final String localizedLang = detectedLang; 
                             setCurrentLanguage(detectedLang, false); // Sync back for legacy compatibility, respecting lock
@@ -697,6 +706,11 @@ public class TtsExtractor {
                             boolean doSummarize = shouldSummarize && !isAlreadySummarized && !isSummarizing;
 
                             if (doTranslate && doSummarize) {
+                                if (feed == null) {
+                                    Log.e(TAG, "feed is null but translation/summarization requested. Skipping.");
+                                    if (processingId == currentIdInProgress) finishAndMoveToNext();
+                                    return;
+                                }
                                 xiangze.mmu.rssnewsreader.service.util.AutoTranslator.processingIds.add(processingId);
                                 xiangze.mmu.rssnewsreader.service.util.AutoSummarizer.processingIds.add(processingId);
 
@@ -749,6 +763,10 @@ public class TtsExtractor {
                                 }, error -> handleError(error, processingId));
 
                             } else if (doTranslate) {
+                                if (feed == null) {
+                                    if (processingId == currentIdInProgress) finishAndMoveToNext();
+                                    return;
+                                }
                                 xiangze.mmu.rssnewsreader.service.util.AutoTranslator.processingIds.add(processingId);
 
                                 textUtil.translateHtmlAllAtOnce(localizedLang, targetLang, doc.html(), processingTitle, processingId, progress -> {}, false)
@@ -776,6 +794,10 @@ public class TtsExtractor {
                                         }, error -> handleError(error, processingId));
 
                             } else if (doSummarize) {
+                                if (feed == null) {
+                                    if (processingId == currentIdInProgress) finishAndMoveToNext();
+                                    return;
+                                }
                                 xiangze.mmu.rssnewsreader.service.util.AutoSummarizer.processingIds.add(processingId);
 
                                 textUtil.summarizeHtmlAllAtOnce(localizedLang, targetLang, doc.html(), length, processingId, processingTitle, progress -> {}, false)

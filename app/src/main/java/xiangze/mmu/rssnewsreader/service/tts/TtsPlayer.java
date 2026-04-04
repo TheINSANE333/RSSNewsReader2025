@@ -423,6 +423,10 @@ public class TtsPlayer extends PlayerAdapter implements TtsPlayerListener {
             } finally {
                 if (extractionId == currentExtractionId) {
                     isSentenceSplittingInProgress = false;
+                    // ALWAYS ensure this flag is reset when the thread finishes, 
+                    // even if firstBatchSignaled was false (short articles) 
+                    // and setupTts wasn't called yet or if it's waiting on init.
+                    isSettingUpNewArticle = false;
                 }
             }
         }).start();
