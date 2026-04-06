@@ -192,6 +192,30 @@ public class TtsExtractor {
         extractAllEntries();
     }
 
+    public void resetAndRetry(long entryId) {
+        Log.d(TAG, "resetAndRetry called for article ID: " + entryId);
+        
+        // Remove from failed list if present
+        while (failedIds.remove(Long.valueOf(entryId))) {
+            // Keep removing in case of duplicates
+        }
+        
+        // Reset retry count
+        retryCountMap.remove(entryId);
+        
+        // Clear content to trigger re-extraction
+        entryRepository.updateContent(null, entryId);
+        
+        // Ensure extraction is not currently "in progress" for this ID
+        if (currentIdInProgress == entryId) {
+            extractionInProgress = false;
+            currentIdInProgress = -1;
+        }
+
+        // Trigger extraction
+        extractAllEntries();
+    }
+
     public void extractAllEntries() {
         Log.d(TAG, "extractAllEntries called | extractionInProgress = " + extractionInProgress);
 
