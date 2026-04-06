@@ -385,7 +385,7 @@ public class TtsPlayer extends PlayerAdapter implements TtsPlayerListener {
             }
         }
 
-        String[] raw = content.split(Pattern.quote(ttsExtractor.delimiter));
+        String[] raw = content.split(Pattern.quote(TtsExtractor.DELIMITER));
         List<String> sentenceList = new ArrayList<>(raw.length);
         for(String part : raw) {
             String trimmed = part.trim();

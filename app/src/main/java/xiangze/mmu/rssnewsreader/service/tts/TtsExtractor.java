@@ -58,7 +58,7 @@ import dagger.hilt.android.qualifiers.ApplicationContext;
 @Singleton
 public class TtsExtractor {
 
-    private final String TAG = TtsExtractor.class.getSimpleName();
+    private static final String TAG = "TtsExtractor";
     private String currentLanguage;
     private boolean isLockedByTtsPlayer = false;
     private final Context context;
@@ -74,7 +74,6 @@ public class TtsExtractor {
     private boolean extractionInProgress;
     private int delayTime;
     private TtsPlayerListener ttsCallback;
-    private TtsPlaylist ttsPlaylist;
 
     private final MutableLiveData<Boolean> finishedSetupLiveData = new MutableLiveData<>();
     private final MutableLiveData<String> snackbarMessageLiveData = new MutableLiveData<>();
@@ -83,7 +82,7 @@ public class TtsExtractor {
     public LiveData<String> getSnackbarMessageLiveData() { return snackbarMessageLiveData; }
 
     private Date playlistDate;
-    public final String delimiter = "--####--";
+    public static final String DELIMITER = "--####--";
     private final List<Long> failedIds = new ArrayList<>();
     private final HashMap<Long, Integer> retryCountMap = new HashMap<>();
     private final int MAX_RETRIES = 5;
@@ -94,9 +93,8 @@ public class TtsExtractor {
 
     @SuppressLint("SetJavaScriptEnabled")
     @Inject
-    public TtsExtractor(@ApplicationContext Context context, TtsPlaylist ttsPlaylist, EntryRepository entryRepository, FeedRepository feedRepository, PlaylistRepository playlistRepository, TextUtil textUtil, SharedPreferencesRepository sharedPreferencesRepository) {
+    public TtsExtractor(@ApplicationContext Context context, EntryRepository entryRepository, FeedRepository feedRepository, PlaylistRepository playlistRepository, TextUtil textUtil, SharedPreferencesRepository sharedPreferencesRepository) {
         this.context = context;
-        this.ttsPlaylist = ttsPlaylist;
         this.entryRepository = entryRepository;
         this.feedRepository = feedRepository;
         this.playlistRepository = playlistRepository;
@@ -482,10 +480,8 @@ public class TtsExtractor {
     @SuppressLint("CheckResult")
     private void processHtmlExtraction(String value) {
         Log.d(TAG, "Processing extracted HTML value...");
-        JsonReader reader = new JsonReader(new StringReader(value));
-        reader.setLenient(true);
-
-        try {
+        try (JsonReader reader = new JsonReader(new StringReader(value))) {
+            reader.setLenient(true);
             if (reader.peek() == JsonToken.STRING) {
                 String html = reader.nextString();
 
@@ -581,8 +577,8 @@ public class TtsExtractor {
 
                                     if (!sentence.isEmpty()) {
                                         if (content.length() > 0) {
-                                            // Always add delimiter BEFORE adding a new sentence
-                                            content.append(delimiter).append(sentence);
+                                            // Always add DELIMITER BEFORE adding a new sentence
+                                            content.append(DELIMITER).append(sentence);
                                         } else {
                                             content.append(sentence);
                                         }
@@ -610,7 +606,7 @@ public class TtsExtractor {
                         isRedundant = true;
                     } else {
                         // Check if the first sentence/line is basically the title
-                        String firstLine = tempContent.split(delimiter)[0].trim();
+                        String firstLine = tempContent.split(DELIMITER)[0].trim();
                         if (firstLine.equalsIgnoreCase(cleanTitle) || 
                             (firstLine.length() < 100 && cleanTitle.toLowerCase().contains(firstLine.toLowerCase()))) {
                             isRedundant = true;
@@ -618,7 +614,7 @@ public class TtsExtractor {
                     }
 
                     if (!isRedundant) {
-                        content.insert(0, cleanTitle + delimiter);
+                        content.insert(0, cleanTitle + DELIMITER);
                     }
                 }
 
@@ -775,10 +771,10 @@ public class TtsExtractor {
                                             "summarized-title"
                                     );
 
-                                    String translatedContent = textUtil.extractHtmlContent(finalTranslatedHtml, delimiter);
+                                    String translatedContent = textUtil.extractHtmlContent(finalTranslatedHtml, DELIMITER);
                                     entryRepository.updateTranslatedPair(processingId, translatedContent, finalTranslatedHtml);
 
-                                    String summarizedContent = textUtil.extractHtmlContent(finalSummarizedHtml, delimiter);
+                                    String summarizedContent = textUtil.extractHtmlContent(finalSummarizedHtml, DELIMITER);
                                     entryRepository.updateSummarizedPair(processingId, summarizedContent, finalSummarizedHtml);
 
                                     if (processingId == currentIdInProgress) {
@@ -809,7 +805,7 @@ public class TtsExtractor {
                                                     "translated-title"
                                             );
 
-                                            String translatedContent = textUtil.extractHtmlContent(finalTranslatedHtml, delimiter);
+                                            String translatedContent = textUtil.extractHtmlContent(finalTranslatedHtml, DELIMITER);
                                             entryRepository.updateTranslatedPair(processingId, translatedContent, finalTranslatedHtml);
 
                                             if (processingId == currentIdInProgress) {
@@ -840,7 +836,7 @@ public class TtsExtractor {
                                                     "summarized-title"
                                             );
 
-                                            String summarizedContent = textUtil.extractHtmlContent(finalSummarizedHtml, delimiter);
+                                            String summarizedContent = textUtil.extractHtmlContent(finalSummarizedHtml, DELIMITER);
                                             entryRepository.updateSummarizedPair(processingId, summarizedContent, finalSummarizedHtml);
 
                                             if (processingId == currentIdInProgress) {
@@ -877,17 +873,17 @@ public class TtsExtractor {
     }
 
     public void setCurrentLanguage(String lang, boolean lock) {
-        Log.d("TtsExtractor", "[setCurrentLanguage] REQUESTED lang = " + lang + ", lock = " + lock + " | current = " + currentLanguage + ", isLocked = " + isLockedByTtsPlayer);
+        Log.d(TAG, "[setCurrentLanguage] REQUESTED lang = " + lang + ", lock = " + lock + " | current = " + currentLanguage + ", isLocked = " + isLockedByTtsPlayer);
 
         if (!isLockedByTtsPlayer || lock) {
-            Log.d("TtsExtractor", "Language set to: " + lang + " | lock=" + lock);
+            Log.d(TAG, "Language set to: " + lang + " | lock=" + lock);
             this.currentLanguage = lang;
             isLockedByTtsPlayer = lock;
         } else {
-            Log.d("TtsExtractor", "Ignored language override to: " + lang + " due to lock");
+            Log.d(TAG, "Ignored language override to: " + lang + " due to lock");
         }
 
-        Log.d("TtsExtractor", "Language set to: " + lang + " | lock=" + lock + " | isLocked=" + isLockedByTtsPlayer);
+        Log.d(TAG, "Language set to: " + lang + " | lock=" + lock + " | isLocked=" + isLockedByTtsPlayer);
     }
 
     public List<Long> stringToLongList(String genreIds) {

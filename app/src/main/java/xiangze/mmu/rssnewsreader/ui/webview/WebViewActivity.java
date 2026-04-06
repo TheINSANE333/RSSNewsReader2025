@@ -516,8 +516,8 @@ public class WebViewActivity extends AppCompatActivity implements ReloadDialog.R
                 String finalHtml = textUtil.formatAiResponseToHtml(aiRes.title, aiRes.content, info.getFeedTitle(), info.getEntryPublishedDate(), info.getFeedImageUrl(), sharedPreferencesRepository.getNight(), "translated-title");
                 
                 // Properly split AI response into sentences and prepend title
-                String splitRes = textUtil.splitIntoSentences(aiRes.content, ttsExtractor.delimiter);
-                String contentToRead = aiRes.title + ttsExtractor.delimiter + splitRes;
+                String splitRes = textUtil.splitIntoSentences(aiRes.content, TtsExtractor.DELIMITER);
+                String contentToRead = aiRes.title + TtsExtractor.DELIMITER + splitRes;
                 
                 webViewViewModel.updateTranslated(contentToRead, currentId);
                 webViewViewModel.updateTranslatedHtml(finalHtml, currentId);
@@ -549,8 +549,8 @@ public class WebViewActivity extends AppCompatActivity implements ReloadDialog.R
                 String finalHtml = textUtil.formatAiResponseToHtml(aiRes.title, aiRes.content, info.getFeedTitle(), info.getEntryPublishedDate(), info.getFeedImageUrl(), sharedPreferencesRepository.getNight(), "summarized-title");
                 
                 // Properly split AI response into sentences and prepend title
-                String splitRes = textUtil.splitIntoSentences(aiRes.content, ttsExtractor.delimiter);
-                String contentToRead = aiRes.title + ttsExtractor.delimiter + splitRes;
+                String splitRes = textUtil.splitIntoSentences(aiRes.content, TtsExtractor.DELIMITER);
+                String contentToRead = aiRes.title + TtsExtractor.DELIMITER + splitRes;
                 
                 webViewViewModel.updateSummarized(contentToRead, currentId);
                 webViewViewModel.updateSummarizedHtml(finalHtml, currentId);
@@ -740,8 +740,7 @@ public class WebViewActivity extends AppCompatActivity implements ReloadDialog.R
         hasProcessedCurrentToken = true;
 
         view.evaluateJavascript("(function() { return document.getElementsByTagName('html')[0].outerHTML; })();", val -> {
-            try {
-                JsonReader r = new JsonReader(new StringReader(val));
+            try (JsonReader r = new JsonReader(new StringReader(val))) {
                 r.setLenient(true);
                 if (r.peek() == JsonToken.STRING) {
                     String h = r.nextString();
