@@ -98,7 +98,7 @@ public class WebViewMenuHandler {
                 listener.onExitBrowser();
                 return true;
             } else if (itemId == R.id.reload) {
-                showReloadOptionsDialog();
+                listener.onReExtract();
                 return true;
             } else if (itemId == R.id.openTtsSetting) {
                 activity.startActivity(new Intent("com.android.settings.TTS_SETTINGS"));
@@ -121,17 +121,24 @@ public class WebViewMenuHandler {
                 return true;
             });
         }
+
+        // Setup long click for reload options
+        View reloadView = toolbar.findViewById(R.id.reload);
+        if (reloadView != null) {
+            reloadView.setOnLongClickListener(v -> {
+                showReloadOptionsDialog();
+                return true;
+            });
+        }
     }
 
     private void showReloadOptionsDialog() {
-        String[] options = {"Reload Feed", "Re-extract Article"};
+        String[] options = {"Reload Feed"};
         new AlertDialog.Builder(activity)
                 .setTitle("Reload Options")
                 .setItems(options, (dialog, which) -> {
                     if (which == 0) {
                         listener.onShowReloadDialog();
-                    } else {
-                        listener.onReExtract();
                     }
                 })
                 .show();

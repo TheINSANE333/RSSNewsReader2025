@@ -131,6 +131,7 @@ public class WebViewViewModel extends ViewModel {
         entryRepository.updateSummarizedHtml(null, id);
         entryRepository.updateSummarizedText(null, id);
         entryRepository.updateContent(null, id);
+        entryRepository.updateSentCountByLink(0, id);
         clearViewData();
         setIsTranslatedView(false);
         setIsSummarizedView(false);
