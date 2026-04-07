@@ -35,6 +35,10 @@
     <string name="get_groq_key_title">How to get a free groq key</string>
     <string name="get_groq_key_summary">Click here to open groq website and sign up for a key</string>
 
+    <string name="reset_token_usage_title">Reset AI Token Usage</string>
+    <string name="reset_token_usage_summary">Manually clear token and request limits if you hit a guard limit.</string>
+    <string name="token_usage_reset_success">Token usage limits have been reset.</string>
+
     <string name="help_groq_key">How to obtain a free groq key?</string>
     <string name="help_groq_key_desc">1. Visit https://console.groq.com/\n2. Sign up for an account (Google or GitHub)\n3. Go to \'Keys\' section\n4. Create a new key\n5. Copy the key and paste it into the \'Groq API Key\' field in Settings.</string>
 

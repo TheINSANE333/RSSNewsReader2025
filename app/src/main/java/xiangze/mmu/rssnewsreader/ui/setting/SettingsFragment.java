@@ -21,6 +21,7 @@ import androidx.preference.PreferenceFragmentCompat;
 import xiangze.mmu.rssnewsreader.R;
 import xiangze.mmu.rssnewsreader.data.sharedpreferences.SharedPreferencesRepository;
 import xiangze.mmu.rssnewsreader.model.ai.LocalLlmManager;
+import xiangze.mmu.rssnewsreader.model.ai.TokenUsageGuard;
 import xiangze.mmu.rssnewsreader.service.rss.RssWorkManager;
 import xiangze.mmu.rssnewsreader.service.tts.TtsPlayer;
 import xiangze.mmu.rssnewsreader.ui.main.MainActivity;
@@ -163,6 +164,15 @@ public class SettingsFragment extends PreferenceFragmentCompat {
         if (deleteModelPreference != null) {
             deleteModelPreference.setOnPreferenceClickListener(preference -> {
                 showDeleteModelDialog();
+                return true;
+            });
+        }
+
+        Preference resetTokenUsagePreference = findPreference("reset_token_usage");
+        if (resetTokenUsagePreference != null) {
+            resetTokenUsagePreference.setOnPreferenceClickListener(preference -> {
+                TokenUsageGuard.getInstance(requireContext()).resetManual();
+                Toast.makeText(requireContext(), R.string.token_usage_reset_success, Toast.LENGTH_SHORT).show();
                 return true;
             });
         }

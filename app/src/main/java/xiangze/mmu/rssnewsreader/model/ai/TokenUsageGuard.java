@@ -61,6 +61,16 @@ public class TokenUsageGuard {
         editor.apply();
     }
 
+    public synchronized void resetManual() {
+        SharedPreferences.Editor editor = prefs.edit();
+        editor.putInt(PREF_MINUTE_TOKENS, 0);
+        editor.putLong(PREF_MINUTE_TIMESTAMP, 0);
+        editor.putInt(PREF_DAY_TOKENS, 0);
+        editor.putInt(PREF_DAY_REQUESTS, 0);
+        editor.putLong(PREF_DAY_TIMESTAMP, 0);
+        editor.apply();
+    }
+
     private void resetIfNewPeriod(long now) {
         long minuteTimestamp = prefs.getLong(PREF_MINUTE_TIMESTAMP, 0);
         long dayTimestamp = prefs.getLong(PREF_DAY_TIMESTAMP, 0);

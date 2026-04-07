@@ -230,6 +230,12 @@
             app:summary="@string/get_groq_key_summary"
             app:title="@string/get_groq_key_title" />
 
+        <Preference
+            app:icon="@drawable/ic_reload"
+            app:key="reset_token_usage"
+            app:summary="@string/reset_token_usage_summary"
+            app:title="@string/reset_token_usage_title" />
+
     </PreferenceCategory>
 
 </PreferenceScreen>
