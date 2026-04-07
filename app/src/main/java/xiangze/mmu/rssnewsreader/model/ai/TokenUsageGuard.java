@@ -13,9 +13,13 @@ public class TokenUsageGuard {
     private static final String PREF_DAY_REQUESTS = "ai_day_requests";
     private static final String PREF_DAY_TIMESTAMP = "ai_day_timestamp";
 
-    private static final int LIMIT_TPM = 30000;
-    private static final int LIMIT_RPD = 1000;
-    private static final int LIMIT_TPD = 500000;
+    public static final String KEY_LIMIT_TPM = "ai_limit_tpm";
+    public static final String KEY_LIMIT_RPD = "ai_limit_rpd";
+    public static final String KEY_LIMIT_TPD = "ai_limit_tpd";
+
+    private static final int DEFAULT_LIMIT_TPM = 30000;
+    private static final int DEFAULT_LIMIT_RPD = 1000;
+    private static final int DEFAULT_LIMIT_TPD = 500000;
 
     private static TokenUsageGuard instance;
     private final SharedPreferences prefs;
@@ -39,14 +43,18 @@ public class TokenUsageGuard {
         int dayTokens = prefs.getInt(PREF_DAY_TOKENS, 0);
         int dayRequests = prefs.getInt(PREF_DAY_REQUESTS, 0);
 
-        if (minuteTokens >= LIMIT_TPM) {
-            throw new IllegalStateException("Minute token limit reached (" + LIMIT_TPM + " TPM). Please wait a moment.");
+        int limitTpm = prefs.getInt(KEY_LIMIT_TPM, DEFAULT_LIMIT_TPM);
+        int limitRpd = prefs.getInt(KEY_LIMIT_RPD, DEFAULT_LIMIT_RPD);
+        int limitTpd = prefs.getInt(KEY_LIMIT_TPD, DEFAULT_LIMIT_TPD);
+
+        if (minuteTokens >= limitTpm) {
+            throw new IllegalStateException("Minute token limit reached (" + limitTpm + " TPM). Please wait a moment.");
         }
-        if (dayRequests >= LIMIT_RPD) {
-            throw new IllegalStateException("Daily request limit reached (" + LIMIT_RPD + " RPD).");
+        if (dayRequests >= limitRpd) {
+            throw new IllegalStateException("Daily request limit reached (" + limitRpd + " RPD).");
         }
-        if (dayTokens >= LIMIT_TPD) {
-            throw new IllegalStateException("Daily token limit reached (" + LIMIT_TPD + " TPD).");
+        if (dayTokens >= limitTpd) {
+            throw new IllegalStateException("Daily token limit reached (" + limitTpd + " TPD).");
         }
     }
 

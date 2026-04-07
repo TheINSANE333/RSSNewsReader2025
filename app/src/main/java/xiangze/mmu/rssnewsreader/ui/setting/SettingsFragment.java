@@ -168,14 +168,115 @@ public class SettingsFragment extends PreferenceFragmentCompat {
             });
         }
 
-        Preference resetTokenUsagePreference = findPreference("reset_token_usage");
-        if (resetTokenUsagePreference != null) {
-            resetTokenUsagePreference.setOnPreferenceClickListener(preference -> {
-                TokenUsageGuard.getInstance(requireContext()).resetManual();
-                Toast.makeText(requireContext(), R.string.token_usage_reset_success, Toast.LENGTH_SHORT).show();
+        Preference aiLimitSettingsPreference = findPreference("ai_limit_settings");
+        if (aiLimitSettingsPreference != null) {
+            aiLimitSettingsPreference.setOnPreferenceClickListener(preference -> {
+                showTokenLimitDialog();
                 return true;
             });
         }
+    }
+
+    private void showTokenLimitDialog() {
+        com.google.android.material.dialog.MaterialAlertDialogBuilder builder = new com.google.android.material.dialog.MaterialAlertDialogBuilder(requireContext());
+        builder.setTitle(R.string.ai_limit_settings_title);
+
+        android.widget.LinearLayout layout = new android.widget.LinearLayout(requireContext());
+        layout.setOrientation(android.widget.LinearLayout.VERTICAL);
+        int padding = (int) (16 * getResources().getDisplayMetrics().density);
+        layout.setPadding(padding, padding, padding, padding);
+
+        SharedPreferences prefs = getPreferenceManager().getSharedPreferences();
+        
+        // TPM
+        com.google.android.material.textview.MaterialTextView tpmLabel = new com.google.android.material.textview.MaterialTextView(requireContext());
+        int currentTpm = prefs.getInt(TokenUsageGuard.KEY_LIMIT_TPM, 30000);
+        tpmLabel.setText(getString(R.string.limit_tpm_title) + ": " + currentTpm);
+        layout.addView(tpmLabel);
+
+        android.widget.SeekBar tpmSeekBar = new android.widget.SeekBar(requireContext());
+        tpmSeekBar.setMax(60000);
+        tpmSeekBar.setProgress(currentTpm);
+        tpmSeekBar.setOnSeekBarChangeListener(new android.widget.SeekBar.OnSeekBarChangeListener() {
+            @Override public void onProgressChanged(android.widget.SeekBar seekBar, int progress, boolean fromUser) {
+                if (progress < 1000) progress = 1000;
+                tpmLabel.setText(getString(R.string.limit_tpm_title) + ": " + progress);
+            }
+            @Override public void onStartTrackingTouch(android.widget.SeekBar seekBar) {}
+            @Override public void onStopTrackingTouch(android.widget.SeekBar seekBar) {}
+        });
+        layout.addView(tpmSeekBar);
+
+        // RPD
+        com.google.android.material.textview.MaterialTextView rpdLabel = new com.google.android.material.textview.MaterialTextView(requireContext());
+        int currentRpd = prefs.getInt(TokenUsageGuard.KEY_LIMIT_RPD, 1000);
+        rpdLabel.setText(getString(R.string.limit_rpd_title) + ": " + currentRpd);
+        rpdLabel.setPadding(0, padding, 0, 0);
+        layout.addView(rpdLabel);
+
+        android.widget.SeekBar rpdSeekBar = new android.widget.SeekBar(requireContext());
+        rpdSeekBar.setMax(2000);
+        rpdSeekBar.setProgress(currentRpd);
+        rpdSeekBar.setOnSeekBarChangeListener(new android.widget.SeekBar.OnSeekBarChangeListener() {
+            @Override public void onProgressChanged(android.widget.SeekBar seekBar, int progress, boolean fromUser) {
+                if (progress < 100) progress = 100;
+                rpdLabel.setText(getString(R.string.limit_rpd_title) + ": " + progress);
+            }
+            @Override public void onStartTrackingTouch(android.widget.SeekBar seekBar) {}
+            @Override public void onStopTrackingTouch(android.widget.SeekBar seekBar) {}
+        });
+        layout.addView(rpdSeekBar);
+
+        // TPD
+        com.google.android.material.textview.MaterialTextView tpdLabel = new com.google.android.material.textview.MaterialTextView(requireContext());
+        int currentTpd = prefs.getInt(TokenUsageGuard.KEY_LIMIT_TPD, 500000);
+        tpdLabel.setText(getString(R.string.limit_tpd_title) + ": " + currentTpd);
+        tpdLabel.setPadding(0, padding, 0, 0);
+        layout.addView(tpdLabel);
+
+        android.widget.SeekBar tpdSeekBar = new android.widget.SeekBar(requireContext());
+        tpdSeekBar.setMax(1000000);
+        tpdSeekBar.setProgress(currentTpd);
+        tpdSeekBar.setOnSeekBarChangeListener(new android.widget.SeekBar.OnSeekBarChangeListener() {
+            @Override public void onProgressChanged(android.widget.SeekBar seekBar, int progress, boolean fromUser) {
+                if (progress < 10000) progress = 10000;
+                tpdLabel.setText(getString(R.string.limit_tpd_title) + ": " + progress);
+            }
+            @Override public void onStartTrackingTouch(android.widget.SeekBar seekBar) {}
+            @Override public void onStopTrackingTouch(android.widget.SeekBar seekBar) {}
+        });
+        layout.addView(tpdSeekBar);
+
+        // Reset Button (Themed)
+        com.google.android.material.button.MaterialButton resetButton = new com.google.android.material.button.MaterialButton(requireContext(), null, com.google.android.material.R.attr.materialButtonStyle);
+        resetButton.setText(R.string.reset_token_usage_title);
+        android.widget.LinearLayout.LayoutParams btnParams = new android.widget.LinearLayout.LayoutParams(
+                android.widget.LinearLayout.LayoutParams.MATCH_PARENT,
+                android.widget.LinearLayout.LayoutParams.WRAP_CONTENT);
+        btnParams.setMargins(0, padding, 0, 0);
+        resetButton.setLayoutParams(btnParams);
+        resetButton.setOnClickListener(v -> {
+            TokenUsageGuard.getInstance(requireContext()).resetManual();
+            Toast.makeText(requireContext(), R.string.token_usage_reset_success, Toast.LENGTH_SHORT).show();
+        });
+        layout.addView(resetButton);
+
+        builder.setView(layout);
+        builder.setPositiveButton(R.string.yes, (dialog, which) -> {
+            int newTpm = Math.max(1000, tpmSeekBar.getProgress());
+            int newRpd = Math.max(100, rpdSeekBar.getProgress());
+            int newTpd = Math.max(10000, tpdSeekBar.getProgress());
+            
+            prefs.edit()
+                .putInt(TokenUsageGuard.KEY_LIMIT_TPM, newTpm)
+                .putInt(TokenUsageGuard.KEY_LIMIT_RPD, newRpd)
+                .putInt(TokenUsageGuard.KEY_LIMIT_TPD, newTpd)
+                .apply();
+            
+            Toast.makeText(requireContext(), "Limits updated successfully", Toast.LENGTH_SHORT).show();
+        });
+        builder.setNegativeButton(R.string.cancel, null);
+        builder.show();
     }
 
     private String pendingModelId;

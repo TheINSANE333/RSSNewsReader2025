@@ -39,6 +39,16 @@
     <string name="reset_token_usage_summary">Manually clear token and request limits if you hit a guard limit.</string>
     <string name="token_usage_reset_success">Token usage limits have been reset.</string>
 
+    <string name="ai_limit_settings_title">Set Token Limit</string>
+    <string name="ai_limit_settings_summary">Configure TPM, RPD, and TPD limits and reset usage stats</string>
+
+    <string name="limit_tpm_title">Tokens Per Minute (TPM)</string>
+    <string name="limit_tpm_summary">Maximum tokens allowed per minute</string>
+    <string name="limit_rpd_title">Requests Per Day (RPD)</string>
+    <string name="limit_rpd_summary">Maximum AI requests allowed per day</string>
+    <string name="limit_tpd_title">Tokens Per Day (TPD)</string>
+    <string name="limit_tpd_summary">Maximum total tokens allowed per day</string>
+
     <string name="help_groq_key">How to obtain a free groq key?</string>
     <string name="help_groq_key_desc">1. Visit https://console.groq.com/\n2. Sign up for an account (Google or GitHub)\n3. Go to \'Keys\' section\n4. Create a new key\n5. Copy the key and paste it into the \'Groq API Key\' field in Settings.</string>
 
