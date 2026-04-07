@@ -338,6 +338,11 @@ public class WebViewActivity extends AppCompatActivity implements ReloadDialog.R
         webViewViewModel.getLiveEntry().observe(this, entry -> {
             if (entry == null || entry.getId() != currentId) return;
 
+            // If we are in WebView mode, DO NOT auto-switch or reload content based on extracted state.
+            if (sharedPreferencesRepository.getWebViewMode(currentId)) {
+                return;
+            }
+
             boolean isSummarized = Boolean.TRUE.equals(webViewViewModel.getIsSummarizedViewLiveData().getValue());
             boolean isTranslated = Boolean.TRUE.equals(webViewViewModel.getIsTranslatedViewLiveData().getValue());
 
