@@ -9,6 +9,8 @@ import javax.inject.Inject;
 
 import dagger.hilt.android.qualifiers.ApplicationContext;
 
+import xiangze.mmu.rssnewsreader.model.ai.TokenUsageGuard;
+
 public class SharedPreferencesRepository {
 
     private final SharedPreferences sharedPreferences;
@@ -315,6 +317,30 @@ public class SharedPreferencesRepository {
 
     public void setAbbreviationList(String list) {
         editor.putString("abbreviation_list", list).apply();
+    }
+
+    public int getAiLimitTpm() {
+        return sharedPreferences.getInt(TokenUsageGuard.KEY_LIMIT_TPM, 30000);
+    }
+
+    public void setAiLimitTpm(int tpm) {
+        editor.putInt(TokenUsageGuard.KEY_LIMIT_TPM, tpm).apply();
+    }
+
+    public int getAiLimitRpd() {
+        return sharedPreferences.getInt(TokenUsageGuard.KEY_LIMIT_RPD, 1000);
+    }
+
+    public void setAiLimitRpd(int rpd) {
+        editor.putInt(TokenUsageGuard.KEY_LIMIT_RPD, rpd).apply();
+    }
+
+    public int getAiLimitTpd() {
+        return sharedPreferences.getInt(TokenUsageGuard.KEY_LIMIT_TPD, 500000);
+    }
+
+    public void setAiLimitTpd(int tpd) {
+        editor.putInt(TokenUsageGuard.KEY_LIMIT_TPD, tpd).apply();
     }
 
     public Context getContext() {

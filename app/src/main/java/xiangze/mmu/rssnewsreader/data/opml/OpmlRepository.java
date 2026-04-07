@@ -104,6 +104,9 @@ public class OpmlRepository {
         String abbreviationList = parser.getAttributeValue(null, "abbreviation_list");
         String customTranslationPrompt = parser.getAttributeValue(null, "customTranslationPrompt");
         String customSummarizationPrompt = parser.getAttributeValue(null, "customSummarizationPrompt");
+        String aiLimitTpm = parser.getAttributeValue(null, "ai_limit_tpm");
+        String aiLimitRpd = parser.getAttributeValue(null, "ai_limit_rpd");
+        String aiLimitTpd = parser.getAttributeValue(null, "ai_limit_tpd");
 
         if (jobPeriodic != null && !jobPeriodic.isEmpty()) {
             sharedPreferencesRepository.setJobPeriodic(jobPeriodic);
@@ -174,6 +177,15 @@ public class OpmlRepository {
         }
         if (customSummarizationPrompt != null && !customSummarizationPrompt.isEmpty()) {
             sharedPreferencesRepository.setCustomSummarizationPrompt(customSummarizationPrompt);
+        }
+        if (aiLimitTpm != null && !aiLimitTpm.isEmpty()) {
+            sharedPreferencesRepository.setAiLimitTpm(Integer.parseInt(aiLimitTpm));
+        }
+        if (aiLimitRpd != null && !aiLimitRpd.isEmpty()) {
+            sharedPreferencesRepository.setAiLimitRpd(Integer.parseInt(aiLimitRpd));
+        }
+        if (aiLimitTpd != null && !aiLimitTpd.isEmpty()) {
+            sharedPreferencesRepository.setAiLimitTpd(Integer.parseInt(aiLimitTpd));
         }
     }
 
@@ -307,6 +319,9 @@ public class OpmlRepository {
         serializer.attribute(null, "abbreviation_list", sharedPreferencesRepository.getAbbreviationList());
         serializer.attribute(null, "customTranslationPrompt", sharedPreferencesRepository.getCustomTranslationPrompt());
         serializer.attribute(null, "customSummarizationPrompt", sharedPreferencesRepository.getCustomSummarizationPrompt());
+        serializer.attribute(null, "ai_limit_tpm", Integer.toString(sharedPreferencesRepository.getAiLimitTpm()));
+        serializer.attribute(null, "ai_limit_rpd", Integer.toString(sharedPreferencesRepository.getAiLimitRpd()));
+        serializer.attribute(null, "ai_limit_tpd", Integer.toString(sharedPreferencesRepository.getAiLimitTpd()));
         serializer.endTag(null, "setting");
     }
 
