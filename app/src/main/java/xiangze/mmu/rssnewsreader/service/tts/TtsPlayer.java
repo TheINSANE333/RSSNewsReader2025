@@ -86,6 +86,8 @@ public class TtsPlayer extends PlayerAdapter implements TtsPlayerListener {
     private PlaybackUiListener playbackUiListener;
     private int currentExtractProgress = 0;
     private long lastHandledReloadId = -1;
+    private final Handler timeoutHandler = new Handler(Looper.getMainLooper());
+    private Runnable timeoutRunnable;
 
     private final MutableLiveData<String> highlightTextLiveData = new MutableLiveData<>();
     private final MutableLiveData<Boolean> finishedSetupLiveData = new MutableLiveData<>();
@@ -130,6 +132,7 @@ public class TtsPlayer extends PlayerAdapter implements TtsPlayerListener {
         tts.setOnUtteranceProgressListener(new UtteranceProgressListener() {
             @Override
             public void onStart(String utteranceId) {
+                cancelTimeout();
                 final int extractionId = currentExtractionId;
                 if (utteranceId != null) {
                     try {
@@ -151,17 +154,20 @@ public class TtsPlayer extends PlayerAdapter implements TtsPlayerListener {
 
             @Override
             public void onDone(String utteranceId) {
+                cancelTimeout();
                 handleOnDone(utteranceId);
             }
 
             @Override
             @Deprecated
             public void onError(String s) {
+                cancelTimeout();
                 Log.d("TTS", "onError: " + s);
             }
 
             @Override
             public void onError(String utteranceId, int errorCode) {
+                cancelTimeout();
                 Log.e(TAG, "TTS Error for utterance " + utteranceId + ", code: " + errorCode);
                 final int extractionId = currentExtractionId;
                 if (extractionId == currentExtractionId) {
@@ -170,6 +176,23 @@ public class TtsPlayer extends PlayerAdapter implements TtsPlayerListener {
                 }
             }
         });
+    }
+
+    private void scheduleTimeout(final String utteranceId) {
+        cancelTimeout();
+        timeoutRunnable = () -> {
+            Log.w(TAG, "Utterance timeout reached for: " + utteranceId + ". Forcing recovery.");
+            handleOnDone(utteranceId);
+        };
+        // 45 seconds timeout should be plenty even for long paragraphs
+        timeoutHandler.postDelayed(timeoutRunnable, 45000);
+    }
+
+    private void cancelTimeout() {
+        if (timeoutRunnable != null) {
+            timeoutHandler.removeCallbacks(timeoutRunnable);
+            timeoutRunnable = null;
+        }
     }
 
     private void handleOnDone(String utteranceId) {
@@ -193,9 +216,14 @@ public class TtsPlayer extends PlayerAdapter implements TtsPlayerListener {
         if (sentenceCounter < sentences.size() - 1) {
             sentenceCounter++;
             if (sentenceCounter < sentences.size()) {
-                speak();
-                entryRepository.updateSentCount(sentenceCounter, currentId);
-                Log.d(TAG, "Finished [#" + (sentenceCounter - 1) + "], speaking [#" + sentenceCounter + "]");
+                if (!isPausedManually && currentState == PlaybackStateCompat.STATE_PLAYING) {
+                    speak();
+                    entryRepository.updateSentCount(sentenceCounter, currentId);
+                    Log.d(TAG, "Finished [#" + (sentenceCounter - 1) + "], speaking [#" + sentenceCounter + "]");
+                } else {
+                    Log.d(TAG, "Sentence finished but player is paused/stopped. Counter incremented to: " + sentenceCounter);
+                    entryRepository.updateSentCount(sentenceCounter, currentId);
+                }
             } else {
                 Log.d(TAG, "sentenceCounter became out of bounds after increment, stopping.");
             }
@@ -295,6 +323,7 @@ public class TtsPlayer extends PlayerAdapter implements TtsPlayerListener {
         isSettingUpNewArticle = true;
         isWaitingForArticleCompletion = false;
         sentences.clear();
+        sentenceCounter = 0;
         isArticleFinished = false;
 
         // Force reset setup flag after 10s if it's still stuck, to allow manual play
@@ -415,8 +444,9 @@ public class TtsPlayer extends PlayerAdapter implements TtsPlayerListener {
                     }
 
                     // If we were at the end of the list and stopped, but more sentences are now available, resume speaking
-                    if (firstBatchSignaled && !isSpeaking() && !isPausedManually && currentState == PlaybackStateCompat.STATE_PLAYING && sentenceCounter == sentences.size() - 2) {
+                    if (isWaitingForArticleCompletion && !isPausedManually && currentState == PlaybackStateCompat.STATE_PLAYING && sentenceCounter < sentences.size() - 1) {
                         Log.d(TAG, "Resuming playback as more sentences arrived.");
+                        isWaitingForArticleCompletion = false;
                         sentenceCounter++;
                         speak();
                     }
@@ -425,7 +455,7 @@ public class TtsPlayer extends PlayerAdapter implements TtsPlayerListener {
                     if (!firstBatchSignaled && sentences.size() >= 5) {
                         firstBatchSignaled = true;
                         int savedProgress = entryRepository.getSentCount(currentId);
-                        sentenceCounter = Math.min(savedProgress, sentences.size() - 1);
+                        sentenceCounter = Math.max(0, Math.min(savedProgress, sentences.size() - 1));
                         if (isInit) {
                             setupTts(extractionId);
                         } else {
@@ -625,6 +655,7 @@ public class TtsPlayer extends PlayerAdapter implements TtsPlayerListener {
         String utteranceId = String.valueOf(sentenceCounter);
         currentUtteranceID = utteranceId;
         
+        scheduleTimeout(utteranceId);
         int result = tts.speak(sentence, queueMode, null, utteranceId);
         if (result == TextToSpeech.ERROR) {
             Log.e(TAG, "tts.speak returned ERROR for [#" + sentenceCounter + "]. Attempting recovery.");
