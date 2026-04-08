@@ -286,8 +286,12 @@ public class TtsService extends MediaBrowserServiceCompat {
                     return;
                 }
 
-                ttsPlayer.stopTtsPlayback();
-                ttsPlayer.extract(mediaId, feedId, contentToSpeak, languageToUse);
+                String viewMode = useSummarized ? "summarized" : (useTranslated ? "translated" : "original");
+                
+                if (ttsPlayer.getCurrentId() != mediaId || ttsPlayer.isArticleFinished()) {
+                    ttsPlayer.stopTtsPlayback();
+                }
+                ttsPlayer.extract(mediaId, feedId, contentToSpeak, languageToUse, viewMode);
 
                 if (!ttsPlayer.isPausedManually()) {
                     ttsPlayer.speak();

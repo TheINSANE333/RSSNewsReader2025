@@ -352,8 +352,7 @@ public class WebViewActivity extends AppCompatActivity implements ReloadDialog.R
                 boolean hasSummary = entry.getSummarizedHtml() != null && !entry.getSummarizedHtml().trim().isEmpty();
                 if (hasSummary) {
                     webViewViewModel.setIsSummarizedView(true);
-                    // Manually trigger loadCurrentViewState with the latest entry to avoid DB lag
-                    loadCurrentViewState(entry);
+                    // The observer on isSummarizedViewLiveData will call loadCurrentViewState()
                     return; 
                 }
             }

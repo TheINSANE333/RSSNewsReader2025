@@ -298,12 +298,17 @@ public class TtsPlayer extends PlayerAdapter implements TtsPlayerListener {
         Log.d(TAG, "Detected isPausedManually = " + isPausedManually + " (wasPlayingIntent=" + wasPlayingIntent + ", state=" + currentState + ", finished=" + isArticleFinished + ")");
 
         String resolvedLanguage = (language != null && language.equals("Use Language Identifier")) ? null : language;
+        boolean isSameViewMode = (viewMode == null && this.lastViewMode == null) || (viewMode != null && viewMode.equals(this.lastViewMode));
+        
         if (content != null && content.equals(this.lastContent) && currentId == this.currentId && 
             (resolvedLanguage == null ? this.language == null : resolvedLanguage.equals(this.language)) &&
-            (viewMode != null && viewMode.equals(this.lastViewMode))) {
+            isSameViewMode) {
             Log.d(TAG, "Content, language, viewMode and ID are identical to last extraction, skipping redundant extraction.");
             isArticleFinished = false;
-            hasSpokenAfterSetup = false; // Reset to allow auto-play on redundant calls
+            // Only reset hasSpokenAfterSetup if we are NOT currently speaking or setting up
+            if (!isSpeaking() && !isSettingUpNewArticle) {
+                hasSpokenAfterSetup = false;
+            }
             finishedSetupLiveData.postValue(true);
             return;
         }
@@ -914,6 +919,10 @@ public class TtsPlayer extends PlayerAdapter implements TtsPlayerListener {
 
     public boolean isSpeaking() {
         return tts != null && tts.isSpeaking();
+    }
+
+    public boolean isArticleFinished() {
+        return isArticleFinished;
     }
 
     public int getCurrentExtractProgress() {
