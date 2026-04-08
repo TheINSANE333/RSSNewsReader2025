@@ -280,16 +280,18 @@ public class WebViewViewModel extends ViewModel {
             // - Titles: Dr. Mr. Ms. Prof. etc.
             // - Currency/Decimals: RM followed by digits and a dot, or just any digit before the dot
             // - Single letters: Initials like A. B.
+            // - 1-3 letter abbreviations (New Rule)
             String lowerText = text.toLowerCase();
 
-            // Check for common abbreviations
+            // Check for common abbreviations and 1-3 letter patterns
             if (lowerText.endsWith("dr.") ||
                     lowerText.endsWith("mr.") ||
                     lowerText.endsWith("ms.") ||
                     lowerText.endsWith("mrs.") ||
                     lowerText.endsWith("prof.") ||
                     lowerText.endsWith("inc.") ||
-                    lowerText.endsWith("ltd.")) {
+                    lowerText.endsWith("ltd.") ||
+                    text.matches(".*\\b[a-zA-Z]{1,3}\\.$")) {
                 return false;
             }
 

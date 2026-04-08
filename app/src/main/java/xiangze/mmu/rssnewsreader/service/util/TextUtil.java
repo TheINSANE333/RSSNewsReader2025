@@ -153,9 +153,16 @@ public class TextUtil {
     }
 
     public boolean endsWithAbbreviation(String text) {
-        if (text.isEmpty() || !text.endsWith(".")) {
+        if (text == null || text.isEmpty() || !text.endsWith(".")) {
             return false;
         }
+
+        // New rule: 1, 2, or 3 letters followed by a period at the end of the segment
+        // are treated as abbreviations (e.g., "Mr.", "St.", "Jan.", "A.") to prevent breaking.
+        if (text.matches(".*\\b[a-zA-Z]{1,3}\\.$")) {
+            return true;
+        }
+
         String abbreviationList = sharedPreferencesRepository.getAbbreviationList();
         String[] abbreviations = abbreviationList.split(",");
         for (String abbr : abbreviations) {
