@@ -245,6 +245,7 @@ public class WebViewActivity extends AppCompatActivity implements ReloadDialog.R
 
         if (currentId != entryInfo.getEntryId()) {
             userManuallySwitchedToOriginal = false; // Reset for new article
+            lastLoadedHtml = ""; // Reset cache to force reload on new article
         }
 
         currentId = entryInfo.getEntryId();
@@ -264,13 +265,29 @@ public class WebViewActivity extends AppCompatActivity implements ReloadDialog.R
             return;
         }
 
-        boolean hasSummary = entry.getSummarized() != null && !entry.getSummarized().trim().isEmpty();
-        boolean hasTranslation = entry.getTranslated() != null && !entry.getTranslated().trim().isEmpty();
+        boolean hasSummary = entry.getSummarizedHtml() != null && !entry.getSummarizedHtml().trim().isEmpty();
+        boolean hasTranslation = entry.getTranslatedHtml() != null && !entry.getTranslatedHtml().trim().isEmpty();
 
         // Only auto-summarize if the user hasn't explicitly said they want the original content for this article
         if (!userManuallySwitchedToOriginal) {
-            webViewViewModel.setIsSummarizedView(hasSummary);
-            webViewViewModel.setIsTranslatedView(!hasSummary && hasTranslation);
+            // If already true (e.g. from observeLiveEntry race), don't override with false unless we don't have a summary
+            if (hasSummary) {
+                webViewViewModel.setIsSummarizedView(true);
+            } else {
+                Boolean current = webViewViewModel.getIsSummarizedViewLiveData().getValue();
+                if (!Boolean.TRUE.equals(current)) {
+                    webViewViewModel.setIsSummarizedView(false);
+                }
+            }
+            
+            if (hasTranslation && !hasSummary) {
+                webViewViewModel.setIsTranslatedView(true);
+            } else {
+                Boolean current = webViewViewModel.getIsTranslatedViewLiveData().getValue();
+                if (!Boolean.TRUE.equals(current)) {
+                    webViewViewModel.setIsTranslatedView(false);
+                }
+            }
         }
         
         loadCurrentViewState();
@@ -352,8 +369,17 @@ public class WebViewActivity extends AppCompatActivity implements ReloadDialog.R
                 boolean hasSummary = entry.getSummarizedHtml() != null && !entry.getSummarizedHtml().trim().isEmpty();
                 if (hasSummary) {
                     webViewViewModel.setIsSummarizedView(true);
-                    // The observer on isSummarizedViewLiveData will call loadCurrentViewState()
-                    return; 
+                    isSummarized = true; // Update local state to trigger the reload below
+                }
+            }
+
+            // Auto-switch to translated view if it just became available, we are in original view,
+            // AND the user hasn't manually chosen to see the original content.
+            if (!isSummarized && !isTranslated && !userManuallySwitchedToOriginal) {
+                boolean hasTranslation = entry.getTranslatedHtml() != null && !entry.getTranslatedHtml().trim().isEmpty();
+                if (hasTranslation) {
+                    webViewViewModel.setIsTranslatedView(true);
+                    isTranslated = true; // Update local state to trigger the reload below
                 }
             }
 

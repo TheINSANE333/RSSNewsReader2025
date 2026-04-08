@@ -440,10 +440,20 @@ public class EntryRepository {
 
     public void updateSummarizedPair(long id, String summarized, String summarizedHtml) {
         entryDao.updateSummarizedPair(id, summarized, summarizedHtml);
+        Entry entry = entryCache.get(id);
+        if (entry != null) {
+            entry.setSummarized(summarized);
+            entry.setSummarizedHtml(summarizedHtml);
+        }
     }
 
     public void updateTranslatedPair(long id, String translated, String translatedHtml) {
         entryDao.updateTranslatedPair(id, translated, translatedHtml);
+        Entry entry = entryCache.get(id);
+        if (entry != null) {
+            entry.setTranslated(translated);
+            entry.setTranslatedHtml(translatedHtml);
+        }
     }
 
     public void updateTranslatedResult(long id, String html, String translated, String translatedHtml, String title) {
