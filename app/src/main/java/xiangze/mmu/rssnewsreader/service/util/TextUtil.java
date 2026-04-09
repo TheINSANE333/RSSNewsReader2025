@@ -583,6 +583,66 @@ public class TextUtil {
         });
     }
 
+    public Single<String> summarizeDailyNews(List<xiangze.mmu.rssnewsreader.model.EntryInfo> entries, String targetLanguage) {
+        return Single.create(emitter -> {
+            try {
+                if (entries == null || entries.isEmpty()) {
+                    emitter.onError(new Exception("No news articles to summarize."));
+                    return;
+                }
+
+                AiClient aiClient = new AiClient(sharedPreferencesRepository.getContext());
+                List<Message> messages = new ArrayList<>();
+
+                String systemPrompt = "You are a professional news anchor. Provide a concise daily news briefing based on the following headlines and summaries from today's unread articles. " +
+                        "Group related stories together and highlight the most important events. " +
+                        "Use clear headings and bullet points. " +
+                        "The response should be in " + targetLanguage + ". " +
+                        "Start your response with a catchy headline like 'Daily News Briefing - [Date]'.";
+
+                messages.add(new Message("system", systemPrompt));
+
+                StringBuilder userPrompt = new StringBuilder("Here are the news articles for today:\n\n");
+                for (int i = 0; i < entries.size(); i++) {
+                    xiangze.mmu.rssnewsreader.model.EntryInfo entry = entries.get(i);
+                    userPrompt.append(i + 1).append(". [").append(entry.getFeedTitle()).append("] ").append(entry.getEntryTitle()).append("\n");
+                    
+                    String content = entry.getSummarized();
+                    if (content == null || content.isEmpty()) {
+                        content = entry.getEntryDescription();
+                    }
+                    if (content != null && !content.isEmpty()) {
+                        // Limit content per article to avoid context window issues
+                        if (content.length() > 500) {
+                            content = content.substring(0, 500) + "...";
+                        }
+                        userPrompt.append("Summary: ").append(content).append("\n");
+                    }
+                    userPrompt.append("\n");
+                    
+                    // Limit total input size if needed (e.g., first 20 articles)
+                    if (i >= 20) {
+                        userPrompt.append("... and more articles.");
+                        break;
+                    }
+                }
+
+                messages.add(new Message("user", userPrompt.toString()));
+
+                String summarizationModel = sharedPreferencesRepository.getSummarizationModel();
+                String summary = aiClient.getChatResponse(messages, summarizationModel);
+
+                if (summary == null || summary.trim().isEmpty()) {
+                    emitter.onError(new Exception("AI returned empty response."));
+                } else {
+                    emitter.onSuccess(summary);
+                }
+            } catch (Exception e) {
+                emitter.onError(e);
+            }
+        });
+    }
+
     @SuppressLint("CheckResult")
     public Single<String> translateHtmlByParagraph(String sourceLanguage, String targetLanguage, String html, String title, long articleId, Consumer<Integer> progressCallback) {
         Log.d(TAG, "translateHtmlByParagraph: from " + sourceLanguage + " to " + targetLanguage);

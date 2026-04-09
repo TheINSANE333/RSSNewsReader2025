@@ -175,6 +175,41 @@ public class AllEntriesFragment extends Fragment implements EntryItemAdapter.Ent
             }
         });
 
+        binding.dailySummaryButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                allEntriesViewModel.generateDailySummary();
+            }
+        });
+
+        final Snackbar[] progressSnackbar = {null};
+        allEntriesViewModel.getIsSummarizing().observe(getViewLifecycleOwner(), isSummarizing -> {
+            if (isSummarizing) {
+                progressSnackbar[0] = Snackbar.make(binding.getRoot(), "Generating daily summary...", Snackbar.LENGTH_INDEFINITE);
+                progressSnackbar[0].show();
+            } else {
+                if (progressSnackbar[0] != null) {
+                    progressSnackbar[0].dismiss();
+                    progressSnackbar[0] = null;
+                }
+            }
+        });
+
+        allEntriesViewModel.getDailySummaryResult().observe(getViewLifecycleOwner(), summary -> {
+            if (summary != null && !summary.isEmpty()) {
+                // Clear the "Generating..." snackbar
+                Snackbar.make(binding.getRoot(), "Summary generated!", Snackbar.LENGTH_SHORT).show();
+                
+                // Launch ChatActivity with the summary
+                Intent intent = new Intent(requireContext(), xiangze.mmu.rssnewsreader.model.ai.ChatActivity.class);
+                intent.putExtra("initial_message", summary);
+                startActivity(intent);
+                
+                // Reset summary result to avoid re-triggering on rotation/back
+                allEntriesViewModel.resetDailySummary();
+            }
+        });
+
         allEntriesViewModel.getToastMessage().observe(getViewLifecycleOwner(), new Observer<String>() {
             @Override
             public void onChanged(String s) {

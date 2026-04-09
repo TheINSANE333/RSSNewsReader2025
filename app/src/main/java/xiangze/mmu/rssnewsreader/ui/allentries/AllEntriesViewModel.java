@@ -15,6 +15,7 @@ import xiangze.mmu.rssnewsreader.data.sharedpreferences.SharedPreferencesReposit
 import xiangze.mmu.rssnewsreader.service.tts.TtsExtractor;
 import xiangze.mmu.rssnewsreader.service.tts.TtsPlayer;
 import xiangze.mmu.rssnewsreader.model.EntryInfo;
+import xiangze.mmu.rssnewsreader.service.util.TextUtil;
 
 import java.util.Date;
 import java.util.List;
@@ -43,25 +44,65 @@ public class AllEntriesViewModel extends ViewModel {
     private final SharedPreferencesRepository sharedPreferencesRepository;
     private final TtsExtractor ttsExtractor;
     private final TtsPlayer ttsPlayer;
+    private final TextUtil textUtil;
     private final MutableLiveData<List<EntryInfo>> allEntries = new MutableLiveData<>();
     private final MutableLiveData<String> toastMessage = new MutableLiveData<>();
     private final MutableLiveData<Integer> unreadCount = new MutableLiveData<>();
+    private final MutableLiveData<String> dailySummary = new MutableLiveData<>();
+    private final MutableLiveData<Boolean> isSummarizing = new MutableLiveData<>();
     private final LiveData<List<EntryInfo>> liveEntries;
 
     private long id;
 
     @Inject
-    public AllEntriesViewModel(FeedRepository feedRepository, EntryRepository entryRepository, PlaylistRepository playlistRepository, SharedPreferencesRepository sharedPreferencesRepository, TtsExtractor ttsExtractor, TtsPlayer ttsPlayer) {
+    public AllEntriesViewModel(FeedRepository feedRepository, EntryRepository entryRepository, PlaylistRepository playlistRepository, SharedPreferencesRepository sharedPreferencesRepository, TtsExtractor ttsExtractor, TtsPlayer ttsPlayer, TextUtil textUtil) {
         this.feedRepository = feedRepository;
         this.entryRepository = entryRepository;
         this.playlistRepository = playlistRepository;
         this.sharedPreferencesRepository = sharedPreferencesRepository;
         this.ttsExtractor = ttsExtractor;
         this.ttsPlayer = ttsPlayer;
+        this.textUtil = textUtil;
 
         liveEntries = entryRepository.getAllEntriesLive();
 
         getEntriesByFeed(0, "all");
+    }
+
+    public LiveData<String> getDailySummaryResult() {
+        return dailySummary;
+    }
+
+    public LiveData<Boolean> getIsSummarizing() {
+        return isSummarizing;
+    }
+
+    public void generateDailySummary() {
+        isSummarizing.postValue(true);
+        
+        entryRepository.getUnreadEntriesForSummarization()
+                .firstOrError()
+                .flatMap(entries -> {
+                    if (entries.isEmpty()) {
+                        return io.reactivex.rxjava3.core.Single.error(new Exception("No unread articles found."));
+                    }
+                    String targetLang = sharedPreferencesRepository.getDefaultTranslationLanguage();
+                    return textUtil.summarizeDailyNews(entries, targetLang);
+                })
+                .subscribeOn(Schedulers.io())
+                .observeOn(AndroidSchedulers.mainThread())
+                .subscribe(summary -> {
+                    dailySummary.postValue(summary);
+                    isSummarizing.postValue(false);
+                }, throwable -> {
+                    Log.e("AllEntriesViewModel", "Error generating daily summary", throwable);
+                    toastMessage.postValue("Failed to generate summary: " + throwable.getMessage());
+                    isSummarizing.postValue(false);
+                });
+    }
+
+    public void resetDailySummary() {
+        dailySummary.postValue(null);
     }
 
     public String getSortBy() {

@@ -132,6 +132,17 @@
     </androidx.constraintlayout.widget.ConstraintLayout>
 
     <com.google.android.material.floatingactionbutton.FloatingActionButton
+        android:id="@+id/dailySummaryButton"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom|right"
+        android:layout_marginEnd="20dp"
+        android:layout_marginBottom="90dp"
+        app:fabSize="normal"
+        android:src="@drawable/ic_summary"
+        app:layout_behavior="com.google.android.material.behavior.HideBottomViewOnScrollBehavior"/>
+
+    <com.google.android.material.floatingactionbutton.FloatingActionButton
         android:id="@+id/deleteAllVisitedEntriesButton"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
