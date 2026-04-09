@@ -19,10 +19,25 @@ public class ChatAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
     private static final int TYPE_USER = 1;
     private static final int TYPE_ASSISTANT = 2;
 
+    public interface TtsClickListener {
+        void onTtsClick(String text);
+    }
+
     private List<Message> messages;
+    private TtsClickListener ttsClickListener;
+    private String playingText = null;
 
     public ChatAdapter(List<Message> messages) {
         this.messages = messages;
+    }
+
+    public void setTtsClickListener(TtsClickListener listener) {
+        this.ttsClickListener = listener;
+    }
+
+    public void setPlayingText(String text) {
+        this.playingText = text;
+        notifyDataSetChanged();
     }
 
     @Override
@@ -54,6 +69,19 @@ public class ChatAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
             SpannableString formattedText = SimpleMarkdownParser.parseSimpleMarkdown(message.content);
             assistantHolder.messageText.setText(formattedText);
             assistantHolder.messageText.setMovementMethod(LinkMovementMethod.getInstance()); // For clickable links
+
+            if (message.content.equals(playingText)) {
+                assistantHolder.ttsButton.setImageResource(R.drawable.ic_baseline_pause_24);
+            } else {
+                assistantHolder.ttsButton.setImageResource(R.drawable.ic_speech);
+            }
+
+            assistantHolder.ttsButton.setOnClickListener(v -> {
+
+                if (ttsClickListener != null) {
+                    ttsClickListener.onTtsClick(message.content);
+                }
+            });
         } else {
             // User messages - no formatting needed
             ((UserMessageViewHolder) holder).messageText.setText(message.content);
@@ -80,14 +108,16 @@ public class ChatAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
 
     static class AssistantMessageViewHolder extends RecyclerView.ViewHolder {
         TextView messageText;
+        android.widget.ImageButton ttsButton;
 
         public AssistantMessageViewHolder(@NonNull View itemView) {
             super(itemView);
             messageText = itemView.findViewById(R.id.messageText);
+            ttsButton = itemView.findViewById(R.id.ttsButton);
         }
 
         public void bind(Message message) {
             messageText.setText(message.content);
         }
     }
-}
+    }

@@ -1,5 +1,6 @@
 package xiangze.mmu.rssnewsreader.model.ai;
 
+import android.content.Intent;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.KeyEvent;
@@ -21,9 +22,15 @@ import java.util.List;
 
 import xiangze.mmu.rssnewsreader.data.ai.Message;
 import xiangze.mmu.rssnewsreader.service.ai.ChatAdapter;
+import xiangze.mmu.rssnewsreader.service.tts.TtsPlayer;
+import xiangze.mmu.rssnewsreader.data.sharedpreferences.SharedPreferencesRepository;
 
 import xiangze.mmu.rssnewsreader.R;
 
+import javax.inject.Inject;
+import dagger.hilt.android.AndroidEntryPoint;
+
+@AndroidEntryPoint
 public class ChatActivity extends AppCompatActivity {
     private RecyclerView recyclerView;
     private EditText messageInput;
@@ -32,11 +39,21 @@ public class ChatActivity extends AppCompatActivity {
     private ChatAdapter adapter;
     private List<Message> messages = new ArrayList<>();
     private AiClient aiClient;
+    
+    @Inject
+    TtsPlayer ttsPlayer;
+
+    @Inject
+    SharedPreferencesRepository sharedPreferencesRepository;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         Log.d("ChatActivity", "RUNNING CREATE");
         super.onCreate(savedInstanceState);
+
+        // Ensure TtsService is started so TtsPlayer is initialized
+        Intent serviceIntent = new Intent(this, xiangze.mmu.rssnewsreader.service.tts.TtsService.class);
+        androidx.core.content.ContextCompat.startForegroundService(this, serviceIntent);
 
         // Set up global exception handler
         Thread.setDefaultUncaughtExceptionHandler(new Thread.UncaughtExceptionHandler() {
@@ -64,8 +81,6 @@ public class ChatActivity extends AppCompatActivity {
 
         aiClient = new AiClient(this);
 
-        xiangze.mmu.rssnewsreader.data.sharedpreferences.SharedPreferencesRepository sharedPreferencesRepository = 
-                new xiangze.mmu.rssnewsreader.data.sharedpreferences.SharedPreferencesRepository(this);
         String chatModel = sharedPreferencesRepository.getChatbotModel();
 
         if (!aiClient.hasKey(chatModel)) {
@@ -85,6 +100,20 @@ public class ChatActivity extends AppCompatActivity {
             messages.add(new Message("assistant", "Hello! How can I help you today?"));
         }
         adapter.notifyDataSetChanged();
+
+        ttsPlayer.setPlaybackUiListener(new TtsPlayer.PlaybackUiListener() {
+            @Override
+            public void onPlaybackStarted() {
+                // Adapter already updated on click
+            }
+
+            @Override
+            public void onPlaybackPaused() {
+                runOnUiThread(() -> {
+                    adapter.setPlayingText(null);
+                });
+            }
+        });
     }
 
     private void initViews() {
@@ -100,8 +129,26 @@ public class ChatActivity extends AppCompatActivity {
         getSupportActionBar().setTitle("AI Chatbot");
     }
 
+    private String lastTtsText = null;
+
     private void setupRecyclerView() {
         adapter = new ChatAdapter(messages);
+        adapter.setTtsClickListener(text -> {
+            if (ttsPlayer.isSpeaking() && text.equals(lastTtsText)) {
+                ttsPlayer.pauseTts();
+                adapter.setPlayingText(null);
+            } else {
+                lastTtsText = text;
+                String targetLanguage = sharedPreferencesRepository.getDefaultTranslationLanguage();
+                ttsPlayer.setPausedManually(false);
+                // Use a specific negative ID for chat messages
+                ttsPlayer.extract(-999, 0, text, targetLanguage);
+                if (!ttsPlayer.isSpeaking()) {
+                    ttsPlayer.speak();
+                }
+                adapter.setPlayingText(text);
+            }
+        });
         recyclerView.setAdapter(adapter);
         recyclerView.setLayoutManager(new LinearLayoutManager(this));
     }
@@ -144,9 +191,7 @@ public class ChatActivity extends AppCompatActivity {
             new Thread(() -> {
                 try {
                     Log.d("ChatBot", "Starting API call...");
-                    xiangze.mmu.rssnewsreader.data.sharedpreferences.SharedPreferencesRepository repo = 
-                            new xiangze.mmu.rssnewsreader.data.sharedpreferences.SharedPreferencesRepository(this);
-                    String chatModel = repo.getChatbotModel();
+                    String chatModel = sharedPreferencesRepository.getChatbotModel();
                     String response = aiClient.getChatResponse(messages, chatModel);
                     Log.d("ChatBot", "API response received: " + response);
 
@@ -191,6 +236,9 @@ public class ChatActivity extends AppCompatActivity {
     @Override
     protected void onDestroy() {
         super.onDestroy();
+        if (ttsPlayer != null) {
+            ttsPlayer.stopTtsPlayback();
+        }
         LocalLlmManager.getInstance(this).close();
     }
 
