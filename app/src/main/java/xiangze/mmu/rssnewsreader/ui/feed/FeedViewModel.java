@@ -6,6 +6,7 @@ import androidx.lifecycle.LiveData;
 import androidx.lifecycle.MutableLiveData;
 import androidx.lifecycle.ViewModel;
 
+import xiangze.mmu.rssnewsreader.data.entry.Entry;
 import xiangze.mmu.rssnewsreader.data.entry.EntryRepository;
 import xiangze.mmu.rssnewsreader.data.feed.Feed;
 import xiangze.mmu.rssnewsreader.data.feed.FeedRepository;
@@ -152,7 +153,14 @@ public class FeedViewModel extends ViewModel {
         Completable.fromAction(new Action() {
             @Override
             public void run() throws Throwable {
-                ttsPlayer.stop();
+                long currentEntryId = ttsPlayer.getCurrentId();
+                if (currentEntryId > 0) {
+                    Entry currentEntry = entryRepository.getEntryById(currentEntryId);
+                    if (currentEntry != null && currentEntry.getFeedId() == feedId) {
+                        Log.d("FeedViewModel", "Stopping TTS as current article belongs to the feed being re-extracted");
+                        ttsPlayer.stop();
+                    }
+                }
                 entryRepository.reExtractContent(feedId);
             }
         }).subscribeOn(Schedulers.io())
