@@ -758,9 +758,10 @@ public class TextUtil {
         String title = defaultTitle;
         String content = cleaned;
 
-        // More robust marker detection using regex to handle variations like [TITLE], [Translated Title], etc.
-        java.util.regex.Pattern titlePattern = java.util.regex.Pattern.compile("(?i)\\[(?:translated\\s+)?title\\]");
-        java.util.regex.Pattern contentPattern = java.util.regex.Pattern.compile("(?i)\\[(?:translated\\s+)?content\\]");
+        // More robust marker detection using regex to handle variations like [TITLE], **[TITLE]**, [Translated Title], etc.
+        // Also captures optional trailing colons, dashes or markdown bold markers.
+        java.util.regex.Pattern titlePattern = java.util.regex.Pattern.compile("(?i)(?:\\*\\*)?\\[(?:translated\\s+|summarized\\s+)?title\\](?:\\*\\*)?[:\\-—\\s]*");
+        java.util.regex.Pattern contentPattern = java.util.regex.Pattern.compile("(?i)(?:\\*\\*)?\\[(?:translated\\s+|summarized\\s+)?content\\](?:\\*\\*)?[:\\-—\\s]*");
 
         java.util.regex.Matcher titleMatcher = titlePattern.matcher(cleaned);
         java.util.regex.Matcher contentMatcher = contentPattern.matcher(cleaned);
@@ -784,19 +785,42 @@ public class TextUtil {
             String[] lines = cleaned.split("\\n");
             if (lines.length > 0) {
                 String firstLine = lines[0].trim();
-                if (!firstLine.isEmpty() && firstLine.length() < 150) {
-                     if (!firstLine.equalsIgnoreCase(defaultTitle)) {
-                         title = firstLine;
-                         content = cleaned.substring(cleaned.indexOf(firstLine) + firstLine.length()).trim();
-                     } else {
-                         content = cleaned.substring(cleaned.indexOf(firstLine) + firstLine.length()).trim();
-                         title = firstLine;
-                     }
+                // Clean the first line if it contains title markers despite the matcher failing (e.g. if content marker missing)
+                String cleanedFirstLine = titlePattern.matcher(firstLine).replaceAll("").trim();
+                
+                if (!cleanedFirstLine.isEmpty() && cleanedFirstLine.length() < 200) {
+                     title = cleanedFirstLine;
+                     // Content is everything after the first line (or after the first line's original position)
+                     int firstLineIndex = cleaned.indexOf(firstLine);
+                     content = cleaned.substring(firstLineIndex + firstLine.length()).trim();
                 }
             }
         }
 
-        // Final cleanup of the content to remove any leftover redundant title or common summary headers
+        // Final cleanup of the content to remove any leftover redundant title or common markers
+        // This handles cases like: [CONTENT] [content] some real content, or [SUMMARY] [] content
+        String markerCleanupRegex = "(?i)(?:\\*\\*)?\\[(?:translated\\s+|summarized\\s+)?(?:title|content|summary|article|text|translated|summarized)\\](?:\\*\\*)?[:\\-—\\s]*";
+        title = title.replaceAll(markerCleanupRegex, "").trim();
+        content = content.replaceAll(markerCleanupRegex, "").trim();
+
+        // Handle common AI prefixes without brackets (e.g., "Summary: ", "Translated Title: ")
+        String prefixCleanupRegex = "(?i)^(?:translated\\s+|summarized\\s+)?(?:title|content|summary|article|text|translated|summarized)[:\\-—\\s]+";
+        title = title.replaceAll(prefixCleanupRegex, "").trim();
+        content = content.replaceAll(prefixCleanupRegex, "").trim();
+
+        // Also remove empty brackets "[]" or "[ ]" which might be leftover from AI confusion
+        String emptyBracketsRegex = "\\[\\s*\\]\\s*";
+        title = title.replaceAll(emptyBracketsRegex, "").trim();
+        content = content.replaceAll(emptyBracketsRegex, "").trim();
+
+        // Strip wrapping brackets if the entire title or content is enclosed in them (e.g., "[Title Text]")
+        if (title.startsWith("[") && title.endsWith("]")) {
+            title = title.substring(1, title.length() - 1).trim();
+        }
+        if (content.startsWith("[") && content.endsWith("]")) {
+            content = content.substring(1, content.length() - 1).trim();
+        }
+
         if (content.toLowerCase().startsWith(title.toLowerCase())) {
             String potentialContent = content.substring(title.length()).trim();
             if (potentialContent.startsWith(":") || potentialContent.startsWith("-") || potentialContent.startsWith("—")) {
