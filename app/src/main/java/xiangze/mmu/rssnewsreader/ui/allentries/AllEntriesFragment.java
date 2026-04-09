@@ -178,7 +178,7 @@ public class AllEntriesFragment extends Fragment implements EntryItemAdapter.Ent
         binding.dailySummaryButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                allEntriesViewModel.generateDailySummary();
+                showFeedSelectionDialog();
             }
         });
 
@@ -703,6 +703,53 @@ public class AllEntriesFragment extends Fragment implements EntryItemAdapter.Ent
             selectedEntries.remove(entryInfo);
         }
         selectedCountTextView.setText(selectedEntries.size() + " selected");
+    }
+
+    private void showFeedSelectionDialog() {
+        allEntriesViewModel.getFeedsWithUnreadArticles()
+                .firstOrError()
+                .subscribeOn(Schedulers.io())
+                .observeOn(AndroidSchedulers.mainThread())
+                .subscribe(feeds -> {
+                    if (feeds.isEmpty()) {
+                        Snackbar.make(binding.getRoot(), "No unread articles found.", Snackbar.LENGTH_SHORT).show();
+                        return;
+                    }
+
+                    String[] feedTitles = new String[feeds.size()];
+                    long[] feedIds = new long[feeds.size()];
+                    boolean[] checkedItems = new boolean[feeds.size()];
+                    List<Long> selectedFeedIds = new ArrayList<>();
+
+                    for (int i = 0; i < feeds.size(); i++) {
+                        feedTitles[i] = feeds.get(i).getTitle();
+                        feedIds[i] = feeds.get(i).getId();
+                        checkedItems[i] = true; // Default to all checked
+                        selectedFeedIds.add(feedIds[i]);
+                    }
+
+                    new com.google.android.material.dialog.MaterialAlertDialogBuilder(requireContext())
+                            .setTitle("Select Feeds for Summary")
+                            .setMultiChoiceItems(feedTitles, checkedItems, (dialog, which, isChecked) -> {
+                                if (isChecked) {
+                                    selectedFeedIds.add(feedIds[which]);
+                                } else {
+                                    selectedFeedIds.remove(feedIds[which]);
+                                }
+                            })
+                            .setPositiveButton("Summarize", (dialog, which) -> {
+                                if (selectedFeedIds.isEmpty()) {
+                                    Snackbar.make(binding.getRoot(), "Please select at least one feed.", Snackbar.LENGTH_SHORT).show();
+                                } else {
+                                    allEntriesViewModel.generateDailySummary(selectedFeedIds);
+                                }
+                            })
+                            .setNegativeButton("Cancel", null)
+                            .show();
+                }, throwable -> {
+                    Log.e(TAG, "Error fetching feeds with unread articles", throwable);
+                    Snackbar.make(binding.getRoot(), "Error loading feeds.", Snackbar.LENGTH_SHORT).show();
+                });
     }
 
     public void enterSelectionMode() {

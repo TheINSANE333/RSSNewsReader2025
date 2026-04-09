@@ -100,6 +100,13 @@ public interface EntryDao {
     @Query("SELECT e.id as entryId, e.title as entryTitle, e.content as content, e.priority as priority, e.link as entryLink, e.description as entryDescription, e.imageUrl as entryImageUrl, e.publishedDate as entryPublishedDate, e.visitedDate as visitedDate, e.category as entryCategory, e.bookmark as bookmark, e.original_html as originalHtml, e.html as html, e.translated_html as translatedHtml, e.summarized_html as summarizedHtml, e.translated as translated, e.summarized as summarized, f.id as feedId, f.ttsSpeechRate as ttsSpeechRate, f.language as feedLanguage, f.title as feedTitle, f.imageUrl as feedImageUrl " +
             "FROM entry_table e " +
             "INNER JOIN feed_table f ON e.feedId = f.id " +
+            "WHERE e.visitedDate is null AND f.id IN (:feedIds)")
+    Flowable<List<EntryInfo>> getUnreadEntriesForFeeds(List<Long> feedIds);
+
+    @RewriteQueriesToDropUnusedColumns
+    @Query("SELECT e.id as entryId, e.title as entryTitle, e.content as content, e.priority as priority, e.link as entryLink, e.description as entryDescription, e.imageUrl as entryImageUrl, e.publishedDate as entryPublishedDate, e.visitedDate as visitedDate, e.category as entryCategory, e.bookmark as bookmark, e.original_html as originalHtml, e.html as html, e.translated_html as translatedHtml, e.summarized_html as summarizedHtml, e.translated as translated, e.summarized as summarized, f.id as feedId, f.ttsSpeechRate as ttsSpeechRate, f.language as feedLanguage, f.title as feedTitle, f.imageUrl as feedImageUrl " +
+            "FROM entry_table e " +
+            "INNER JOIN feed_table f ON e.feedId = f.id " +
             "WHERE e.visitedDate is null AND f.autoSummarize = 1")
     Flowable<List<EntryInfo>> getUnreadEntriesForSummarization();
 

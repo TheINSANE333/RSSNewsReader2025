@@ -56,4 +56,7 @@ public interface FeedDao {
 
     @Query("SELECT * FROM feed_table WHERE id = :feedId")
     Feed getFeedById(long feedId);
+
+    @Query("SELECT DISTINCT f.* FROM feed_table f INNER JOIN entry_table e ON f.id = e.feedId WHERE e.visitedDate IS NULL")
+    Flowable<List<Feed>> getFeedsWithUnreadArticles();
 }

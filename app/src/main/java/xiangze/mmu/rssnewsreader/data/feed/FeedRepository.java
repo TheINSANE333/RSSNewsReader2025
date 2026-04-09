@@ -325,4 +325,8 @@ public class FeedRepository {
     public Feed getFeedById(long id) {
         return feedDao.getFeedById(id);
     }
+
+    public Flowable<List<Feed>> getFeedsWithUnreadArticles() {
+        return feedDao.getFeedsWithUnreadArticles();
+    }
 }

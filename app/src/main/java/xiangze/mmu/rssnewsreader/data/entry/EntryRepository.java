@@ -76,6 +76,10 @@ public class EntryRepository {
         return entryDao.getUnreadEntriesForSummarization();
     }
 
+    public Flowable<List<EntryInfo>> getUnreadEntriesForFeeds(List<Long> feedIds) {
+        return entryDao.getUnreadEntriesForFeeds(feedIds);
+    }
+
     public long getLastVisitedEntryId() {
         return entryDao.getLastVisitedEntryId();
     }

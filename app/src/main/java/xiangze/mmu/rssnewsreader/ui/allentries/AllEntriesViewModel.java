@@ -27,6 +27,7 @@ import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers;
 import io.reactivex.rxjava3.annotations.NonNull;
 import io.reactivex.rxjava3.core.Completable;
 import io.reactivex.rxjava3.core.CompletableObserver;
+import io.reactivex.rxjava3.core.Flowable;
 import io.reactivex.rxjava3.disposables.Disposable;
 import io.reactivex.rxjava3.functions.Action;
 import io.reactivex.rxjava3.functions.Consumer;
@@ -77,14 +78,18 @@ public class AllEntriesViewModel extends ViewModel {
         return isSummarizing;
     }
 
-    public void generateDailySummary() {
+    public Flowable<List<xiangze.mmu.rssnewsreader.data.feed.Feed>> getFeedsWithUnreadArticles() {
+        return feedRepository.getFeedsWithUnreadArticles();
+    }
+
+    public void generateDailySummary(List<Long> feedIds) {
         isSummarizing.postValue(true);
         
-        entryRepository.getUnreadEntriesForSummarization()
+        entryRepository.getUnreadEntriesForFeeds(feedIds)
                 .firstOrError()
                 .flatMap(entries -> {
                     if (entries.isEmpty()) {
-                        return io.reactivex.rxjava3.core.Single.error(new Exception("No unread articles found."));
+                        return io.reactivex.rxjava3.core.Single.error(new Exception("No unread articles found in selected feeds."));
                     }
                     String targetLang = sharedPreferencesRepository.getDefaultTranslationLanguage();
                     return textUtil.summarizeDailyNews(entries, targetLang);
