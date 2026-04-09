@@ -261,6 +261,7 @@ public class TtsPlayer extends PlayerAdapter implements TtsPlayerListener {
         isArticleFinished = false;
         isSettingUpNewArticle = false;
         setUiControlPlayback(false);
+        setNewState(PlaybackStateCompat.STATE_PAUSED);
         if (playbackUiListener != null) {
             playbackUiListener.onPlaybackPaused();
         }
@@ -285,6 +286,8 @@ public class TtsPlayer extends PlayerAdapter implements TtsPlayerListener {
     public void extract(long currentId, long feedId, String content, String language, String viewMode) {
         Log.d(TAG, "Switching to new article: ID=" + currentId + " ViewMode=" + viewMode);
 
+        boolean isNewArticle = currentId != this.currentId;
+
         if (currentId != this.lastCurrentId) {
             lastContent = null;
             lastViewMode = null;
@@ -292,7 +295,7 @@ public class TtsPlayer extends PlayerAdapter implements TtsPlayerListener {
             this.lastAutoRetriedId = -1;
         }
 
-        boolean wasPlayingIntent = (currentState == PlaybackStateCompat.STATE_PLAYING) || (tts != null && tts.isSpeaking()) || isArticleFinished;
+        boolean wasPlayingIntent = (currentState == PlaybackStateCompat.STATE_PLAYING) || (tts != null && tts.isSpeaking()) || (isArticleFinished && isNewArticle);
         isPausedManually = !wasPlayingIntent && sharedPreferencesRepository.getIsPausedManually();
         sharedPreferencesRepository.setIsPausedManually(isPausedManually);
         Log.d(TAG, "Detected isPausedManually = " + isPausedManually + " (wasPlayingIntent=" + wasPlayingIntent + ", state=" + currentState + ", finished=" + isArticleFinished + ")");
@@ -818,6 +821,7 @@ public class TtsPlayer extends PlayerAdapter implements TtsPlayerListener {
             isInit = false;
         }
         currentId = 0;
+        isArticleFinished = false;
         setNewState(PlaybackStateCompat.STATE_STOPPED);
     }
 
