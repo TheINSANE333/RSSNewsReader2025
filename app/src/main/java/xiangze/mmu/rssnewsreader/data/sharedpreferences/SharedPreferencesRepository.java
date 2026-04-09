@@ -5,6 +5,13 @@ import android.content.SharedPreferences;
 
 import androidx.preference.PreferenceManager;
 
+import com.google.gson.Gson;
+import com.google.gson.reflect.TypeToken;
+
+import java.lang.reflect.Type;
+import java.util.ArrayList;
+import java.util.List;
+
 import javax.inject.Inject;
 
 import dagger.hilt.android.qualifiers.ApplicationContext;
@@ -22,6 +29,16 @@ public class SharedPreferencesRepository {
     private static final String KEY_SCROLL_Y_PREFIX = "scroll_y_";
     private static final String KEY_WEB_VIEW_MODE = "web_view_mode_";
     private static final String KEY_CURRENT_READING_ENTRY_ID = "current_reading_entry_id";
+    private static final String KEY_SAVED_API_KEYS = "saved_api_keys";
+
+    public static class ApiKey {
+        public String name;
+        public String value;
+        public ApiKey(String name, String value) {
+            this.name = name;
+            this.value = value;
+        }
+    }
 
     @Inject
     public SharedPreferencesRepository(@ApplicationContext Context context) {
@@ -152,8 +169,57 @@ public class SharedPreferencesRepository {
     }
 
     public void setGroqApiKey(String apiKey) {
+        String oldKey = getGroqApiKey();
         editor.putString("groq_api_key", apiKey);
         editor.apply();
+
+        // Auto-reset token usage if key changed
+        if (apiKey != null && !apiKey.equals(oldKey)) {
+            TokenUsageGuard.getInstance(context).resetManual();
+        }
+
+        // Also ensure it's in the saved list if not already
+        if (apiKey != null && !apiKey.isEmpty()) {
+            List<ApiKey> savedKeys = getSavedApiKeys();
+            boolean exists = false;
+            for (ApiKey key : savedKeys) {
+                if (key.value.equals(apiKey)) {
+                    exists = true;
+                    break;
+                }
+            }
+            if (!exists) {
+                savedKeys.add(new ApiKey("Key " + (savedKeys.size() + 1), apiKey));
+                setSavedApiKeys(savedKeys);
+            }
+        }
+    }
+
+    public List<ApiKey> getSavedApiKeys() {
+        String json = sharedPreferences.getString(KEY_SAVED_API_KEYS, "");
+        if (json.isEmpty()) {
+            return new ArrayList<>();
+        }
+        Gson gson = new Gson();
+        Type type = new TypeToken<List<ApiKey>>() {}.getType();
+        return gson.fromJson(json, type);
+    }
+
+    public void setSavedApiKeys(List<ApiKey> keys) {
+        Gson gson = new Gson();
+        String json = gson.toJson(keys);
+        editor.putString(KEY_SAVED_API_KEYS, json).apply();
+    }
+
+    public void removeSavedApiKey(String value) {
+        List<ApiKey> keys = getSavedApiKeys();
+        keys.removeIf(k -> k.value.equals(value));
+        setSavedApiKeys(keys);
+
+        // If we removed the active key, clear it
+        if (getGroqApiKey().equals(value)) {
+            setGroqApiKey("");
+        }
     }
 
     public void setAiModel(String aiModel) {

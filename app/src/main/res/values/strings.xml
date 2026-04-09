@@ -99,6 +99,17 @@
     <string name="abbreviation_list_title">Custom Abbreviations</string>
     <string name="abbreviation_list_summary">List of abbreviations (comma separated) to prevent sentence breaking (e.g., Dr., Ms., U.S.A.)</string>
 
+    <string name="manage_api_keys_title">Manage API Keys</string>
+    <string name="manage_api_keys_summary">Add, remove, or switch between different API keys</string>
+    <string name="add_api_key">Add API Key</string>
+    <string name="api_key_name_hint">Key Name (e.g., Personal, Work)</string>
+    <string name="api_key_value_hint">API Key</string>
+    <string name="delete_api_key_confirmation">Are you sure you want to delete this API key?</string>
+    <string name="api_key_empty_error">API key cannot be empty</string>
+    <string name="api_key_name_empty_error">Key name cannot be empty</string>
+    <string name="active_key">Active</string>
+    <string name="set_active">Set Active</string>
+
     <string name="share">Share</string>
     <string name="mark_as_read">Mark as read</string>
     <string name="mark_as_unread">Mark as unread</string>

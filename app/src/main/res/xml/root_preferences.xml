@@ -225,6 +225,12 @@
             app:useSimpleSummaryProvider="true" />
 
         <Preference
+            app:icon="@drawable/ic_gear"
+            app:key="manage_api_keys"
+            app:summary="@string/manage_api_keys_summary"
+            app:title="@string/manage_api_keys_title" />
+
+        <Preference
             app:icon="@drawable/ic_help"
             app:key="get_groq_key"
             app:summary="@string/get_groq_key_summary"

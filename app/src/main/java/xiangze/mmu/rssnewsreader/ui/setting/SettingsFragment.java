@@ -113,6 +113,10 @@ public class SettingsFragment extends PreferenceFragmentCompat {
                         rssWorkManager.triggerOneTimeRssWorker();
                     }
                     break;
+                case "groq_api_key":
+                    String newApiKey = sharedPreferences.getString(key, "");
+                    sharedPreferencesRepository.setGroqApiKey(newApiKey);
+                    break;
             }
         }
     };
@@ -175,6 +179,141 @@ public class SettingsFragment extends PreferenceFragmentCompat {
                 return true;
             });
         }
+
+        Preference manageApiKeysPreference = findPreference("manage_api_keys");
+        if (manageApiKeysPreference != null) {
+            manageApiKeysPreference.setOnPreferenceClickListener(preference -> {
+                showManageApiKeysDialog();
+                return true;
+            });
+        }
+    }
+
+    private void showManageApiKeysDialog() {
+        com.google.android.material.dialog.MaterialAlertDialogBuilder builder = new com.google.android.material.dialog.MaterialAlertDialogBuilder(requireContext());
+        builder.setTitle(R.string.manage_api_keys_title);
+
+        android.widget.LinearLayout rootLayout = new android.widget.LinearLayout(requireContext());
+        rootLayout.setOrientation(android.widget.LinearLayout.VERTICAL);
+        int padding = (int) (16 * getResources().getDisplayMetrics().density);
+        rootLayout.setPadding(padding, padding, padding, padding);
+
+        android.widget.ScrollView scrollView = new android.widget.ScrollView(requireContext());
+        android.widget.LinearLayout listLayout = new android.widget.LinearLayout(requireContext());
+        listLayout.setOrientation(android.widget.LinearLayout.VERTICAL);
+        scrollView.addView(listLayout);
+        rootLayout.addView(scrollView, new android.widget.LinearLayout.LayoutParams(
+                android.widget.LinearLayout.LayoutParams.MATCH_PARENT, 0, 1));
+
+        refreshApiKeysList(listLayout);
+
+        com.google.android.material.button.MaterialButton addButton = new com.google.android.material.button.MaterialButton(requireContext());
+        addButton.setText(R.string.add_api_key);
+        addButton.setIconResource(R.drawable.ic_plus);
+        android.widget.LinearLayout.LayoutParams btnParams = new android.widget.LinearLayout.LayoutParams(
+                android.widget.LinearLayout.LayoutParams.MATCH_PARENT,
+                android.widget.LinearLayout.LayoutParams.WRAP_CONTENT);
+        btnParams.setMargins(0, padding, 0, 0);
+        addButton.setLayoutParams(btnParams);
+        addButton.setOnClickListener(v -> showAddApiKeyDialog(listLayout));
+        rootLayout.addView(addButton);
+
+        builder.setView(rootLayout);
+        builder.setPositiveButton(R.string.yes, null);
+        builder.show();
+    }
+
+    private void refreshApiKeysList(android.widget.LinearLayout listLayout) {
+        listLayout.removeAllViews();
+        java.util.List<SharedPreferencesRepository.ApiKey> keys = sharedPreferencesRepository.getSavedApiKeys();
+        String activeKey = sharedPreferencesRepository.getGroqApiKey();
+
+        for (SharedPreferencesRepository.ApiKey key : keys) {
+            android.view.View itemView = android.view.LayoutInflater.from(requireContext()).inflate(R.layout.item_api_key, listLayout, false);
+            android.widget.TextView nameText = itemView.findViewById(R.id.key_name);
+            android.widget.TextView valueText = itemView.findViewById(R.id.key_value);
+            android.widget.RadioButton radioButton = itemView.findViewById(R.id.radio_button);
+            android.widget.ImageButton deleteBtn = itemView.findViewById(R.id.delete_button);
+
+            nameText.setText(key.name);
+            // Show only first and last few chars of key
+            String maskedKey = key.value.length() > 8 ? 
+                key.value.substring(0, 4) + "..." + key.value.substring(key.value.length() - 4) : 
+                "********";
+            valueText.setText(maskedKey);
+
+            radioButton.setChecked(key.value.equals(activeKey));
+            radioButton.setOnClickListener(v -> {
+                sharedPreferencesRepository.setGroqApiKey(key.value);
+                refreshApiKeysList(listLayout);
+                // Update the EditTextPreference too
+                androidx.preference.EditTextPreference groqPref = findPreference("groq_api_key");
+                if (groqPref != null) {
+                    groqPref.setText(key.value);
+                }
+            });
+
+            deleteBtn.setOnClickListener(v -> {
+                new com.google.android.material.dialog.MaterialAlertDialogBuilder(requireContext())
+                    .setTitle(R.string.delete)
+                    .setMessage(R.string.delete_api_key_confirmation)
+                    .setPositiveButton(R.string.yes, (dialog, which) -> {
+                        sharedPreferencesRepository.removeSavedApiKey(key.value);
+                        refreshApiKeysList(listLayout);
+                        androidx.preference.EditTextPreference groqPref = findPreference("groq_api_key");
+                        if (groqPref != null) {
+                            groqPref.setText(sharedPreferencesRepository.getGroqApiKey());
+                        }
+                    })
+                    .setNegativeButton(R.string.no, null)
+                    .show();
+            });
+
+            listLayout.addView(itemView);
+        }
+    }
+
+    private void showAddApiKeyDialog(android.widget.LinearLayout listLayout) {
+        android.widget.LinearLayout layout = new android.widget.LinearLayout(requireContext());
+        layout.setOrientation(android.widget.LinearLayout.VERTICAL);
+        int padding = (int) (16 * getResources().getDisplayMetrics().density);
+        layout.setPadding(padding, padding, padding, padding);
+
+        final com.google.android.material.textfield.TextInputEditText nameInput = new com.google.android.material.textfield.TextInputEditText(requireContext());
+        nameInput.setHint(R.string.api_key_name_hint);
+        layout.addView(nameInput);
+
+        final com.google.android.material.textfield.TextInputEditText valueInput = new com.google.android.material.textfield.TextInputEditText(requireContext());
+        valueInput.setHint(R.string.api_key_value_hint);
+        android.widget.LinearLayout.LayoutParams params = new android.widget.LinearLayout.LayoutParams(
+                android.widget.LinearLayout.LayoutParams.MATCH_PARENT,
+                android.widget.LinearLayout.LayoutParams.WRAP_CONTENT);
+        params.setMargins(0, padding, 0, 0);
+        valueInput.setLayoutParams(params);
+        layout.addView(valueInput);
+
+        new com.google.android.material.dialog.MaterialAlertDialogBuilder(requireContext())
+            .setTitle(R.string.add_api_key)
+            .setView(layout)
+            .setPositiveButton(R.string.yes, (dialog, which) -> {
+                String name = nameInput.getText().toString().trim();
+                String value = valueInput.getText().toString().trim();
+                if (name.isEmpty()) {
+                    Toast.makeText(requireContext(), R.string.api_key_name_empty_error, Toast.LENGTH_SHORT).show();
+                    return;
+                }
+                if (value.isEmpty()) {
+                    Toast.makeText(requireContext(), R.string.api_key_empty_error, Toast.LENGTH_SHORT).show();
+                    return;
+                }
+                
+                java.util.List<SharedPreferencesRepository.ApiKey> keys = sharedPreferencesRepository.getSavedApiKeys();
+                keys.add(new SharedPreferencesRepository.ApiKey(name, value));
+                sharedPreferencesRepository.setSavedApiKeys(keys);
+                refreshApiKeysList(listLayout);
+            })
+            .setNegativeButton(R.string.cancel, null)
+            .show();
     }
 
     private void showTokenLimitDialog() {
