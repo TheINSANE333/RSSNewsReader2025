@@ -426,7 +426,11 @@ public class TextUtil {
 
                 String baseSystemPrompt = "Translate the provided text to the target language. " +
                         "Preserve any HTML tags if present, but focus on translating the content. " +
-                        "Return ONLY the translated content, without any markers, headers, or additional text.";
+                        "Please also translate the article title. " +
+                        "Return the translated title and content in the following format:\n" +
+                        "[TITLE] Translated Title Here\n" +
+                        "[CONTENT] Translated HTML/Content Here\n" +
+                        "Return ONLY the translated content in this format, without any other markers, headers, or additional text.";
                 String customPrompt = sharedPreferencesRepository.getCustomTranslationPrompt();
                 if (customPrompt != null && !customPrompt.trim().isEmpty()) {
                     baseSystemPrompt += "\n\nAdditional Instructions:\n" + customPrompt;
@@ -441,8 +445,9 @@ public class TextUtil {
                 messages.add(new Message(
                     "user",
                     String.format(
-                            "Target Language: %s\nText to translate:\n%s",
+                            "Target Language: %s\nOriginal Title: %s\nText to translate:\n%s",
                             targetLanguage,
+                            title,
                             html
                     )
                 ));
@@ -451,6 +456,7 @@ public class TextUtil {
                 // Note: Ensure translateChunkWithRetry is accessible here
                 String translationModel = sharedPreferencesRepository.getTranslationModel();
                 String translatedHtml = translateChunkWithRetry(aiClient, messages, translationModel);
+                Log.d(TAG, "AI Translation Response: " + translatedHtml);
 
                 // 4. Stop Progress & Validate
                 progressThread.interrupt();
@@ -514,7 +520,11 @@ public class TextUtil {
                 String baseSystemPrompt = "You are a helpful assistant designed to summarize web articles. " +
                         "Provide a concise summary of the content in the target language. " +
                         "Strictly adhere to the requested summary length. " +
-                        "Return ONLY the summarized content as plain text (or HTML if appropriate), without any markers, headers, or additional metadata.";
+                        "Please also translate the article title to the target language. " +
+                        "Return the translated title and summary in the following format:\n" +
+                        "[TITLE] Translated Title Here\n" +
+                        "[CONTENT] Summarized Content Here\n" +
+                        "Return ONLY the summarized content as plain text (or HTML if appropriate), without any other markers, headers, or additional metadata.";
                 String customPrompt = sharedPreferencesRepository.getCustomSummarizationPrompt();
                 if (customPrompt != null && !customPrompt.trim().isEmpty()) {
                     baseSystemPrompt += "\n\nAdditional Instructions:\n" + customPrompt;
@@ -530,8 +540,8 @@ public class TextUtil {
 
                 // Build the prompt (matching manual mode format)
                 String prompt = String.format(
-                        "Target Language: %s\nRequested Summary Length: approximately %d words.\nContent to summarize:\n%s",
-                        targetLanguage, length, cleanContent
+                        "Target Language: %s\nOriginal Title: %s\nRequested Summary Length: approximately %d words.\nContent to summarize:\n%s",
+                        targetLanguage, title, length, cleanContent
                 );
 
                 messages.add(new Message("user", prompt));
@@ -714,23 +724,41 @@ public class TextUtil {
         String title = defaultTitle;
         String content = cleaned;
 
-        // Try to find markers [TITLE] and [CONTENT] (including common variations or translations)
-        String titleMarker = "[TITLE]";
-        String contentMarker = "[CONTENT]";
-        
-        int titleIndex = cleaned.toUpperCase().indexOf(titleMarker);
-        int contentIndex = cleaned.toUpperCase().indexOf(contentMarker);
+        // More robust marker detection using regex to handle variations like [TITLE], [Translated Title], etc.
+        java.util.regex.Pattern titlePattern = java.util.regex.Pattern.compile("(?i)\\[(?:translated\\s+)?title\\]");
+        java.util.regex.Pattern contentPattern = java.util.regex.Pattern.compile("(?i)\\[(?:translated\\s+)?content\\]");
 
-        if (titleIndex != -1 && contentIndex != -1 && titleIndex < contentIndex) {
-            title = cleaned.substring(titleIndex + titleMarker.length(), contentIndex).trim();
-            content = cleaned.substring(contentIndex + contentMarker.length()).trim();
+        java.util.regex.Matcher titleMatcher = titlePattern.matcher(cleaned);
+        java.util.regex.Matcher contentMatcher = contentPattern.matcher(cleaned);
+
+        if (titleMatcher.find() && contentMatcher.find()) {
+            int titleStart = titleMatcher.start();
+            int titleEnd = titleMatcher.end();
+            int contentStart = contentMatcher.start();
+            int contentEnd = contentMatcher.end();
+
+            if (titleStart < contentStart) {
+                title = cleaned.substring(titleEnd, contentStart).trim();
+                content = cleaned.substring(contentEnd).trim();
+            } else {
+                // In case markers are swapped: [CONTENT] ... [TITLE] ...
+                content = cleaned.substring(contentEnd, titleStart).trim();
+                title = cleaned.substring(titleEnd).trim();
+            }
         } else {
-            // If no markers, check if the first sentence/line is the title
-            String firstLine = cleaned.split("\\n")[0].trim();
-            if (firstLine.equalsIgnoreCase(defaultTitle) || 
-                (firstLine.length() < 100 && defaultTitle.toLowerCase().contains(firstLine.toLowerCase()))) {
-                content = cleaned.substring(cleaned.indexOf(firstLine) + firstLine.length()).trim();
-                title = firstLine;
+            // Fallback: If no markers found, try to identify title from the first line
+            String[] lines = cleaned.split("\\n");
+            if (lines.length > 0) {
+                String firstLine = lines[0].trim();
+                if (!firstLine.isEmpty() && firstLine.length() < 150) {
+                     if (!firstLine.equalsIgnoreCase(defaultTitle)) {
+                         title = firstLine;
+                         content = cleaned.substring(cleaned.indexOf(firstLine) + firstLine.length()).trim();
+                     } else {
+                         content = cleaned.substring(cleaned.indexOf(firstLine) + firstLine.length()).trim();
+                         title = firstLine;
+                     }
+                }
             }
         }
 
