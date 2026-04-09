@@ -153,11 +153,9 @@ public class SummarizationWorker extends ListenableWorker {
                 .doOnSubscribe(d -> AutoSummarizer.processingIds.add(entryInfo.getEntryId()))
                 .doFinally(() -> AutoSummarizer.processingIds.remove(entryInfo.getEntryId()))
                 .flatMapCompletable(summaryRaw -> io.reactivex.rxjava3.core.Completable.fromAction(() -> {
-                    TextUtil.AiResponse aiRes = textUtil.parseAiResponse(summaryRaw, entryInfo.getEntryTitle());
-                    
-                    String finalHtml = textUtil.formatAiResponseToHtml(
-                            aiRes.title,
-                            aiRes.content,
+                    TextUtil.ProcessedAiResponse processed = textUtil.processAiResponse(
+                            summaryRaw,
+                            entryInfo.getEntryTitle(),
                             entryInfo.getFeedTitle(),
                             entryInfo.getEntryPublishedDate(),
                             entryInfo.getFeedImageUrl(),
@@ -165,8 +163,7 @@ public class SummarizationWorker extends ListenableWorker {
                             "summarized-title"
                     );
 
-                    String summarizedContent = textUtil.extractHtmlContent(finalHtml, "--####--");
-                    entryRepository.updateSummarizedPair(entryInfo.getEntryId(), summarizedContent, finalHtml);
+                    entryRepository.updateSummarizedPair(entryInfo.getEntryId(), processed.contentToRead, processed.html);
                     
                     Log.d(TAG, "Summarized entry: " + entryInfo.getEntryTitle());
                 }))

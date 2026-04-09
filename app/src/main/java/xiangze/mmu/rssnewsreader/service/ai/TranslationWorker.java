@@ -145,11 +145,9 @@ public class TranslationWorker extends ListenableWorker {
                     return textUtil.translateHtmlAllAtOnce(sourceLang, targetLanguage, finalHtmlSource, entryInfo.getEntryTitle(), entryInfo.getEntryId(), p -> {}, false);
                 })
                 .flatMapCompletable(translatedRaw -> io.reactivex.rxjava3.core.Completable.fromAction(() -> {
-                    TextUtil.AiResponse aiRes = textUtil.parseAiResponse(translatedRaw, entryInfo.getEntryTitle());
-                    
-                    String finalHtml = textUtil.formatAiResponseToHtml(
-                            aiRes.title,
-                            aiRes.content,
+                    TextUtil.ProcessedAiResponse processed = textUtil.processAiResponse(
+                            translatedRaw,
+                            entryInfo.getEntryTitle(),
                             entryInfo.getFeedTitle(),
                             entryInfo.getEntryPublishedDate(),
                             entryInfo.getFeedImageUrl(),
@@ -157,10 +155,7 @@ public class TranslationWorker extends ListenableWorker {
                             "translated-title"
                     );
 
-                    entryRepository.updateTranslatedHtml(finalHtml, entryInfo.getEntryId());
-                    
-                    String translatedContent = textUtil.extractHtmlContent(finalHtml, "--####--");
-                    entryRepository.updateTranslatedText(translatedContent, entryInfo.getEntryId());
+                    entryRepository.updateTranslatedPair(entryInfo.getEntryId(), processed.contentToRead, processed.html);
                     
                     Log.d(TAG, "Translated entry: " + entryInfo.getEntryTitle());
                 }))

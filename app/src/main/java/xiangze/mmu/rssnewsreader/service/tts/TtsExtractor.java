@@ -748,12 +748,9 @@ public class TtsExtractor {
                                     String translatedHtmlRaw = results[0];
                                     String summarizedHtmlRaw = results[1];
 
-                                    TextUtil.AiResponse translatedAi = textUtil.parseAiResponse(translatedHtmlRaw, processingTitle);
-                                    TextUtil.AiResponse summarizedAi = textUtil.parseAiResponse(summarizedHtmlRaw, processingTitle);
-
-                                    String finalTranslatedHtml = textUtil.formatAiResponseToHtml(
-                                            translatedAi.title,
-                                            translatedAi.content,
+                                    TextUtil.ProcessedAiResponse translatedProcessed = textUtil.processAiResponse(
+                                            translatedHtmlRaw,
+                                            processingTitle,
                                             feed.getTitle(),
                                             entryObj.getPublishedDate(),
                                             feed.getImageUrl(),
@@ -761,9 +758,9 @@ public class TtsExtractor {
                                             "translated-title"
                                     );
 
-                                    String finalSummarizedHtml = textUtil.formatAiResponseToHtml(
-                                            summarizedAi.title,
-                                            summarizedAi.content,
+                                    TextUtil.ProcessedAiResponse summarizedProcessed = textUtil.processAiResponse(
+                                            summarizedHtmlRaw,
+                                            processingTitle,
                                             feed.getTitle(),
                                             entryObj.getPublishedDate(),
                                             feed.getImageUrl(),
@@ -771,11 +768,8 @@ public class TtsExtractor {
                                             "summarized-title"
                                     );
 
-                                    String translatedContent = textUtil.extractHtmlContent(finalTranslatedHtml, DELIMITER);
-                                    entryRepository.updateTranslatedPair(processingId, translatedContent, finalTranslatedHtml);
-
-                                    String summarizedContent = textUtil.extractHtmlContent(finalSummarizedHtml, DELIMITER);
-                                    entryRepository.updateSummarizedPair(processingId, summarizedContent, finalSummarizedHtml);
+                                    entryRepository.updateTranslatedPair(processingId, translatedProcessed.contentToRead, translatedProcessed.html);
+                                    entryRepository.updateSummarizedPair(processingId, summarizedProcessed.contentToRead, summarizedProcessed.html);
 
                                     if (processingId == currentIdInProgress) {
                                         handler.postDelayed(this::finishAndMoveToNext, Math.max(WebClient.TRANSLATION_COOLDOWN_MS, WebClient.SUMMARIZATION_COOLDOWN_MS));
@@ -794,10 +788,9 @@ public class TtsExtractor {
                                         .observeOn(AndroidSchedulers.mainThread())
                                         .doFinally(() -> xiangze.mmu.rssnewsreader.service.util.AutoTranslator.processingIds.remove(processingId))
                                         .subscribe(translatedHtmlRaw -> {
-                                            TextUtil.AiResponse translatedAi = textUtil.parseAiResponse(translatedHtmlRaw, processingTitle);
-                                            String finalTranslatedHtml = textUtil.formatAiResponseToHtml(
-                                                    translatedAi.title,
-                                                    translatedAi.content,
+                                            TextUtil.ProcessedAiResponse translatedProcessed = textUtil.processAiResponse(
+                                                    translatedHtmlRaw,
+                                                    processingTitle,
                                                     feed.getTitle(),
                                                     entryObj.getPublishedDate(),
                                                     feed.getImageUrl(),
@@ -805,8 +798,7 @@ public class TtsExtractor {
                                                     "translated-title"
                                             );
 
-                                            String translatedContent = textUtil.extractHtmlContent(finalTranslatedHtml, DELIMITER);
-                                            entryRepository.updateTranslatedPair(processingId, translatedContent, finalTranslatedHtml);
+                                            entryRepository.updateTranslatedPair(processingId, translatedProcessed.contentToRead, translatedProcessed.html);
 
                                             if (processingId == currentIdInProgress) {
                                                 handler.postDelayed(this::finishAndMoveToNext, WebClient.TRANSLATION_COOLDOWN_MS);
@@ -825,10 +817,9 @@ public class TtsExtractor {
                                         .observeOn(AndroidSchedulers.mainThread())
                                         .doFinally(() -> xiangze.mmu.rssnewsreader.service.util.AutoSummarizer.processingIds.remove(processingId))
                                         .subscribe(summarizedHtmlRaw -> {
-                                            TextUtil.AiResponse summarizedAi = textUtil.parseAiResponse(summarizedHtmlRaw, processingTitle);
-                                            String finalSummarizedHtml = textUtil.formatAiResponseToHtml(
-                                                    summarizedAi.title,
-                                                    summarizedAi.content,
+                                            TextUtil.ProcessedAiResponse summarizedProcessed = textUtil.processAiResponse(
+                                                    summarizedHtmlRaw,
+                                                    processingTitle,
                                                     feed.getTitle(),
                                                     entryObj.getPublishedDate(),
                                                     feed.getImageUrl(),
@@ -836,8 +827,7 @@ public class TtsExtractor {
                                                     "summarized-title"
                                             );
 
-                                            String summarizedContent = textUtil.extractHtmlContent(finalSummarizedHtml, DELIMITER);
-                                            entryRepository.updateSummarizedPair(processingId, summarizedContent, finalSummarizedHtml);
+                                            entryRepository.updateSummarizedPair(processingId, summarizedProcessed.contentToRead, summarizedProcessed.html);
 
                                             if (processingId == currentIdInProgress) {
                                                 handler.postDelayed(this::finishAndMoveToNext, WebClient.SUMMARIZATION_COOLDOWN_MS);

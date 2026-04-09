@@ -703,6 +703,40 @@ public class TextUtil {
                 .onErrorReturnItem("und");
     }
 
+    public static class ProcessedAiResponse {
+        public final String html;
+        public final String contentToRead;
+        public final String title;
+        public final String content;
+
+        public ProcessedAiResponse(String html, String contentToRead, String title, String content) {
+            this.html = html;
+            this.contentToRead = contentToRead;
+            this.title = title;
+            this.content = content;
+        }
+    }
+
+    public ProcessedAiResponse processAiResponse(String rawAiResponse, String defaultTitle, String feedTitle, java.util.Date publishDate, String feedImageUrl, boolean isNightMode, String titleClass) {
+        AiResponse aiRes = parseAiResponse(rawAiResponse, defaultTitle);
+        String finalHtml = formatAiResponseToHtml(
+                aiRes.title,
+                aiRes.content,
+                feedTitle,
+                publishDate,
+                feedImageUrl,
+                isNightMode,
+                titleClass
+        );
+
+        // Standardized TTS content generation: Title + DELIMITER + split content sentences
+        // This avoids including feed title and publish date in the TTS content
+        String splitRes = splitIntoSentences(aiRes.content, xiangze.mmu.rssnewsreader.service.tts.TtsExtractor.DELIMITER);
+        String contentToRead = aiRes.title + xiangze.mmu.rssnewsreader.service.tts.TtsExtractor.DELIMITER + splitRes;
+
+        return new ProcessedAiResponse(finalHtml, contentToRead, aiRes.title, aiRes.content);
+    }
+
     public static class AiResponse {
         public final String title;
         public final String content;
