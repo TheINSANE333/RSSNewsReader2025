@@ -104,6 +104,8 @@ public abstract class PlayerAdapter {
         }
     }
 
+    public abstract void setVolume(float volume);
+
     private final class AudioFocusHelper implements AudioManager.OnAudioFocusChangeListener {
 
         private AudioFocusRequest mFocusRequest;
@@ -118,7 +120,7 @@ public abstract class PlayerAdapter {
             mFocusRequest = new AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN)
                     .setAudioAttributes(playbackAttributes)
                     .setAcceptsDelayedFocusGain(true)
-                    .setWillPauseWhenDucked(false) // We will handle volume lowering manually
+                    .setWillPauseWhenDucked(true) // We will handle volume lowering manually
                     .setOnAudioFocusChangeListener(this)
                     .build();
 
@@ -168,16 +170,6 @@ public abstract class PlayerAdapter {
                     pause();
                     break;
             }
-        }
-
-        /**
-         * Helper to set volume for both TTS and MediaPlayer.
-         * You should implement this in your TtsPlayer to actually adjust the audio.
-         */
-        private void setVolume(float volume) {
-            // Implementation depends on your TtsPlayer/MediaPlayer wrapper
-            // e.g., ttsPlayer.setVolume(volume);
-            // e.g., mediaPlayer.setVolume(volume, volume);
         }
     }
 }

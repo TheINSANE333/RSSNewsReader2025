@@ -144,7 +144,7 @@ public class ChatActivity extends AppCompatActivity {
                 // Use a specific negative ID for chat messages
                 ttsPlayer.extract(-999, 0, text, targetLanguage);
                 if (!ttsPlayer.isSpeaking()) {
-                    ttsPlayer.speak();
+                    ttsPlayer.play();
                 }
                 adapter.setPlayingText(text);
             }

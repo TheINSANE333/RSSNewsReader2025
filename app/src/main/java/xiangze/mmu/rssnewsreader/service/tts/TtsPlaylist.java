@@ -93,6 +93,8 @@ public class TtsPlaylist {
 
         metadata = new MediaMetadataCompat.Builder()
                 .putString(MediaMetadataCompat.METADATA_KEY_MEDIA_ID, Long.toString(entryInfo.getEntryId()))
+                .putString(MediaMetadataCompat.METADATA_KEY_TITLE, entryInfo.getEntryTitle())
+                .putString(MediaMetadataCompat.METADATA_KEY_ARTIST, entryInfo.getFeedTitle())
                 .putString(MediaMetadataCompat.METADATA_KEY_DISPLAY_TITLE, entryInfo.getFeedTitle())
                 .putString(MediaMetadataCompat.METADATA_KEY_DISPLAY_SUBTITLE, entryInfo.getEntryTitle())
                 .putString("link", entryInfo.getEntryLink())

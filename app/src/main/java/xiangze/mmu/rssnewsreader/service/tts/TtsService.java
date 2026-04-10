@@ -14,11 +14,13 @@ import android.support.v4.media.MediaMetadataCompat;
 import android.support.v4.media.session.MediaSessionCompat;
 import android.support.v4.media.session.PlaybackStateCompat;
 import android.util.Log;
+import android.view.KeyEvent;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.core.app.ServiceCompat;
 import androidx.core.content.ContextCompat;
+import androidx.core.content.IntentCompat;
 import androidx.media.MediaBrowserServiceCompat;
 import androidx.media.session.MediaButtonReceiver;
 
@@ -54,20 +56,13 @@ public class TtsService extends MediaBrowserServiceCompat {
     private static MediaSessionCompat mediaSession;
     private MediaMetadataCompat preparedData;
     private boolean serviceInStartedState;
-    private static MediaSessionCompat mediaSessionInstance;
-
-//    @Override
-//    public int onStartCommand(Intent intent, int flags, int startId) {
-//        TtsMediaButtonReceiver.handleIntent(mediaSession, intent);
-//        return super.onStartCommand(intent, flags, startId);
-//    }
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
+        Log.d(TAG, "onStartCommand: intent=" + intent);
         if (intent != null && Intent.ACTION_MEDIA_BUTTON.equals(intent.getAction())) {
-            // This helper is smart: it finds your mediaSession and
-            // manually triggers the correct Callback method (onPlay, onPause, etc.)
-            MediaButtonReceiver.handleIntent(mediaSession, intent);
+            // Use the standard MediaButtonReceiver to handle the intent
+            TtsMediaButtonReceiver.handleIntent(mediaSession, intent);
         }
         return super.onStartCommand(intent, flags, startId);
     }
@@ -80,7 +75,7 @@ public class TtsService extends MediaBrowserServiceCompat {
         // 1. Notification First (Prevents NPE)
         ttsNotification = new TtsNotification(this);
 
-        // 2. Setup Media Button Receiver Component
+        // 2. Setup Media Button Receiver Component (Custom one)
         ComponentName mbrComponent = new ComponentName(getPackageName(), TtsMediaButtonReceiver.class.getName());
 
         // 3. Initialize MediaSession with Receiver Component
@@ -89,12 +84,14 @@ public class TtsService extends MediaBrowserServiceCompat {
         // 4. Create the PendingIntent for Hardware Buttons
         Intent mediaButtonIntent = new Intent(Intent.ACTION_MEDIA_BUTTON);
         mediaButtonIntent.setComponent(mbrComponent);
-        int flags = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
+        int piFlags = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
                 ? PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_MUTABLE
                 : PendingIntent.FLAG_UPDATE_CURRENT;
-        PendingIntent mbrPendingIntent = PendingIntent.getBroadcast(this, 0, mediaButtonIntent, flags);
+        PendingIntent mbrPendingIntent = PendingIntent.getBroadcast(this, 0, mediaButtonIntent, piFlags);
 
         // 5. Configure Session Properties
+        mediaSession.setFlags(MediaSessionCompat.FLAG_HANDLES_MEDIA_BUTTONS |
+                MediaSessionCompat.FLAG_HANDLES_TRANSPORT_CONTROLS);
         mediaSession.setMediaButtonReceiver(mbrPendingIntent);
         mediaSession.setCallback(callback);
 
@@ -120,7 +117,6 @@ public class TtsService extends MediaBrowserServiceCompat {
 
         // 9. Activate
         mediaSession.setActive(true);
-        mediaSessionInstance = mediaSession;
         setSessionToken(mediaSession.getSessionToken());
 
         Log.d(TAG, "onCreate: Service ready. active=" + mediaSession.isActive());
@@ -130,7 +126,11 @@ public class TtsService extends MediaBrowserServiceCompat {
     public void onDestroy() {
         Log.d(TAG, "destroyed");
         ttsPlayer.stop();
-        mediaSession.release();
+        if (mediaSession != null) {
+            mediaSession.setActive(false);
+            mediaSession.release();
+            mediaSession = null;
+        }
         super.onDestroy();
     }
 
@@ -250,26 +250,8 @@ public class TtsService extends MediaBrowserServiceCompat {
                 if (!mediaSession.isActive()) {
                     mediaSession.setActive(true);
                 }
-//                mediaSession.setMetadata(preparedData);
 
-//                mediaSession.setMetadata(new MediaMetadataCompat.Builder()
-//                        .putString(MediaMetadataCompat.METADATA_KEY_TITLE, "RSS News Reader")
-//                        .build());
-                // Map preparedData fields to the MediaMetadataCompat Builder
-//                mediaSession.setMetadata(new MediaMetadataCompat.Builder()
-//                        .putString(MediaMetadataCompat.METADATA_KEY_MEDIA_ID, preparedData.getString(MediaMetadataCompat.METADATA_KEY_MEDIA_ID))
-//                        .putString(MediaMetadataCompat.METADATA_KEY_TITLE, preparedData.getString(MediaMetadataCompat.METADATA_KEY_TITLE))
-//                        .putString(MediaMetadataCompat.METADATA_KEY_ARTIST, preparedData.getString(MediaMetadataCompat.METADATA_KEY_ARTIST))
-//                        .putString(MediaMetadataCompat.METADATA_KEY_ALBUM, "RSS News Reader") // Static or from preparedData
-//                        // Add more keys if needed, like durations or display icons
-//                        .build());
-
-                MediaMetadataCompat newMetadata =
-                        new MediaMetadataCompat.Builder(preparedData)   // clone EVERYTHING
-                                .putString(MediaMetadataCompat.METADATA_KEY_ALBUM, "RSS News Reader")
-                                .build();
-
-                mediaSession.setMetadata(newMetadata);
+                mediaSession.setMetadata(preparedData);
 
                         // Apply speech rate settings
                 String rateStr = preparedData.getString("ttsSpeechRate");
@@ -294,7 +276,7 @@ public class TtsService extends MediaBrowserServiceCompat {
                 ttsPlayer.extract(mediaId, feedId, contentToSpeak, languageToUse, viewMode);
 
                 if (!ttsPlayer.isPausedManually()) {
-                    ttsPlayer.speak();
+                    ttsPlayer.play();
                 }
 
                 Log.d(TAG, "TTS Extraction complete for ID: " + mediaId + " Language: " + languageToUse);
@@ -455,9 +437,18 @@ public class TtsService extends MediaBrowserServiceCompat {
             }
         }
 
+        public void onPlayPause() {
+            Log.d(TAG, "onPlayPause called");
+            if (ttsPlayer.isPlaying()) {
+                onPause();
+            } else {
+                onPlay();
+            }
+        }
+
         @Override
         public boolean onMediaButtonEvent(Intent mediaButtonIntent) {
-            Log.d("MediaSession", "Media button event received: " + mediaButtonIntent);
+            Log.d(TAG, "onMediaButtonEvent: intent=" + mediaButtonIntent);
             return super.onMediaButtonEvent(mediaButtonIntent);
         }
 
@@ -500,18 +491,23 @@ public class TtsService extends MediaBrowserServiceCompat {
         @Override
         public void
         onPlaybackStateChange(PlaybackStateCompat state) {
-            mediaSession.setPlaybackState(state);
+            if (mediaSession != null) {
+                mediaSession.setPlaybackState(state);
 
-            switch (state.getState()) {
-                case PlaybackStateCompat.STATE_PLAYING:
-                    serviceManager.moveServiceToStartedState(state);
-                    break;
-                case PlaybackStateCompat.STATE_PAUSED:
-                    serviceManager.updateNotificationForPause(state);
-                    break;
-                case PlaybackStateCompat.STATE_STOPPED:
-                    serviceManager.moveServiceOutOfStartedState(state);
-                    break;
+                switch (state.getState()) {
+                    case PlaybackStateCompat.STATE_PLAYING:
+                        if (!mediaSession.isActive()) {
+                            mediaSession.setActive(true);
+                        }
+                        serviceManager.moveServiceToStartedState(state);
+                        break;
+                    case PlaybackStateCompat.STATE_PAUSED:
+                        serviceManager.updateNotificationForPause(state);
+                        break;
+                    case PlaybackStateCompat.STATE_STOPPED:
+                        serviceManager.moveServiceOutOfStartedState(state);
+                        break;
+                }
             }
         }
 

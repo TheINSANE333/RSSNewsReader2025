@@ -2,6 +2,7 @@ package xiangze.mmu.rssnewsreader.service.tts;
 
 import android.annotation.SuppressLint;
 import android.content.Context;
+import android.media.AudioAttributes;
 import android.media.MediaPlayer;
 import android.net.Uri;
 import android.os.Handler;
@@ -77,6 +78,7 @@ public class TtsPlayer extends PlayerAdapter implements TtsPlayerListener {
     private boolean isWaitingForArticleCompletion = false;
     private MediaPlayer mediaPlayer;
     private String currentUtteranceID = null;
+    private float ttsVolume = 1.0f;
     private String lastContent = null;
     private String lastViewMode = null;
     private long lastCurrentId = -1;
@@ -113,6 +115,16 @@ public class TtsPlayer extends PlayerAdapter implements TtsPlayerListener {
         this.isPausedManually = sharedPreferencesRepository.getIsPausedManually();
     }
 
+    @Override
+    public void setVolume(float volume) {
+        this.ttsVolume = volume;
+        if (mediaPlayer != null) {
+            float baseVolume = (float) sharedPreferencesRepository.getBackgroundMusicVolume() / 100;
+            float targetVolume = baseVolume * volume;
+            mediaPlayer.setVolume(targetVolume, targetVolume);
+        }
+    }
+
     @SuppressLint("SetJavaScriptEnabled")
     public void initTts(TtsService ttsService, PlaybackStateListener listener, MediaSessionCompat.Callback callback) {
         this.listener = listener;
@@ -121,6 +133,14 @@ public class TtsPlayer extends PlayerAdapter implements TtsPlayerListener {
             if (status == TextToSpeech.SUCCESS) {
                 Log.d(TAG, "initTts successful");
                 isInit = true;
+
+                // CRITICAL: Bind TTS to the correct Audio Attributes so the system 
+                // knows it's part of our MediaSession / Audio Focus.
+                AudioAttributes playbackAttributes = new AudioAttributes.Builder()
+                        .setUsage(AudioAttributes.USAGE_MEDIA)
+                        .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
+                        .build();
+                tts.setAudioAttributes(playbackAttributes);
 
                 if (actionNeeded) {
                     Log.d(TAG, "Deferred auto-play activated — TTS is now ready");
@@ -558,7 +578,7 @@ public class TtsPlayer extends PlayerAdapter implements TtsPlayerListener {
                 new Handler(Looper.getMainLooper()).postDelayed(() -> {
                     if (extractionId == currentExtractionId) {
                         isManualSkip = true; // Force flush for new extraction
-                        speak();
+                        play();
                     }
                 }, 300);
             } else {
@@ -662,9 +682,13 @@ public class TtsPlayer extends PlayerAdapter implements TtsPlayerListener {
         // Pass sentenceCounter as utteranceId to track progress in onStart
         String utteranceId = String.valueOf(sentenceCounter);
         currentUtteranceID = utteranceId;
+
+        // Apply volume
+        android.os.Bundle params = new android.os.Bundle();
+        params.putFloat(TextToSpeech.Engine.KEY_PARAM_VOLUME, ttsVolume);
         
         scheduleTimeout(utteranceId);
-        int result = tts.speak(sentence, queueMode, null, utteranceId);
+        int result = tts.speak(sentence, queueMode, params, utteranceId);
         if (result == TextToSpeech.ERROR) {
             Log.e(TAG, "tts.speak returned ERROR for [#" + sentenceCounter + "]. Attempting recovery.");
             // Wait a short bit then try to treat as 'done' to skip this sentence
@@ -694,9 +718,12 @@ public class TtsPlayer extends PlayerAdapter implements TtsPlayerListener {
                 String sentence = sentences.get(sentenceCounter);
                 String utteranceId = String.valueOf(sentenceCounter);
                 currentUtteranceID = utteranceId;
+
+                android.os.Bundle params = new android.os.Bundle();
+                params.putFloat(TextToSpeech.Engine.KEY_PARAM_VOLUME, ttsVolume);
                 
                 Log.d(TAG, "FastForward to [#" + sentenceCounter + "]: " + sentence);
-                tts.speak(sentence, TextToSpeech.QUEUE_FLUSH, null, utteranceId);
+                tts.speak(sentence, TextToSpeech.QUEUE_FLUSH, params, utteranceId);
                 
                 setUiControlPlayback(true);
                 setNewState(PlaybackStateCompat.STATE_PLAYING);
@@ -725,9 +752,12 @@ public class TtsPlayer extends PlayerAdapter implements TtsPlayerListener {
                 String sentence = sentences.get(sentenceCounter);
                 String utteranceId = String.valueOf(sentenceCounter);
                 currentUtteranceID = utteranceId;
+
+                android.os.Bundle params = new android.os.Bundle();
+                params.putFloat(TextToSpeech.Engine.KEY_PARAM_VOLUME, ttsVolume);
                 
                 Log.d(TAG, "FastRewind to [#" + sentenceCounter + "]: " + sentence);
-                tts.speak(sentence, TextToSpeech.QUEUE_FLUSH, null, utteranceId);
+                tts.speak(sentence, TextToSpeech.QUEUE_FLUSH, params, utteranceId);
                 
                 setUiControlPlayback(true);
                 setNewState(PlaybackStateCompat.STATE_PLAYING);
@@ -826,6 +856,7 @@ public class TtsPlayer extends PlayerAdapter implements TtsPlayerListener {
     }
 
     private void setNewState(@PlaybackStateCompat.State int state) {
+        android.util.Log.d("TtsPlayer", "setNewState: changing state from " + currentState + " to " + state);
         if (listener != null) {
             currentState = state;
             final PlaybackStateCompat.Builder stateBuilder = new PlaybackStateCompat.Builder();

@@ -88,6 +88,7 @@ public class TtsMediaButtonReceiver extends BroadcastReceiver {
 
     @Override
     public void onReceive(Context context, Intent intent) {
+        Log.d(TAG, "onReceive: intent=" + intent);
         if (intent == null || !Intent.ACTION_MEDIA_BUTTON.equals(intent.getAction())) {
             Log.d(TAG, "Ignoring unsupported intent: " + intent);
             return;
@@ -99,24 +100,25 @@ public class TtsMediaButtonReceiver extends BroadcastReceiver {
             return;
         }
 
-        Log.d(TAG, "Media Button Received: " + keyEvent.toString());
+        Log.d(TAG, "Media Button Received: " + keyEvent.toString() + " Action=" + keyEvent.getAction() + " Code=" + keyEvent.getKeyCode());
+
+        // We MUST handle the event and NOT let it leak to other apps (like Spotify)
+        // especially if we are the current foreground service or active session.
 
         // 1. Try to dispatch to active session first (fast path)
         MediaSessionCompat session = TtsService.getMediaSession();
         if (session != null) {
             MediaControllerCompat controller = session.getController();
             if (controller != null) {
-                // If the session is active, we dispatch directly.
-                // Even if not active, if the service is alive, we might want to let it handle it.
-                Log.d(TAG, "Dispatching to existing MediaSession");
+                Log.d(TAG, "Dispatching to existing MediaSession (active=" + session.isActive() + ")");
                 controller.dispatchMediaButtonEvent(keyEvent);
+                // Return early so we don't start the service again redundantly
                 return;
             }
         }
 
-        // 2. Start Service (slow path / cold start)
-        // We know TtsService is the one we want. We don't need to query PackageManager.
-        Log.d(TAG, "MediaSession not found. Starting TtsService.");
+        // 2. Start Service (slow path / cold start or session lost)
+        Log.d(TAG, "MediaSession not found or controller missing. Starting TtsService.");
         Intent serviceIntent = new Intent(context, TtsService.class);
         serviceIntent.setAction(Intent.ACTION_MEDIA_BUTTON);
         serviceIntent.putExtra(Intent.EXTRA_KEY_EVENT, keyEvent);
@@ -270,8 +272,9 @@ public class TtsMediaButtonReceiver extends BroadcastReceiver {
         intent.setComponent(mbrComponent);
         intent.putExtra(Intent.EXTRA_KEY_EVENT, new KeyEvent(KeyEvent.ACTION_DOWN, keyCode));
         intent.addFlags(Intent.FLAG_RECEIVER_FOREGROUND);
-        return PendingIntent.getBroadcast(context, keyCode, intent,
-                Build.VERSION.SDK_INT >= 31 ? PendingIntent.FLAG_MUTABLE : 0);
+        int flags = Build.VERSION.SDK_INT >= 31 ? PendingIntent.FLAG_MUTABLE : 0;
+        flags |= PendingIntent.FLAG_UPDATE_CURRENT;
+        return PendingIntent.getBroadcast(context, keyCode, intent, flags);
     }
 
     /**
