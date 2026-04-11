@@ -123,9 +123,9 @@ public class SummarizationWorker extends ListenableWorker {
                         // if it's not already filtered by the query.
                         int progress = entries.indexOf(info) + 1;
                         int total = entries.size();
-                        return summarizeEntry(info)
-                                .doOnSubscribe(d -> updateNotification(progress, total, info.getEntryTitle()))
-                                .delay(500, TimeUnit.MILLISECONDS);
+                        return summarizeEntry(entryInfo)
+                                .doOnSubscribe(d -> updateNotification(progress, total, entryInfo.getEntryTitle()))
+                                .delay(3000, TimeUnit.MILLISECONDS);
                     });
                 });
     }
@@ -167,8 +167,14 @@ public class SummarizationWorker extends ListenableWorker {
                     
                     Log.d(TAG, "Summarized entry: " + entryInfo.getEntryTitle());
                 }))
-                .doOnError(e -> Log.e(TAG, "Failed to summarize entry: " + entryInfo.getEntryTitle(), e))
-                .onErrorComplete();
+                .onErrorResumeNext(e -> {
+                    if (e.getMessage() != null && (e.getMessage().contains("429") || e.getMessage().contains("Rate Limit Exceeded"))) {
+                        Log.e(TAG, "Rate limit hit, aborting batch summarization: " + entryInfo.getEntryTitle(), e);
+                        return io.reactivex.rxjava3.core.Completable.error(e); // Abort batch
+                    }
+                    Log.e(TAG, "Failed to summarize entry: " + entryInfo.getEntryTitle(), e);
+                    return io.reactivex.rxjava3.core.Completable.complete(); // Skip this one, try next
+                });
     }
 
     private void updateNotification(int progress, int total, String title) {

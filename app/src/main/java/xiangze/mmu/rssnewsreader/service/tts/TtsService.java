@@ -61,6 +61,29 @@ public class TtsService extends MediaBrowserServiceCompat {
     public int onStartCommand(Intent intent, int flags, int startId) {
         Log.d(TAG, "onStartCommand: intent=" + intent);
         if (intent != null && Intent.ACTION_MEDIA_BUTTON.equals(intent.getAction())) {
+            // Android O+ requires startForeground within 5 seconds of startForegroundService()
+            if (!serviceInStartedState) {
+                MediaMetadataCompat data = preparedData;
+                if (data == null) {
+                    // Create a placeholder if no metadata is ready yet
+                    data = new MediaMetadataCompat.Builder()
+                            .putString(MediaMetadataCompat.METADATA_KEY_TITLE, "Loading...")
+                            .putString(MediaMetadataCompat.METADATA_KEY_DISPLAY_TITLE, "RSS News Reader")
+                            .build();
+                }
+                
+                PlaybackStateCompat state = mediaSession.getController().getPlaybackState();
+                if (state == null) {
+                    state = new PlaybackStateCompat.Builder()
+                            .setState(PlaybackStateCompat.STATE_PAUSED, 0, 1.0f)
+                            .build();
+                }
+                
+                Notification notification = ttsNotification.getNotification(data, state, getSessionToken());
+                startForeground(TtsNotification.TTS_NOTIFICATION_ID, notification);
+                serviceInStartedState = true;
+            }
+
             // Use the standard MediaButtonReceiver to handle the intent
             TtsMediaButtonReceiver.handleIntent(mediaSession, intent);
         }

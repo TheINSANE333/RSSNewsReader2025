@@ -538,10 +538,16 @@ public class WebViewActivity extends AppCompatActivity implements ReloadDialog.R
 
         loading.setVisibility(View.VISIBLE);
         compositeDisposable.add(textUtil.identifyLanguageRx(sourceHtml)
-            .flatMap(sLang -> textUtil.translateHtmlAllAtOnce(sLang, targetLang, sourceHtml, info.getEntryTitle(), currentId, p -> runOnUiThread(() -> loading.setProgress(p)), true))
+            .flatMap(sLang -> {
+                if (sLang != null && sLang.equalsIgnoreCase(targetLang)) {
+                    return io.reactivex.rxjava3.core.Single.error(new Exception("Article is already in the target language (" + targetLang + ")"));
+                }
+                return textUtil.translateHtmlAllAtOnce(sLang, targetLang, sourceHtml, info.getEntryTitle(), currentId, p -> runOnUiThread(() -> loading.setProgress(p)), true);
+            })
             .subscribeOn(Schedulers.io())
             .observeOn(AndroidSchedulers.mainThread())
             .subscribe(res -> {
+                loading.setVisibility(View.GONE);
                 TextUtil.ProcessedAiResponse processed = textUtil.processAiResponse(
                     res, 
                     info.getEntryTitle(), 
@@ -556,7 +562,10 @@ public class WebViewActivity extends AppCompatActivity implements ReloadDialog.R
                 webViewViewModel.updateTranslatedHtml(processed.html, currentId);
                 webViewViewModel.setIsTranslatedView(true);
                 loadCurrentViewState();
-            }, err -> makeSnackbar("Error: " + err.getMessage())));
+            }, err -> {
+                loading.setVisibility(View.GONE);
+                makeSnackbar(err.getMessage());
+            }));
     }
 
     private void summarize() {

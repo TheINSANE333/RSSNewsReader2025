@@ -112,7 +112,7 @@ public class TranslationWorker extends ListenableWorker {
                     int total = entries.size();
                     return translateEntry(entryInfo)
                             .doOnSubscribe(d -> updateNotification(progress, total, entryInfo.getEntryTitle()))
-                            .delay(500, TimeUnit.MILLISECONDS);
+                            .delay(3000, TimeUnit.MILLISECONDS);
                 });
     }
 
@@ -159,8 +159,18 @@ public class TranslationWorker extends ListenableWorker {
                     
                     Log.d(TAG, "Translated entry: " + entryInfo.getEntryTitle());
                 }))
-                .doOnError(e -> Log.e(TAG, "Failed to translate entry: " + entryInfo.getEntryTitle(), e))
-                .onErrorComplete();
+                .onErrorResumeNext(e -> {
+                    if (e.getMessage() != null && e.getMessage().contains("Already in target language")) {
+                        Log.d(TAG, "Skipping " + entryInfo.getEntryTitle() + ": " + e.getMessage());
+                        return io.reactivex.rxjava3.core.Completable.complete();
+                    }
+                    if (e.getMessage() != null && (e.getMessage().contains("429") || e.getMessage().contains("Rate Limit Exceeded"))) {
+                        Log.e(TAG, "Rate limit hit, aborting batch translation: " + entryInfo.getEntryTitle(), e);
+                        return io.reactivex.rxjava3.core.Completable.error(e); // Abort batch
+                    }
+                    Log.e(TAG, "Failed to translate entry: " + entryInfo.getEntryTitle(), e);
+                    return io.reactivex.rxjava3.core.Completable.complete(); // Skip this one, try next
+                });
     }
 
     private void updateNotification(int progress, int total, String title) {

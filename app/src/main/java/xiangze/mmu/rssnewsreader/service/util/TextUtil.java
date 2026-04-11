@@ -517,14 +517,25 @@ public class TextUtil {
                 AiClient aiClient = new AiClient(sharedPreferencesRepository.getContext());
                 List<Message> messages = new ArrayList<>();
 
+                boolean isSameLanguage = sourceLanguage != null && sourceLanguage.equalsIgnoreCase(targetLanguage);
                 String baseSystemPrompt = "You are a helpful assistant designed to summarize web articles. " +
-                        "Provide a concise summary of the content in the target language. " +
+                        "Provide a concise summary of the content in the target language (" + targetLanguage + "). " +
                         "Strictly adhere to the requested summary length. " +
                         "Please also translate the article title to the target language. " +
                         "Return the translated title and summary in the following format:\n" +
                         "[TITLE] Translated Title Here\n" +
                         "[CONTENT] Summarized Content Here\n" +
                         "Return ONLY the summarized content as plain text (or HTML if appropriate), without any other markers, headers, or additional metadata.";
+                
+                if (isSameLanguage) {
+                    baseSystemPrompt = "You are a helpful assistant designed to summarize web articles. " +
+                            "Provide a concise summary of the content. " +
+                            "Strictly adhere to the requested summary length. " +
+                            "Return the summarized content in the following format:\n" +
+                            "[CONTENT] Summarized Content Here\n" +
+                            "Return ONLY the summarized content as plain text (or HTML if appropriate), without any other markers, headers, or additional metadata.";
+                }
+
                 String customPrompt = sharedPreferencesRepository.getCustomSummarizationPrompt();
                 if (customPrompt != null && !customPrompt.trim().isEmpty()) {
                     baseSystemPrompt += "\n\nAdditional Instructions:\n" + customPrompt;
@@ -818,8 +829,6 @@ public class TextUtil {
         String title = defaultTitle;
         String content = cleaned;
 
-        // More robust marker detection using regex to handle variations like [TITLE], **[TITLE]**, [Translated Title], etc.
-        // Also captures optional trailing colons, dashes or markdown bold markers.
         java.util.regex.Pattern titlePattern = java.util.regex.Pattern.compile("(?i)(?:\\*\\*)?\\[(?:translated\\s+|summarized\\s+)?title\\](?:\\*\\*)?[:\\-—\\s]*");
         java.util.regex.Pattern contentPattern = java.util.regex.Pattern.compile("(?i)(?:\\*\\*)?\\[(?:translated\\s+|summarized\\s+)?content\\](?:\\*\\*)?[:\\-—\\s]*");
 
@@ -827,38 +836,22 @@ public class TextUtil {
         java.util.regex.Matcher contentMatcher = contentPattern.matcher(cleaned);
 
         if (titleMatcher.find() && contentMatcher.find()) {
-            int titleStart = titleMatcher.start();
             int titleEnd = titleMatcher.end();
             int contentStart = contentMatcher.start();
-            int contentEnd = contentMatcher.end();
 
-            if (titleStart < contentStart) {
+            if (titleMatcher.start() < contentStart) {
                 title = cleaned.substring(titleEnd, contentStart).trim();
-                content = cleaned.substring(contentEnd).trim();
+                content = cleaned.substring(contentMatcher.end()).trim();
             } else {
                 // In case markers are swapped: [CONTENT] ... [TITLE] ...
-                content = cleaned.substring(contentEnd, titleStart).trim();
+                content = cleaned.substring(contentMatcher.end(), titleMatcher.start()).trim();
                 title = cleaned.substring(titleEnd).trim();
             }
-        } else {
-            // Fallback: If no markers found, try to identify title from the first line
-            String[] lines = cleaned.split("\\n");
-            if (lines.length > 0) {
-                String firstLine = lines[0].trim();
-                // Clean the first line if it contains title markers despite the matcher failing (e.g. if content marker missing)
-                String cleanedFirstLine = titlePattern.matcher(firstLine).replaceAll("").trim();
-                
-                if (!cleanedFirstLine.isEmpty() && cleanedFirstLine.length() < 200) {
-                     title = cleanedFirstLine;
-                     // Content is everything after the first line (or after the first line's original position)
-                     int firstLineIndex = cleaned.indexOf(firstLine);
-                     content = cleaned.substring(firstLineIndex + firstLine.length()).trim();
-                }
-            }
+        } else if (contentMatcher.find()) {
+            content = cleaned.substring(contentMatcher.end()).trim();
         }
 
-        // Final cleanup of the content to remove any leftover redundant title or common markers
-        // This handles cases like: [CONTENT] [content] some real content, or [SUMMARY] [] content
+        // Final cleanup of the content to remove any leftover redundant markers
         String markerCleanupRegex = "(?i)(?:\\*\\*)?\\[(?:translated\\s+|summarized\\s+)?(?:title|content|summary|article|text|translated|summarized)\\](?:\\*\\*)?[:\\-—\\s]*";
         title = title.replaceAll(markerCleanupRegex, "").trim();
         content = content.replaceAll(markerCleanupRegex, "").trim();
@@ -873,7 +866,7 @@ public class TextUtil {
         title = title.replaceAll(emptyBracketsRegex, "").trim();
         content = content.replaceAll(emptyBracketsRegex, "").trim();
 
-        // Strip wrapping brackets if the entire title or content is enclosed in them (e.g., "[Title Text]")
+        // Strip wrapping brackets if the entire content is enclosed in them
         if (title.startsWith("[") && title.endsWith("]")) {
             title = title.substring(1, title.length() - 1).trim();
         }
@@ -881,6 +874,7 @@ public class TextUtil {
             content = content.substring(1, content.length() - 1).trim();
         }
 
+        // Remove title if it somehow leaked into the start of the content
         if (content.toLowerCase().startsWith(title.toLowerCase())) {
             String potentialContent = content.substring(title.length()).trim();
             if (potentialContent.startsWith(":") || potentialContent.startsWith("-") || potentialContent.startsWith("—")) {

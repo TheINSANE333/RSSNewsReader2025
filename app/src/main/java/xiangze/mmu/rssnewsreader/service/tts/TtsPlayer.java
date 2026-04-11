@@ -62,20 +62,16 @@ public class TtsPlayer extends PlayerAdapter implements TtsPlayerListener {
     private List<String> sentences = new CopyOnWriteArrayList<>();
 
     private int currentState;
+    private int processingSentenceIndex = -1;
     private long currentId = 0;
     private long feedId = 0;
     private String language;
     private boolean isInit = false;
-    private boolean isPreparing = false;
     private boolean actionNeeded = false;
     private boolean isPausedManually;
     private boolean webViewConnected = false;
     private boolean uiControlPlayback = false;
     private boolean isManualSkip = false;
-    private boolean isArticleFinished = false;
-    private boolean isSettingUpNewArticle = false;
-    private boolean isSentenceSplittingInProgress = false;
-    private boolean isWaitingForArticleCompletion = false;
     private MediaPlayer mediaPlayer;
     private String currentUtteranceID = null;
     private float ttsVolume = 1.0f;
@@ -83,7 +79,13 @@ public class TtsPlayer extends PlayerAdapter implements TtsPlayerListener {
     private String lastViewMode = null;
     private long lastCurrentId = -1;
     private long lastAutoRetriedId = -1;
-    private int currentExtractionId = 0;
+    private volatile int currentExtractionId = 0;
+    private volatile int pendingExtractorId = -1;
+    private volatile boolean isSentenceSplittingInProgress = false;
+    private volatile boolean isWaitingForArticleCompletion = false;
+    private volatile boolean isSettingUpNewArticle = false;
+    private volatile boolean isArticleFinished = false;
+    private volatile boolean isPreparing = false;
     private boolean hasSpokenAfterSetup = false;
     private PlaybackUiListener playbackUiListener;
     private int currentExtractProgress = 0;
@@ -229,11 +231,24 @@ public class TtsPlayer extends PlayerAdapter implements TtsPlayerListener {
         }
 
         if (isArticleFinished) {
-            Log.d(TAG, "Already finished article, skipping duplicate onDone");
+            Log.d(TAG, "Already finished article, skipping duplicate onDone for utteranceId: " + utteranceId);
             return;
         }
 
-        if (sentenceCounter < sentences.size() - 1) {
+        // CHECK: Ensure the view mode (summarized/translated/original) is still what the user expects
+        if (!isViewConsistencyValid()) {
+            Log.d(TAG, "View mode mismatch detected after sentence completion. Triggering refresh.");
+            if (callback != null) {
+                // Post to main thread to trigger onPrepare which will reload the correct content
+                new Handler(Looper.getMainLooper()).post(() -> callback.onPrepare());
+            }
+            return;
+        }
+
+        int currentSentencesSize = sentences.size();
+        Log.d(TAG, "handleOnDone: utteranceId=" + utteranceId + ", sentenceCounter=" + sentenceCounter + ", sentencesSize=" + currentSentencesSize + ", splittingInProgress=" + isSentenceSplittingInProgress);
+
+        if (sentenceCounter < currentSentencesSize - 1) {
             sentenceCounter++;
             if (sentenceCounter < sentences.size()) {
                 if (!isPausedManually && currentState == PlaybackStateCompat.STATE_PLAYING) {
@@ -241,25 +256,77 @@ public class TtsPlayer extends PlayerAdapter implements TtsPlayerListener {
                     entryRepository.updateSentCount(sentenceCounter, currentId);
                     Log.d(TAG, "Finished [#" + (sentenceCounter - 1) + "], speaking [#" + sentenceCounter + "]");
                 } else {
-                    Log.d(TAG, "Sentence finished but player is paused/stopped. Counter incremented to: " + sentenceCounter);
+                    Log.d(TAG, "Sentence finished but player is paused/stopped (state=" + currentState + "). Counter incremented to: " + sentenceCounter);
                     entryRepository.updateSentCount(sentenceCounter, currentId);
                 }
             } else {
-                Log.d(TAG, "sentenceCounter became out of bounds after increment, stopping.");
+                Log.d(TAG, "sentenceCounter became out of bounds after increment, stopping (N-1 logic).");
             }
         } else {
             if (isSentenceSplittingInProgress) {
-                Log.d(TAG, "Reached end of current batch, but splitting is still in progress. Waiting...");
+                Log.d(TAG, "Reached end of current batch (counter=" + sentenceCounter + ", size=" + currentSentencesSize + "), but splitting is still in progress. Waiting...");
                 isWaitingForArticleCompletion = true;
+                // Transition to buffering while we wait for more sentences
+                setNewState(PlaybackStateCompat.STATE_BUFFERING);
             } else {
-                Log.d(TAG, "Finished last sentence. Moving to next article.");
+                Log.d(TAG, "Finished last sentence of article (ID: " + currentId + "). Moving to next article.");
                 isWaitingForArticleCompletion = false;
+                
+                // Transition to buffering immediately to give UI feedback
+                setNewState(PlaybackStateCompat.STATE_BUFFERING);
+                
                 entryRepository.updateSentCount(0, currentId);
                 sentenceCounter = 0;
                 isArticleFinished = true;
-                callback.onSkipToNext();
+                if (callback != null) {
+                    callback.onSkipToNext();
+                } else {
+                    Log.e(TAG, "Callback is null in handleOnDone, cannot skip to next article!");
+                    setNewState(PlaybackStateCompat.STATE_PAUSED);
+                }
             }
         }
+    }
+
+    private boolean isViewConsistencyValid() {
+        if (currentId <= 0 || lastViewMode == null) return true;
+
+        xiangze.mmu.rssnewsreader.data.entry.Entry entry = entryRepository.getEntryById(currentId);
+        if (entry == null) return true;
+
+        // Check 1: Are we still reading the article that is currently selected in the system?
+        if (currentId != sharedPreferencesRepository.getCurrentReadingEntryId()) {
+            Log.d(TAG, "Consistency Check: Article ID mismatch (Player=" + currentId + ", Prefs=" + sharedPreferencesRepository.getCurrentReadingEntryId() + ")");
+            return false;
+        }
+
+        // Check 2: Has the view mode (Summarized vs Translated vs Original) changed in preferences?
+        boolean hasSummary = entry.getSummarized() != null && !entry.getSummarized().trim().isEmpty();
+        boolean hasTranslation = entry.getTranslated() != null && !entry.getTranslated().trim().isEmpty();
+
+        boolean useSummarized = false;
+        boolean useTranslated = false;
+
+        if (sharedPreferencesRepository.hasSummarizationToggle(currentId) ||
+                sharedPreferencesRepository.hasTranslationToggle(currentId)) {
+            useSummarized = sharedPreferencesRepository.getIsSummarizedView(currentId) && hasSummary;
+            useTranslated = !useSummarized && sharedPreferencesRepository.getIsTranslatedView(currentId) && hasTranslation;
+        } else {
+            if (hasSummary) {
+                useSummarized = true;
+            } else if (hasTranslation) {
+                useTranslated = true;
+            }
+        }
+
+        String expectedViewMode = useSummarized ? "summarized" : (useTranslated ? "translated" : "original");
+        
+        if (!lastViewMode.equals(expectedViewMode)) {
+            Log.d(TAG, "Consistency Check: View mode mismatch (Current=" + lastViewMode + ", Expected=" + expectedViewMode + ")");
+            return false;
+        }
+
+        return true;
     }
 
     public interface PlaybackUiListener {
@@ -380,10 +447,11 @@ public class TtsPlayer extends PlayerAdapter implements TtsPlayerListener {
 
         if (content != null) {
             if (!content.equals(lastContent)) {
-                Log.d(TAG, "Content changed, resetting sentence counter to 0");
+                Log.d(TAG, "Content changed from " + (lastContent == null ? "null" : lastContent.length() + " chars") + " to " + content.length() + " chars, resetting sentence counter to 0");
                 entryRepository.updateSentCount(0, currentId);
+                lastContent = content; // Update lastContent here
             }
-            lastContent = content;
+            pendingExtractorId = -1; // New content provided directly, cancel any pending extractor callback
 
             // Run extraction in background
             new Thread(() -> extractToTts(content, language, extractionId)).start();
@@ -394,9 +462,11 @@ public class TtsPlayer extends PlayerAdapter implements TtsPlayerListener {
                  Log.d(TAG, "Content found in DB, using that instead of background extraction.");
                  String dbContent = dbEntry.getContent();
                  lastContent = dbContent;
+                 pendingExtractorId = -1;
                  new Thread(() -> extractToTts(dbContent, language, extractionId)).start();
             } else {
                  Log.d(TAG, "No content in DB, triggering background extraction.");
+                 pendingExtractorId = extractionId; // Mark this extractionId as waiting for the extractor
                  ttsExtractor.setCallback(this);
                  ttsExtractor.prioritize();
             }
@@ -405,7 +475,13 @@ public class TtsPlayer extends PlayerAdapter implements TtsPlayerListener {
 
     @Override
     public void extractToTts(String content, String language) {
-        extractToTts(content, language, currentExtractionId);
+        if (pendingExtractorId != -1) {
+            Log.d(TAG, "TtsExtractor callback received for pending ID: " + pendingExtractorId);
+            extractToTts(content, language, pendingExtractorId);
+            pendingExtractorId = -1;
+        } else {
+            Log.d(TAG, "TtsExtractor callback received but no pending ID. Ignoring to avoid race conditions.");
+        }
     }
 
     private void extractToTts(String content, String language, final int extractionId) {
@@ -526,7 +602,7 @@ public class TtsPlayer extends PlayerAdapter implements TtsPlayerListener {
 
                     if (isWaitingForArticleCompletion) {
                         isWaitingForArticleCompletion = false;
-                        Log.d(TAG, "Splitting finished and we were waiting for it. Moving to next article.");
+                        Log.d(TAG, "Splitting finished and we were waiting for it (counter=" + sentenceCounter + ", total=" + sentences.size() + "). Moving to next article.");
                         entryRepository.updateSentCount(0, currentId);
                         sentenceCounter = 0;
                         isArticleFinished = true;
@@ -562,10 +638,10 @@ public class TtsPlayer extends PlayerAdapter implements TtsPlayerListener {
             if (language != null && !language.isEmpty()) {
                 try {
                     Log.d(TAG, "Setting TTS language to: " + language);
-                    setLanguage(Locale.forLanguageTag(language), true);
+                    setLanguage(Locale.forLanguageTag(language), false);
                 } catch (Exception e) {
                     Log.d(TAG, "Invalid locale " + e.getMessage());
-                    setLanguage(Locale.ENGLISH, true);
+                    setLanguage(Locale.ENGLISH, false);
                 }
             }
 
@@ -587,7 +663,7 @@ public class TtsPlayer extends PlayerAdapter implements TtsPlayerListener {
         });
     }
 
-    private void identifyLanguage(String sentence, boolean fromService) {
+    private void identifyLanguage(String sentence, int index, boolean fromService) {
         float confidenceThreshold = (float) sharedPreferencesRepository.getConfidenceThreshold() / 100;
 
         LanguageIdentifier languageIdentifier = LanguageIdentification.getClient(
@@ -604,14 +680,14 @@ public class TtsPlayer extends PlayerAdapter implements TtsPlayerListener {
                         setLanguage(Locale.forLanguageTag(languageCode), fromService);
                     }
                     if (!fromService) {
-                        doSpeak(sentence);
+                        doSpeak(sentence, index);
                     }
                 })
                 .addOnFailureListener(e -> {
                     Log.e(TAG, "Language identification failed", e);
                     setLanguage(Locale.ENGLISH, fromService);
                     if (!fromService) {
-                        doSpeak(sentence);
+                        doSpeak(sentence, index);
                     }
                 });
     }
@@ -642,36 +718,46 @@ public class TtsPlayer extends PlayerAdapter implements TtsPlayerListener {
     }
 
     public void speak() {
-        if (isSettingUpNewArticle) {
-            Log.d(TAG, "TTS setup in progress, skipping speak()");
-            return;
-        }
+        ContextCompat.getMainExecutor(context).execute(() -> {
+            if (isSettingUpNewArticle) {
+                Log.d(TAG, "TTS setup in progress, skipping speak()");
+                return;
+            }
 
-        if (!isInit || tts == null) {
-            Log.d(TAG, "speak() skipped — TTS not initialized yet. Waiting for init.");
-            actionNeeded = true;
-            return;
-        }
-        
-        if (sentenceCounter < 0) sentenceCounter = 0;
+            if (!isInit || tts == null) {
+                Log.d(TAG, "speak() skipped — TTS not initialized yet. Waiting for init.");
+                actionNeeded = true;
+                return;
+            }
+            
+            if (sentenceCounter < 0) sentenceCounter = 0;
 
-        if (sentences == null || sentences.size() == 0 || sentenceCounter >= sentences.size()) {
-            Log.d(TAG, "No sentences ready or counter out of bounds, skipping speak(). size=" + (sentences == null ? "null" : sentences.size()) + ", counter=" + sentenceCounter);
-            return;
-        }
+            if (sentences == null || sentences.size() == 0 || sentenceCounter >= sentences.size()) {
+                Log.d(TAG, "No sentences ready or counter out of bounds, skipping speak(). size=" + (sentences == null ? "null" : sentences.size()) + ", counter=" + sentenceCounter);
+                return;
+            }
 
-        String sentence = sentences.get(sentenceCounter);
-        Log.d(TAG, "speak() with language = " + language + ", sentence = " + sentence);
+            // GUARD: Prevent multiple calls for the same sentence while it's already playing or being processed
+            if (sentenceCounter == processingSentenceIndex && !isManualSkip && (isSpeaking() || currentState == PlaybackStateCompat.STATE_PLAYING)) {
+                Log.d(TAG, "Already processing or speaking sentence [#" + sentenceCounter + "], skipping redundant speak() call.");
+                return;
+            }
+            processingSentenceIndex = sentenceCounter;
 
-        if (language == null) {
-            identifyLanguage(sentence, false);
-        } else {
-            doSpeak(sentence);
-        }
+            String sentence = sentences.get(sentenceCounter);
+            int index = sentenceCounter;
+            Log.d(TAG, "speak() [#" + index + "] with language = " + language + ", sentence = " + sentence);
+
+            if (language == null) {
+                identifyLanguage(sentence, index, false);
+            } else {
+                doSpeak(sentence, index);
+            }
+        });
     }
 
-    private void doSpeak(String sentence) {
-        Log.d(TAG, "TTS Speaking [#" + sentenceCounter + "]: " + sentence);
+    private void doSpeak(String sentence, int index) {
+        Log.d(TAG, "TTS Speaking [#" + index + "]: " + sentence);
         int queueMode = isManualSkip ? TextToSpeech.QUEUE_FLUSH : TextToSpeech.QUEUE_ADD;
         
         // Reset manual skip flag immediately after use so subsequent automatic plays use QUEUE_ADD
@@ -679,8 +765,8 @@ public class TtsPlayer extends PlayerAdapter implements TtsPlayerListener {
             isManualSkip = false;
         }
 
-        // Pass sentenceCounter as utteranceId to track progress in onStart
-        String utteranceId = String.valueOf(sentenceCounter);
+        // Pass index as utteranceId to track progress in onStart
+        String utteranceId = String.valueOf(index);
         currentUtteranceID = utteranceId;
 
         // Apply volume
@@ -690,7 +776,7 @@ public class TtsPlayer extends PlayerAdapter implements TtsPlayerListener {
         scheduleTimeout(utteranceId);
         int result = tts.speak(sentence, queueMode, params, utteranceId);
         if (result == TextToSpeech.ERROR) {
-            Log.e(TAG, "tts.speak returned ERROR for [#" + sentenceCounter + "]. Attempting recovery.");
+            Log.e(TAG, "tts.speak returned ERROR for [#" + index + "]. Attempting recovery.");
             // Wait a short bit then try to treat as 'done' to skip this sentence
             new Handler(Looper.getMainLooper()).postDelayed(() -> {
                 if (currentUtteranceID != null && currentUtteranceID.equals(utteranceId)) {
@@ -716,13 +802,16 @@ public class TtsPlayer extends PlayerAdapter implements TtsPlayerListener {
                 entryRepository.updateSentCount(sentenceCounter, currentId);
                 
                 String sentence = sentences.get(sentenceCounter);
-                String utteranceId = String.valueOf(sentenceCounter);
+                int index = sentenceCounter;
+                processingSentenceIndex = index; // Update guard
+                String utteranceId = String.valueOf(index);
                 currentUtteranceID = utteranceId;
 
                 android.os.Bundle params = new android.os.Bundle();
                 params.putFloat(TextToSpeech.Engine.KEY_PARAM_VOLUME, ttsVolume);
                 
-                Log.d(TAG, "FastForward to [#" + sentenceCounter + "]: " + sentence);
+                Log.d(TAG, "FastForward to [#" + index + "]: " + sentence);
+                scheduleTimeout(utteranceId);
                 tts.speak(sentence, TextToSpeech.QUEUE_FLUSH, params, utteranceId);
                 
                 setUiControlPlayback(true);
@@ -750,13 +839,16 @@ public class TtsPlayer extends PlayerAdapter implements TtsPlayerListener {
                 entryRepository.updateSentCount(sentenceCounter, currentId);
                 
                 String sentence = sentences.get(sentenceCounter);
-                String utteranceId = String.valueOf(sentenceCounter);
+                int index = sentenceCounter;
+                processingSentenceIndex = index; // Update guard
+                String utteranceId = String.valueOf(index);
                 currentUtteranceID = utteranceId;
 
                 android.os.Bundle params = new android.os.Bundle();
                 params.putFloat(TextToSpeech.Engine.KEY_PARAM_VOLUME, ttsVolume);
                 
-                Log.d(TAG, "FastRewind to [#" + sentenceCounter + "]: " + sentence);
+                Log.d(TAG, "FastRewind to [#" + index + "]: " + sentence);
+                scheduleTimeout(utteranceId);
                 tts.speak(sentence, TextToSpeech.QUEUE_FLUSH, params, utteranceId);
                 
                 setUiControlPlayback(true);

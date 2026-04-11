@@ -53,7 +53,7 @@ public class ChatActivity extends AppCompatActivity {
 
         // Ensure TtsService is started so TtsPlayer is initialized
         Intent serviceIntent = new Intent(this, xiangze.mmu.rssnewsreader.service.tts.TtsService.class);
-        androidx.core.content.ContextCompat.startForegroundService(this, serviceIntent);
+        startService(serviceIntent);
 
         // Set up global exception handler
         Thread.setDefaultUncaughtExceptionHandler(new Thread.UncaughtExceptionHandler() {
