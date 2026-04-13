@@ -1,4 +1,4 @@
-package xiangze.mmu.rssnewsreader.model.ai;
+package xiangze.mmu.rssnewsreader.ui.chat;
 
 import android.content.Intent;
 import android.os.Bundle;
@@ -21,7 +21,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 import xiangze.mmu.rssnewsreader.data.ai.Message;
-import xiangze.mmu.rssnewsreader.service.ai.ChatAdapter;
+import xiangze.mmu.rssnewsreader.model.ai.AiClient;
+import xiangze.mmu.rssnewsreader.model.ai.LocalLlmManager;
 import xiangze.mmu.rssnewsreader.service.tts.TtsPlayer;
 import xiangze.mmu.rssnewsreader.data.sharedpreferences.SharedPreferencesRepository;
 

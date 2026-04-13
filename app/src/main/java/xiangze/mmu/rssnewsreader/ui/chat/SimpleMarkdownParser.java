@@ -1,4 +1,4 @@
-package xiangze.mmu.rssnewsreader.service.ai;
+package xiangze.mmu.rssnewsreader.ui.chat;
 
 import android.text.Html;
 import android.text.SpannableString;

@@ -51,6 +51,7 @@ import xiangze.mmu.rssnewsreader.model.EntryInfo;
 import xiangze.mmu.rssnewsreader.service.util.AutoSummarizer;
 import xiangze.mmu.rssnewsreader.service.util.AutoTranslator;
 import xiangze.mmu.rssnewsreader.service.util.TextUtil;
+import xiangze.mmu.rssnewsreader.ui.chat.ChatActivity;
 import xiangze.mmu.rssnewsreader.ui.webview.WebViewActivity;
 
 import com.google.android.material.snackbar.Snackbar;
@@ -201,7 +202,7 @@ public class AllEntriesFragment extends Fragment implements EntryItemAdapter.Ent
                 Snackbar.make(binding.getRoot(), "Summary generated!", Snackbar.LENGTH_SHORT).show();
                 
                 // Launch ChatActivity with the summary
-                Intent intent = new Intent(requireContext(), xiangze.mmu.rssnewsreader.model.ai.ChatActivity.class);
+                Intent intent = new Intent(requireContext(), ChatActivity.class);
                 intent.putExtra("initial_message", summary);
                 startActivity(intent);
                 

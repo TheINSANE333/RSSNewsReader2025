@@ -36,7 +36,7 @@
             android:parentActivityName=".ui.main.MainActivity"
             android:exported="false" />
         <activity
-            android:name=".model.ai.ChatActivity"
+            android:name=".ui.chat.ChatActivity"
             android:label="AI Chatbot"
             android:theme="@style/Theme.RSSNewsReader" />
         <activity

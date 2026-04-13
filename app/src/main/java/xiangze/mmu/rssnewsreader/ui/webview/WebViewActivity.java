@@ -59,7 +59,7 @@ import xiangze.mmu.rssnewsreader.data.sharedpreferences.SharedPreferencesReposit
 import xiangze.mmu.rssnewsreader.databinding.ActivityWebviewBinding;
 import xiangze.mmu.rssnewsreader.model.EntryInfo;
 import xiangze.mmu.rssnewsreader.model.ai.AiClient;
-import xiangze.mmu.rssnewsreader.model.ai.ChatActivity;
+import xiangze.mmu.rssnewsreader.ui.chat.ChatActivity;
 import xiangze.mmu.rssnewsreader.service.tts.TtsExtractor;
 import xiangze.mmu.rssnewsreader.service.tts.TtsPlayer;
 import xiangze.mmu.rssnewsreader.service.tts.TtsPlaylist;
