@@ -235,16 +235,6 @@ public class TtsPlayer extends PlayerAdapter implements TtsPlayerListener {
             return;
         }
 
-        // CHECK: Ensure the view mode (summarized/translated/original) is still what the user expects
-        if (!isViewConsistencyValid()) {
-            Log.d(TAG, "View mode mismatch detected after sentence completion. Triggering refresh.");
-            if (callback != null) {
-                // Post to main thread to trigger onPrepare which will reload the correct content
-                new Handler(Looper.getMainLooper()).post(() -> callback.onPrepare());
-            }
-            return;
-        }
-
         int currentSentencesSize = sentences.size();
         Log.d(TAG, "handleOnDone: utteranceId=" + utteranceId + ", sentenceCounter=" + sentenceCounter + ", sentencesSize=" + currentSentencesSize + ", splittingInProgress=" + isSentenceSplittingInProgress);
 
@@ -288,47 +278,6 @@ public class TtsPlayer extends PlayerAdapter implements TtsPlayerListener {
         }
     }
 
-    private boolean isViewConsistencyValid() {
-        if (currentId <= 0 || lastViewMode == null) return true;
-
-        xiangze.mmu.rssnewsreader.data.entry.Entry entry = entryRepository.getEntryById(currentId);
-        if (entry == null) return true;
-
-        // Check 1: Are we still reading the article that is currently selected in the system?
-        if (currentId != sharedPreferencesRepository.getCurrentReadingEntryId()) {
-            Log.d(TAG, "Consistency Check: Article ID mismatch (Player=" + currentId + ", Prefs=" + sharedPreferencesRepository.getCurrentReadingEntryId() + ")");
-            return false;
-        }
-
-        // Check 2: Has the view mode (Summarized vs Translated vs Original) changed in preferences?
-        boolean hasSummary = entry.getSummarized() != null && !entry.getSummarized().trim().isEmpty();
-        boolean hasTranslation = entry.getTranslated() != null && !entry.getTranslated().trim().isEmpty();
-
-        boolean useSummarized = false;
-        boolean useTranslated = false;
-
-        if (sharedPreferencesRepository.hasSummarizationToggle(currentId) ||
-                sharedPreferencesRepository.hasTranslationToggle(currentId)) {
-            useSummarized = sharedPreferencesRepository.getIsSummarizedView(currentId) && hasSummary;
-            useTranslated = !useSummarized && sharedPreferencesRepository.getIsTranslatedView(currentId) && hasTranslation;
-        } else {
-            if (hasSummary) {
-                useSummarized = true;
-            } else if (hasTranslation) {
-                useTranslated = true;
-            }
-        }
-
-        String expectedViewMode = useSummarized ? "summarized" : (useTranslated ? "translated" : "original");
-        
-        if (!lastViewMode.equals(expectedViewMode)) {
-            Log.d(TAG, "Consistency Check: View mode mismatch (Current=" + lastViewMode + ", Expected=" + expectedViewMode + ")");
-            return false;
-        }
-
-        return true;
-    }
-
     public interface PlaybackUiListener {
         void onPlaybackStarted();
         void onPlaybackPaused();
@@ -367,11 +316,17 @@ public class TtsPlayer extends PlayerAdapter implements TtsPlayerListener {
     }
 
     public void extract(long currentId, long feedId, String content, String language) {
-        extract(currentId, feedId, content, language, null);
+        extract(currentId, feedId, content, language, null, true);
     }
 
-    public void extract(long currentId, long feedId, String content, String language, String viewMode) {
-        Log.d(TAG, "Switching to new article: ID=" + currentId + " ViewMode=" + viewMode);
+    public synchronized void extract(long currentId, long feedId, String content, String language, String viewMode, boolean isMandatory) {
+        Log.d(TAG, "Switching to new article: ID=" + currentId + " ViewMode=" + viewMode + " Mandatory=" + isMandatory);
+
+        if (currentId == this.currentId && !isMandatory && 
+            getViewModePriority(viewMode) < getViewModePriority(this.lastViewMode)) {
+            Log.d(TAG, "Already have " + this.lastViewMode + " for this article, ignoring non-mandatory " + viewMode + " request.");
+            return;
+        }
 
         boolean isNewArticle = currentId != this.currentId;
 
@@ -484,6 +439,16 @@ public class TtsPlayer extends PlayerAdapter implements TtsPlayerListener {
                  ttsExtractor.prioritize();
             }
         }
+    }
+
+    private int getViewModePriority(String viewMode) {
+        if ("summarized".equals(viewMode)) return 2;
+        if ("translated".equals(viewMode)) return 1;
+        return 0; // original or null
+    }
+
+    public void extract(long currentId, long feedId, String content, String language, String viewMode) {
+        extract(currentId, feedId, content, language, viewMode, true);
     }
 
     @Override
@@ -1077,5 +1042,9 @@ public class TtsPlayer extends PlayerAdapter implements TtsPlayerListener {
 
     public int getCurrentExtractProgress() {
         return currentExtractProgress;
+    }
+
+    public String getLastViewMode() {
+        return lastViewMode;
     }
 }

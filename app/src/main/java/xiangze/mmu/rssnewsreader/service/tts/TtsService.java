@@ -296,7 +296,7 @@ public class TtsService extends MediaBrowserServiceCompat {
                 if (ttsPlayer.getCurrentId() != mediaId || ttsPlayer.isArticleFinished()) {
                     ttsPlayer.stopTtsPlayback();
                 }
-                ttsPlayer.extract(mediaId, feedId, contentToSpeak, languageToUse, viewMode);
+                ttsPlayer.extract(mediaId, feedId, contentToSpeak, languageToUse, viewMode, false);
 
                 if (!ttsPlayer.isPausedManually()) {
                     ttsPlayer.play();
