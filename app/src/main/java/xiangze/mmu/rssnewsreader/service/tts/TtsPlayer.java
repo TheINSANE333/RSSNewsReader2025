@@ -382,7 +382,10 @@ public class TtsPlayer extends PlayerAdapter implements TtsPlayerListener {
             this.lastAutoRetriedId = -1;
         }
 
-        boolean wasPlayingIntent = (currentState == PlaybackStateCompat.STATE_PLAYING) || (tts != null && tts.isSpeaking()) || (isArticleFinished && isNewArticle);
+        boolean wasPlayingIntent = (currentState == PlaybackStateCompat.STATE_PLAYING) || 
+                                   (currentState == PlaybackStateCompat.STATE_BUFFERING) || 
+                                   (tts != null && tts.isSpeaking()) || 
+                                   (isArticleFinished && isNewArticle);
         isPausedManually = !wasPlayingIntent && sharedPreferencesRepository.getIsPausedManually();
         sharedPreferencesRepository.setIsPausedManually(isPausedManually);
         Log.d(TAG, "Detected isPausedManually = " + isPausedManually + " (wasPlayingIntent=" + wasPlayingIntent + ", state=" + currentState + ", finished=" + isArticleFinished + ")");
@@ -399,7 +402,14 @@ public class TtsPlayer extends PlayerAdapter implements TtsPlayerListener {
             if (!isSpeaking() && !isSettingUpNewArticle) {
                 hasSpokenAfterSetup = false;
             }
+            showFakeLoadingLiveData.postValue(false);
             finishedSetupLiveData.postValue(true);
+            
+            // If not paused manually, ensure we start playing since extraction was skipped
+            if (!isPausedManually()) {
+                Log.d(TAG, "Extraction skipped but not paused manually, triggering play()");
+                play();
+            }
             return;
         }
 
@@ -428,6 +438,8 @@ public class TtsPlayer extends PlayerAdapter implements TtsPlayerListener {
                 Log.w(TAG, "Extraction timeout - forcing isSettingUpNewArticle = false for ID: " + extractionId);
                 isSettingUpNewArticle = false;
                 isPreparing = false;
+                showFakeLoadingLiveData.postValue(false);
+                finishedSetupLiveData.postValue(true);
             }
         }, 10000);
 
@@ -491,6 +503,8 @@ public class TtsPlayer extends PlayerAdapter implements TtsPlayerListener {
             if (extractionId == currentExtractionId) {
                 isPreparing = false;
                 isSettingUpNewArticle = false;
+                showFakeLoadingLiveData.postValue(false);
+                finishedSetupLiveData.postValue(true);
             }
             return;
         }
@@ -583,6 +597,8 @@ public class TtsPlayer extends PlayerAdapter implements TtsPlayerListener {
                     actionNeeded = false;
                     isPreparing = false;
                     isSettingUpNewArticle = false;
+                    showFakeLoadingLiveData.postValue(false);
+                    finishedSetupLiveData.postValue(true);
                 } else if (!firstBatchSignaled) {
                     // If the article is very short and we haven't signaled yet
                     int savedProgress = entryRepository.getSentCount(currentId);
@@ -919,9 +935,15 @@ public class TtsPlayer extends PlayerAdapter implements TtsPlayerListener {
 
     @Override
     protected void onPlay() {
-        if (tts != null && !isPausedManually) {
+        Log.d(TAG, "onPlay called. isPausedManually=" + isPausedManually + ", ttsReady=" + (tts != null));
+        if (tts != null) {
             speak();
             setNewState(PlaybackStateCompat.STATE_PLAYING);
+        } else {
+            Log.d(TAG, "onPlay: TTS is null, triggering onPrepare via callback");
+            if (callback != null) {
+                callback.onPrepare();
+            }
         }
     }
 

@@ -866,6 +866,14 @@ public class TtsExtractor {
         currentIdInProgress = -1;
         snackbarMessageLiveData.postValue("Process failed.");
         finishedSetupLiveData.postValue(true);
+
+        if (id == GlobalState.getCurrentViewingId()) {
+            if (ttsCallback != null) {
+                Log.d(TAG, "Notifying TTS callback of failure for ID: " + id);
+                ttsCallback.extractToTts(null, "en");
+                ttsCallback = null;
+            }
+        }
     }
 
     public void setCurrentLanguage(String lang, boolean lock) {
