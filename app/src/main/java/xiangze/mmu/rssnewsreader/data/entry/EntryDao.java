@@ -7,9 +7,11 @@ import androidx.room.Insert;
 import androidx.room.OnConflictStrategy;
 import androidx.room.Query;
 import androidx.room.RewriteQueriesToDropUnusedColumns;
+import androidx.room.RoomWarnings;
 import androidx.room.Update;
 
 import xiangze.mmu.rssnewsreader.model.EntryInfo;
+import xiangze.mmu.rssnewsreader.model.EntryListItem;
 
 import java.util.Date;
 import java.util.List;
@@ -42,76 +44,149 @@ public interface EntryDao {
     Completable deleteByFeedId(long feedId);
 
     @RewriteQueriesToDropUnusedColumns
-    @Query("SELECT e.id as entryId, e.title as entryTitle, e.content as content, e.priority as priority, e.link as entryLink, e.description as entryDescription, e.imageUrl as entryImageUrl, e.publishedDate as entryPublishedDate, e.visitedDate as visitedDate, e.category as entryCategory, e.bookmark as bookmark, e.original_html as originalHtml, e.html as html, e.translated_html as translatedHtml, e.summarized_html as summarizedHtml, e.translated as translated, e.summarized as summarized, f.id as feedId, f.ttsSpeechRate as ttsSpeechRate, f.language as feedLanguage, f.title as feedTitle, f.imageUrl as feedImageUrl " +
+    @Query("SELECT e.id as entryId, e.title as entryTitle, e.priority as priority, e.link as entryLink, e.description as entryDescription, e.imageUrl as entryImageUrl, e.publishedDate as entryPublishedDate, e.visitedDate as visitedDate, e.category as entryCategory, e.bookmark as bookmark, " +
+            "(e.content IS NOT NULL AND e.content != '') as hasContent, " +
+            "(e.original_html IS NOT NULL AND e.original_html != '') as hasOriginalHtml, " +
+            "(e.translated_html IS NOT NULL AND e.translated_html != '') as hasTranslated, " +
+            "(e.summarized_html IS NOT NULL AND e.summarized_html != '') as hasSummarized, " +
+            "f.id as feedId, f.ttsSpeechRate as ttsSpeechRate, f.language as feedLanguage, f.title as feedTitle, f.imageUrl as feedImageUrl " +
             "FROM entry_table e " +
             "LEFT JOIN feed_table f ON e.feedId = f.id")
     Flowable<List<EntryInfo>> getAllEntriesInfo();
 
     @RewriteQueriesToDropUnusedColumns
-    @Query("SELECT e.id as entryId, e.title as entryTitle, e.content as content, e.priority as priority, e.link as entryLink, e.description as entryDescription, e.imageUrl as entryImageUrl, e.publishedDate as entryPublishedDate, e.visitedDate as visitedDate, e.category as entryCategory, e.bookmark as bookmark, e.original_html as originalHtml, e.html as html, e.translated_html as translatedHtml, e.summarized_html as summarizedHtml, e.translated as translated, e.summarized as summarized, f.id as feedId, f.ttsSpeechRate as ttsSpeechRate, f.language as feedLanguage, f.title as feedTitle, f.imageUrl as feedImageUrl " +
+    @Query("SELECT e.id as entryId, e.title as entryTitle, e.priority as priority, e.link as entryLink, e.description as entryDescription, e.imageUrl as entryImageUrl, e.publishedDate as entryPublishedDate, e.visitedDate as visitedDate, e.category as entryCategory, e.bookmark as bookmark, " +
+            "(e.content IS NOT NULL AND e.content != '') as hasContent, " +
+            "(e.original_html IS NOT NULL AND e.original_html != '') as hasOriginalHtml, " +
+            "(e.translated_html IS NOT NULL AND e.translated_html != '') as hasTranslated, " +
+            "(e.summarized_html IS NOT NULL AND e.summarized_html != '') as hasSummarized, " +
+            "f.id as feedId, f.ttsSpeechRate as ttsSpeechRate, f.language as feedLanguage, f.title as feedTitle, f.imageUrl as feedImageUrl " +
             "FROM entry_table e " +
             "LEFT JOIN feed_table f ON e.feedId = f.id " +
             "WHERE bookmark = 'Y'")
     Flowable<List<EntryInfo>> getEntriesByBookmark();
 
     @RewriteQueriesToDropUnusedColumns
-    @Query("SELECT e.id as entryId, e.title as entryTitle, e.content as content, e.priority as priority, e.link as entryLink, e.description as entryDescription, e.imageUrl as entryImageUrl, e.publishedDate as entryPublishedDate, e.visitedDate as visitedDate, e.category as entryCategory, e.bookmark as bookmark, e.original_html as originalHtml, e.html as html, e.translated_html as translatedHtml, e.summarized_html as summarizedHtml, e.translated as translated, e.summarized as summarized, f.id as feedId, f.ttsSpeechRate as ttsSpeechRate, f.language as feedLanguage, f.title as feedTitle, f.imageUrl as feedImageUrl " +
+    @Query("SELECT e.id as entryId, e.title as entryTitle, e.priority as priority, e.link as entryLink, e.description as entryDescription, e.imageUrl as entryImageUrl, e.publishedDate as entryPublishedDate, e.visitedDate as visitedDate, e.category as entryCategory, e.bookmark as bookmark, " +
+            "(e.content IS NOT NULL AND e.content != '') as hasContent, " +
+            "(e.original_html IS NOT NULL AND e.original_html != '') as hasOriginalHtml, " +
+            "(e.translated_html IS NOT NULL AND e.translated_html != '') as hasTranslated, " +
+            "(e.summarized_html IS NOT NULL AND e.summarized_html != '') as hasSummarized, " +
+            "f.id as feedId, f.ttsSpeechRate as ttsSpeechRate, f.language as feedLanguage, f.title as feedTitle, f.imageUrl as feedImageUrl " +
             "FROM entry_table e " +
             "LEFT JOIN feed_table f ON e.feedId = f.id " +
             "WHERE visitedDate is null")
     Flowable<List<EntryInfo>> getEntriesByUnread();
 
     @RewriteQueriesToDropUnusedColumns
-    @Query("SELECT e.id as entryId, e.title as entryTitle, e.content as content, e.priority as priority, e.link as entryLink, e.description as entryDescription, e.imageUrl as entryImageUrl, e.publishedDate as entryPublishedDate, e.visitedDate as visitedDate, e.category as entryCategory, e.bookmark as bookmark, e.original_html as originalHtml, e.html as html, e.translated_html as translatedHtml, e.summarized_html as summarizedHtml, e.translated as translated, e.summarized as summarized, f.id as feedId, f.ttsSpeechRate as ttsSpeechRate, f.language as feedLanguage, f.title as feedTitle, f.imageUrl as feedImageUrl " +
+    @Query("SELECT e.id as entryId, e.title as entryTitle, e.priority as priority, e.link as entryLink, e.description as entryDescription, e.imageUrl as entryImageUrl, e.publishedDate as entryPublishedDate, e.visitedDate as visitedDate, e.category as entryCategory, e.bookmark as bookmark, " +
+            "(e.content IS NOT NULL AND e.content != '') as hasContent, " +
+            "(e.original_html IS NOT NULL AND e.original_html != '') as hasOriginalHtml, " +
+            "(e.translated_html IS NOT NULL AND e.translated_html != '') as hasTranslated, " +
+            "(e.summarized_html IS NOT NULL AND e.summarized_html != '') as hasSummarized, " +
+            "f.id as feedId, f.ttsSpeechRate as ttsSpeechRate, f.language as feedLanguage, f.title as feedTitle, f.imageUrl as feedImageUrl " +
             "FROM entry_table e " +
             "LEFT JOIN feed_table f ON e.feedId = f.id " +
             "WHERE visitedDate is not null")
     Flowable<List<EntryInfo>> getEntriesByRead();
 
     @RewriteQueriesToDropUnusedColumns
-    @Query("SELECT e.id as entryId, e.title as entryTitle, e.content as content, e.priority as priority, e.link as entryLink, e.description as entryDescription, e.imageUrl as entryImageUrl, e.publishedDate as entryPublishedDate, e.visitedDate as visitedDate, e.category as entryCategory, e.bookmark as bookmark, e.original_html as originalHtml, e.html as html, e.translated_html as translatedHtml, e.summarized_html as summarizedHtml, e.translated as translated, e.summarized as summarized, f.id as feedId, f.ttsSpeechRate as ttsSpeechRate, f.language as feedLanguage, f.title as feedTitle, f.imageUrl as feedImageUrl " +
+    @Query("SELECT e.id as entryId, e.title as entryTitle, e.priority as priority, e.link as entryLink, e.description as entryDescription, e.imageUrl as entryImageUrl, e.publishedDate as entryPublishedDate, e.visitedDate as visitedDate, e.category as entryCategory, e.bookmark as bookmark, " +
+            "(e.content IS NOT NULL AND e.content != '') as hasContent, " +
+            "(e.original_html IS NOT NULL AND e.original_html != '') as hasOriginalHtml, " +
+            "(e.translated_html IS NOT NULL AND e.translated_html != '') as hasTranslated, " +
+            "(e.summarized_html IS NOT NULL AND e.summarized_html != '') as hasSummarized, " +
+            "f.id as feedId, f.ttsSpeechRate as ttsSpeechRate, f.language as feedLanguage, f.title as feedTitle, f.imageUrl as feedImageUrl " +
             "FROM entry_table e " +
             "LEFT JOIN feed_table f ON e.feedId = f.id " +
             "WHERE bookmark = 'Y' AND e.feedId = :id")
     Flowable<List<EntryInfo>> getEntriesByBookmark(long id);
 
     @RewriteQueriesToDropUnusedColumns
-    @Query("SELECT e.id as entryId, e.title as entryTitle, e.content as content, e.priority as priority, e.link as entryLink, e.description as entryDescription, e.imageUrl as entryImageUrl, e.publishedDate as entryPublishedDate, e.visitedDate as visitedDate, e.category as entryCategory, e.bookmark as bookmark, e.original_html as originalHtml, e.html as html, e.translated_html as translatedHtml, e.summarized_html as summarizedHtml, e.translated as translated, e.summarized as summarized, f.id as feedId, f.ttsSpeechRate as ttsSpeechRate, f.language as feedLanguage, f.title as feedTitle, f.imageUrl as feedImageUrl " +
+    @Query("SELECT e.id as entryId, e.title as entryTitle, e.priority as priority, e.link as entryLink, e.description as entryDescription, e.imageUrl as entryImageUrl, e.publishedDate as entryPublishedDate, e.visitedDate as visitedDate, e.category as entryCategory, e.bookmark as bookmark, " +
+            "(e.content IS NOT NULL AND e.content != '') as hasContent, " +
+            "(e.original_html IS NOT NULL AND e.original_html != '') as hasOriginalHtml, " +
+            "(e.translated_html IS NOT NULL AND e.translated_html != '') as hasTranslated, " +
+            "(e.summarized_html IS NOT NULL AND e.summarized_html != '') as hasSummarized, " +
+            "f.id as feedId, f.ttsSpeechRate as ttsSpeechRate, f.language as feedLanguage, f.title as feedTitle, f.imageUrl as feedImageUrl " +
             "FROM entry_table e " +
             "LEFT JOIN feed_table f ON e.feedId = f.id " +
             "WHERE visitedDate is null AND e.feedId = :id")
     Flowable<List<EntryInfo>> getEntriesByUnread(long id);
 
     @RewriteQueriesToDropUnusedColumns
-    @Query("SELECT e.id as entryId, e.title as entryTitle, e.content as content, e.priority as priority, e.link as entryLink, e.description as entryDescription, e.imageUrl as entryImageUrl, e.publishedDate as entryPublishedDate, e.visitedDate as visitedDate, e.category as entryCategory, e.bookmark as bookmark, e.original_html as originalHtml, e.html as html, e.translated_html as translatedHtml, e.summarized_html as summarizedHtml, e.translated as translated, e.summarized as summarized, f.id as feedId, f.ttsSpeechRate as ttsSpeechRate, f.language as feedLanguage, f.title as feedTitle, f.imageUrl as feedImageUrl " +
+    @Query("SELECT e.id as entryId, e.title as entryTitle, e.priority as priority, e.link as entryLink, e.description as entryDescription, e.imageUrl as entryImageUrl, e.publishedDate as entryPublishedDate, e.visitedDate as visitedDate, e.category as entryCategory, e.bookmark as bookmark, " +
+            "(e.content IS NOT NULL AND e.content != '') as hasContent, " +
+            "(e.original_html IS NOT NULL AND e.original_html != '') as hasOriginalHtml, " +
+            "(e.translated_html IS NOT NULL AND e.translated_html != '') as hasTranslated, " +
+            "(e.summarized_html IS NOT NULL AND e.summarized_html != '') as hasSummarized, " +
+            "f.id as feedId, f.ttsSpeechRate as ttsSpeechRate, f.language as feedLanguage, f.title as feedTitle, f.imageUrl as feedImageUrl " +
             "FROM entry_table e " +
             "LEFT JOIN feed_table f ON e.feedId = f.id " +
             "WHERE visitedDate is not null AND e.feedId = :id")
     Flowable<List<EntryInfo>> getEntriesByRead(long id);
 
     @RewriteQueriesToDropUnusedColumns
-    @Query("SELECT e.id as entryId, e.title as entryTitle, e.content as content, e.priority as priority, e.link as entryLink, e.description as entryDescription, e.imageUrl as entryImageUrl, e.publishedDate as entryPublishedDate, e.visitedDate as visitedDate, e.category as entryCategory, e.bookmark as bookmark, e.original_html as originalHtml, e.html as html, e.translated_html as translatedHtml, e.summarized_html as summarizedHtml, e.translated as translated, e.summarized as summarized, f.id as feedId, f.ttsSpeechRate as ttsSpeechRate, f.language as feedLanguage, f.title as feedTitle, f.imageUrl as feedImageUrl " +
+    @Query("SELECT e.id as entryId, e.title as entryTitle, e.priority as priority, e.link as entryLink, e.description as entryDescription, e.imageUrl as entryImageUrl, e.publishedDate as entryPublishedDate, e.visitedDate as visitedDate, e.category as entryCategory, e.bookmark as bookmark, " +
+            "(e.content IS NOT NULL AND e.content != '') as hasContent, " +
+            "(e.original_html IS NOT NULL AND e.original_html != '') as hasOriginalHtml, " +
+            "(e.translated_html IS NOT NULL AND e.translated_html != '') as hasTranslated, " +
+            "(e.summarized_html IS NOT NULL AND e.summarized_html != '') as hasSummarized, " +
+            "f.id as feedId, f.ttsSpeechRate as ttsSpeechRate, f.language as feedLanguage, f.title as feedTitle, f.imageUrl as feedImageUrl " +
             "FROM entry_table e " +
             "LEFT JOIN feed_table f ON e.feedId = f.id " +
             "WHERE e.feedId = :id")
     Flowable<List<EntryInfo>> getEntriesByFeed(long id);
 
     @RewriteQueriesToDropUnusedColumns
-    @Query("SELECT e.id as entryId, e.title as entryTitle, e.content as content, e.priority as priority, e.link as entryLink, e.description as entryDescription, e.imageUrl as entryImageUrl, e.publishedDate as entryPublishedDate, e.visitedDate as visitedDate, e.category as entryCategory, e.bookmark as bookmark, e.original_html as originalHtml, e.html as html, e.translated_html as translatedHtml, e.summarized_html as summarizedHtml, e.translated as translated, e.summarized as summarized, f.id as feedId, f.ttsSpeechRate as ttsSpeechRate, f.language as feedLanguage, f.title as feedTitle, f.imageUrl as feedImageUrl " +
+    @SuppressWarnings(RoomWarnings.QUERY_MISMATCH)
+    @Query("SELECT e.id as entryId, e.title as entryTitle, e.link as entryLink, e.description as entryDescription, e.imageUrl as entryImageUrl, e.publishedDate as entryPublishedDate, e.visitedDate as visitedDate, e.bookmark as bookmark, e.priority as priority, " +
+            "(e.content IS NOT NULL AND e.content != '') as hasContent, " +
+            "(e.original_html IS NOT NULL AND e.original_html != '') as hasOriginalHtml, " +
+            "(e.translated_html IS NOT NULL AND e.translated_html != '') as hasTranslated, " +
+            "(e.summarized_html IS NOT NULL AND e.summarized_html != '') as hasSummarized, " +
+            "SUBSTR(e.summarized, 1, 200) as summarizedSnippet, " +
+            "f.id as feedId, f.title as feedTitle, f.imageUrl as feedImageUrl, f.ttsSpeechRate as ttsSpeechRate " +
+            "FROM entry_table e " +
+            "LEFT JOIN feed_table f ON e.feedId = f.id " +
+            "ORDER BY e.publishedDate DESC")
+    LiveData<List<EntryListItem>> getAllEntriesListLive();
+
+    @Query("SELECT e.* FROM entry_table e " +
+            "WHERE e.visitedDate is null AND e.feedId IN (:feedIds)")
+    Flowable<List<Entry>> getUnreadEntriesForFeedsEntity(List<Long> feedIds);
+
+    @RewriteQueriesToDropUnusedColumns
+    @Query("SELECT e.id as entryId, e.title as entryTitle, e.priority as priority, e.link as entryLink, e.description as entryDescription, e.imageUrl as entryImageUrl, e.publishedDate as entryPublishedDate, e.visitedDate as visitedDate, e.category as entryCategory, e.bookmark as bookmark, " +
+            "(e.content IS NOT NULL AND e.content != '') as hasContent, " +
+            "(e.original_html IS NOT NULL AND e.original_html != '') as hasOriginalHtml, " +
+            "(e.translated_html IS NOT NULL AND e.translated_html != '') as hasTranslated, " +
+            "(e.summarized_html IS NOT NULL AND e.summarized_html != '') as hasSummarized, " +
+            "f.id as feedId, f.ttsSpeechRate as ttsSpeechRate, f.language as feedLanguage, f.title as feedTitle, f.imageUrl as feedImageUrl " +
             "FROM entry_table e " +
             "INNER JOIN feed_table f ON e.feedId = f.id " +
             "WHERE e.visitedDate is null AND f.id IN (:feedIds)")
     Flowable<List<EntryInfo>> getUnreadEntriesForFeeds(List<Long> feedIds);
 
     @RewriteQueriesToDropUnusedColumns
-    @Query("SELECT e.id as entryId, e.title as entryTitle, e.content as content, e.priority as priority, e.link as entryLink, e.description as entryDescription, e.imageUrl as entryImageUrl, e.publishedDate as entryPublishedDate, e.visitedDate as visitedDate, e.category as entryCategory, e.bookmark as bookmark, e.original_html as originalHtml, e.html as html, e.translated_html as translatedHtml, e.summarized_html as summarizedHtml, e.translated as translated, e.summarized as summarized, f.id as feedId, f.ttsSpeechRate as ttsSpeechRate, f.language as feedLanguage, f.title as feedTitle, f.imageUrl as feedImageUrl " +
+    @Query("SELECT e.id as entryId, e.title as entryTitle, e.priority as priority, e.link as entryLink, e.description as entryDescription, e.imageUrl as entryImageUrl, e.publishedDate as entryPublishedDate, e.visitedDate as visitedDate, e.category as entryCategory, e.bookmark as bookmark, " +
+            "(e.content IS NOT NULL AND e.content != '') as hasContent, " +
+            "(e.original_html IS NOT NULL AND e.original_html != '') as hasOriginalHtml, " +
+            "(e.translated_html IS NOT NULL AND e.translated_html != '') as hasTranslated, " +
+            "(e.summarized_html IS NOT NULL AND e.summarized_html != '') as hasSummarized, " +
+            "f.id as feedId, f.ttsSpeechRate as ttsSpeechRate, f.language as feedLanguage, f.title as feedTitle, f.imageUrl as feedImageUrl " +
             "FROM entry_table e " +
             "INNER JOIN feed_table f ON e.feedId = f.id " +
             "WHERE e.visitedDate is null AND f.autoSummarize = 1")
     Flowable<List<EntryInfo>> getUnreadEntriesForSummarization();
 
     @RewriteQueriesToDropUnusedColumns
-    @Query("SELECT e.id as entryId, e.title as entryTitle, e.content as content, e.priority as priority, e.link as entryLink, e.description as entryDescription, e.imageUrl as entryImageUrl, e.publishedDate as entryPublishedDate, e.visitedDate as visitedDate, e.category as entryCategory, e.bookmark as bookmark, e.original_html as originalHtml, e.html as html, e.translated_html as translatedHtml, e.summarized_html as summarizedHtml, e.translated as translated, e.summarized as summarized, f.id as feedId, f.ttsSpeechRate as ttsSpeechRate, f.language as feedLanguage, f.title as feedTitle, f.imageUrl as feedImageUrl " +
+    @Query("SELECT e.id as entryId, e.title as entryTitle, e.priority as priority, e.link as entryLink, e.description as entryDescription, e.imageUrl as entryImageUrl, e.publishedDate as entryPublishedDate, e.visitedDate as visitedDate, e.category as entryCategory, e.bookmark as bookmark, " +
+            "(e.content IS NOT NULL AND e.content != '') as hasContent, " +
+            "(e.original_html IS NOT NULL AND e.original_html != '') as hasOriginalHtml, " +
+            "(e.translated_html IS NOT NULL AND e.translated_html != '') as hasTranslated, " +
+            "(e.summarized_html IS NOT NULL AND e.summarized_html != '') as hasSummarized, " +
+            "f.id as feedId, f.ttsSpeechRate as ttsSpeechRate, f.language as feedLanguage, f.title as feedTitle, f.imageUrl as feedImageUrl " +
             "FROM entry_table e " +
             "LEFT JOIN feed_table f ON e.feedId = f.id " +
             "ORDER BY e.publishedDate DESC")
@@ -124,7 +199,12 @@ public interface EntryDao {
     List<Entry> getStaticEntriesByFeed(long id);
 
     @RewriteQueriesToDropUnusedColumns
-    @Query("SELECT e.id as entryId, e.title as entryTitle, e.content as content, e.priority as priority, e.link as entryLink, e.description as entryDescription, e.imageUrl as entryImageUrl, e.publishedDate as entryPublishedDate, e.visitedDate as visitedDate, e.category as entryCategory, e.bookmark as bookmark, e.original_html as originalHtml, e.html as html, e.translated_html as translatedHtml, e.summarized_html as summarizedHtml, e.translated as translated, e.summarized as summarized, f.id as feedId, f.ttsSpeechRate as ttsSpeechRate, f.language as feedLanguage, f.title as feedTitle, f.imageUrl as feedImageUrl " +
+    @Query("SELECT e.id as entryId, e.title as entryTitle, e.priority as priority, e.link as entryLink, e.description as entryDescription, e.imageUrl as entryImageUrl, e.publishedDate as entryPublishedDate, e.visitedDate as visitedDate, e.category as entryCategory, e.bookmark as bookmark, " +
+            "(e.content IS NOT NULL AND e.content != '') as hasContent, " +
+            "(e.original_html IS NOT NULL AND e.original_html != '') as hasOriginalHtml, " +
+            "(e.translated_html IS NOT NULL AND e.translated_html != '') as hasTranslated, " +
+            "(e.summarized_html IS NOT NULL AND e.summarized_html != '') as hasSummarized, " +
+            "f.id as feedId, f.ttsSpeechRate as ttsSpeechRate, f.language as feedLanguage, f.title as feedTitle, f.imageUrl as feedImageUrl " +
             "FROM entry_table e " +
             "INNER JOIN feed_table f ON e.feedId = f.id " +
             "WHERE (e.summarized_html IS NULL OR e.summarized_html NOT LIKE '%summarized-title%') AND (e.original_html IS NOT NULL AND e.original_html != '') " +
@@ -133,7 +213,12 @@ public interface EntryDao {
     List<EntryInfo> getUnsummarizedEntriesInfo();
 
     @RewriteQueriesToDropUnusedColumns
-    @Query("SELECT e.id as entryId, e.title as entryTitle, e.content as content, e.priority as priority, e.link as entryLink, e.description as entryDescription, e.imageUrl as entryImageUrl, e.publishedDate as entryPublishedDate, e.visitedDate as visitedDate, e.category as entryCategory, e.bookmark as bookmark, e.original_html as originalHtml, e.html as html, e.translated_html as translatedHtml, e.summarized_html as summarizedHtml, e.translated as translated, e.summarized as summarized, f.id as feedId, f.ttsSpeechRate as ttsSpeechRate, f.language as feedLanguage, f.title as feedTitle, f.imageUrl as feedImageUrl " +
+    @Query("SELECT e.id as entryId, e.title as entryTitle, e.priority as priority, e.link as entryLink, e.description as entryDescription, e.imageUrl as entryImageUrl, e.publishedDate as entryPublishedDate, e.visitedDate as visitedDate, e.category as entryCategory, e.bookmark as bookmark, " +
+            "(e.content IS NOT NULL AND e.content != '') as hasContent, " +
+            "(e.original_html IS NOT NULL AND e.original_html != '') as hasOriginalHtml, " +
+            "(e.translated_html IS NOT NULL AND e.translated_html != '') as hasTranslated, " +
+            "(e.summarized_html IS NOT NULL AND e.summarized_html != '') as hasSummarized, " +
+            "f.id as feedId, f.ttsSpeechRate as ttsSpeechRate, f.language as feedLanguage, f.title as feedTitle, f.imageUrl as feedImageUrl " +
             "FROM entry_table e " +
             "INNER JOIN feed_table f ON e.feedId = f.id " +
             "WHERE (e.translated_html IS NULL OR e.translated_html NOT LIKE '%translated-title%') AND (e.original_html IS NOT NULL AND e.original_html != '') " +
@@ -142,7 +227,12 @@ public interface EntryDao {
     List<EntryInfo> getUntranslatedEntriesInfo();
 
     @RewriteQueriesToDropUnusedColumns
-    @Query("SELECT e.id as entryId, e.title as entryTitle, e.content as content, e.priority as priority, e.link as entryLink, e.description as entryDescription, e.imageUrl as entryImageUrl, e.publishedDate as entryPublishedDate, e.visitedDate as visitedDate, e.category as entryCategory, e.bookmark as bookmark, e.original_html as originalHtml, e.html as html, e.translated_html as translatedHtml, e.summarized_html as summarizedHtml, e.translated as translated, e.summarized as summarized, f.id as feedId, f.ttsSpeechRate as ttsSpeechRate, f.language as feedLanguage, f.title as feedTitle, f.imageUrl as feedImageUrl " +
+    @Query("SELECT e.id as entryId, e.title as entryTitle, e.priority as priority, e.link as entryLink, e.description as entryDescription, e.imageUrl as entryImageUrl, e.publishedDate as entryPublishedDate, e.visitedDate as visitedDate, e.category as entryCategory, e.bookmark as bookmark, " +
+            "(e.content IS NOT NULL AND e.content != '') as hasContent, " +
+            "(e.original_html IS NOT NULL AND e.original_html != '') as hasOriginalHtml, " +
+            "(e.translated_html IS NOT NULL AND e.translated_html != '') as hasTranslated, " +
+            "(e.summarized_html IS NOT NULL AND e.summarized_html != '') as hasSummarized, " +
+            "f.id as feedId, f.ttsSpeechRate as ttsSpeechRate, f.language as feedLanguage, f.title as feedTitle, f.imageUrl as feedImageUrl " +
             "FROM entry_table e " +
             "LEFT JOIN feed_table f ON e.feedId = f.id " +
             "WHERE e.id = :id")

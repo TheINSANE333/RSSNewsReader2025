@@ -48,6 +48,7 @@ import xiangze.mmu.rssnewsreader.service.tts.TtsPlaylist;
 import xiangze.mmu.rssnewsreader.databinding.FragmentAllEntriesBinding;
 
 import xiangze.mmu.rssnewsreader.model.EntryInfo;
+import xiangze.mmu.rssnewsreader.model.EntryListItem;
 import xiangze.mmu.rssnewsreader.service.util.AutoSummarizer;
 import xiangze.mmu.rssnewsreader.service.util.AutoTranslator;
 import xiangze.mmu.rssnewsreader.service.util.TextUtil;
@@ -80,7 +81,7 @@ public class AllEntriesFragment extends Fragment implements EntryItemAdapter.Ent
     private AllEntriesViewModel allEntriesViewModel;
     private TextView unreadTextView;
     private EntryItemAdapter adapter;
-    private List<EntryInfo> entries = new ArrayList<>();
+    private List<? extends EntryInfo> entries = new ArrayList<>();
     private String sortBy;
     private String filterBy = "all";
     private String title;
@@ -231,14 +232,10 @@ public class AllEntriesFragment extends Fragment implements EntryItemAdapter.Ent
             }
         });
 
-        allEntriesViewModel.getAllEntries().observe(getViewLifecycleOwner(), new Observer<List<EntryInfo>>() {
+        allEntriesViewModel.getAllEntries().observe(getViewLifecycleOwner(), new Observer<List<EntryListItem>>() {
             @Override
-            public void onChanged(List<EntryInfo> entryInfos) {
+            public void onChanged(List<EntryListItem> entryInfos) {
                 entries = entryInfos;
-
-                for (EntryInfo entry : entries) {
-                    Log.d("ENTRY_CHECK", "Entry: " + entry.getEntryTitle() + ", FeedTitle: " + entry.getFeedTitle() + ", FeedID: " + entry.getFeedId());
-                }
 
                 if (entries.size() == 0) {
                     entriesRecycler.setVisibility(View.GONE);
@@ -246,11 +243,16 @@ public class AllEntriesFragment extends Fragment implements EntryItemAdapter.Ent
                 } else {
                     emptyContainer.setVisibility(View.GONE);
                     entriesRecycler.setVisibility(View.VISIBLE);
+                    
+                    // Use a temporary list for sorting to avoid modifying the observed list directly if needed,
+                    // but here we are assigning it back to 'entries'.
+                    List<EntryInfo> sortedList = new ArrayList<>(entries);
                     if (sortBy.equals("oldest")) {
-                        Collections.sort(entries, new EntryInfo.OldestComparator());
+                        Collections.sort(sortedList, new EntryInfo.OldestComparator());
                     } else {
-                        Collections.sort(entries, new EntryInfo.LatestComparator());
+                        Collections.sort(sortedList, new EntryInfo.LatestComparator());
                     }
+                    entries = sortedList;
                 }
                 adapter.submitList(new ArrayList<>(entries));
             }
@@ -363,13 +365,13 @@ public class AllEntriesFragment extends Fragment implements EntryItemAdapter.Ent
         allEntriesViewModel.getAllEntries().observe(getViewLifecycleOwner(), entries -> {
 
             this.entries = entries;
-            adapter.submitList(entries);
+            adapter.submitList(new ArrayList<>(entries));
 
             // Auto-translation (single run)
             if (autoTranslator != null && autoTranslationStarted.compareAndSet(false, true)) {
 
                 autoTranslator.runAutoTranslation(() -> {
-                    adapter.submitList(new ArrayList<>(entries));
+                    adapter.submitList(new ArrayList<>(this.entries));
                     Log.d("AutoTranslator", "Auto translation finished");
                 });
             }
@@ -378,7 +380,7 @@ public class AllEntriesFragment extends Fragment implements EntryItemAdapter.Ent
             if (autoSummarizer != null && autoSummarizationStarted.compareAndSet(false, true)) {
 
                 autoSummarizer.runAutoSummarization(() -> {
-                    adapter.submitList(new ArrayList<>(entries));
+                    adapter.submitList(new ArrayList<>(this.entries));
                     Log.d("AutoSummarizer", "Auto summarization finished");
                 });
             }
@@ -420,17 +422,17 @@ public class AllEntriesFragment extends Fragment implements EntryItemAdapter.Ent
                         @Override
                         public boolean onQueryTextChange(String newText) {
                             final String query = newText.toLowerCase(Locale.ROOT);
-                            final List<EntryInfo> filteredEntries = new ArrayList<>();
+                            final List<EntryListItem> filteredEntries = new ArrayList<>();
 
                             if (entries != null) {
                                 for (EntryInfo entryInfo : entries) {
                                     if (entryInfo.getEntryTitle().toLowerCase(Locale.ROOT).contains(query)) {
-                                        filteredEntries.add(entryInfo);
+                                        filteredEntries.add((EntryListItem) entryInfo);
                                     }
                                 }
                             }
 
-                            adapter.submitList(filteredEntries);
+                            adapter.submitList(new ArrayList<>(filteredEntries));
                             return true;
                         }
                     });
@@ -642,7 +644,7 @@ public class AllEntriesFragment extends Fragment implements EntryItemAdapter.Ent
         } else {
             Collections.sort(sortedEntries, new EntryInfo.LatestComparator());
         }
-        adapter.submitList(sortedEntries);
+        adapter.submitList(new ArrayList<>(sortedEntries));
         entries = sortedEntries;
     }
 

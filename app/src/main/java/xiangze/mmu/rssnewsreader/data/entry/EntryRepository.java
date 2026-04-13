@@ -8,6 +8,7 @@ import xiangze.mmu.rssnewsreader.data.history.History;
 import xiangze.mmu.rssnewsreader.data.history.HistoryRepository;
 import xiangze.mmu.rssnewsreader.data.sharedpreferences.SharedPreferencesRepository;
 import xiangze.mmu.rssnewsreader.model.EntryInfo;
+import xiangze.mmu.rssnewsreader.model.EntryListItem;
 import xiangze.mmu.rssnewsreader.service.util.TextUtil;
 
 import java.util.Date;
@@ -78,6 +79,10 @@ public class EntryRepository {
 
     public Flowable<List<EntryInfo>> getUnreadEntriesForFeeds(List<Long> feedIds) {
         return entryDao.getUnreadEntriesForFeeds(feedIds);
+    }
+
+    public Flowable<List<Entry>> getUnreadEntriesForFeedsEntity(List<Long> feedIds) {
+        return entryDao.getUnreadEntriesForFeedsEntity(feedIds);
     }
 
     public long getLastVisitedEntryId() {
@@ -212,17 +217,13 @@ public class EntryRepository {
 
 
     public void insert(EntryInfo info) {
-        Entry entry = new Entry(info.getFeedId(), info.getEntryTitle(), info.getEntryLink(), info.getEntryDescription(), info.getEntryImageUrl(), info.getEntryCategory(), info.getEntryPublishedDate());
-        entry.setId(info.getEntryId());
+        Entry entry = getEntryById(info.getEntryId());
+        if (entry == null) {
+            entry = new Entry(info.getFeedId(), info.getEntryTitle(), info.getEntryLink(), info.getEntryDescription(), info.getEntryImageUrl(), info.getEntryCategory(), info.getEntryPublishedDate());
+            entry.setId(info.getEntryId());
+        }
         entry.setBookmark(info.getBookmark());
         entry.setVisitedDate(info.getVisitedDate());
-        entry.setContent(info.getContent());
-        entry.setHtml(info.getHtml());
-        entry.setOriginalHtml(info.getOriginalHtml());
-        entry.setTranslatedHtml(info.getTranslatedHtml());
-        entry.setSummarizedHtml(info.getSummarizedHtml());
-        entry.setTranslated(info.getTranslated());
-        entry.setSummarized(info.getSummarized());
         
         historyRepository.insert(new History(entry.getFeedId(), new Date(), entry.getTitle(), textUtil.normalizeUrl(entry.getLink())));
         entryDao.insert(entry);
@@ -408,6 +409,10 @@ public class EntryRepository {
         int limit = sharedPreferencesRepository.getEntriesLimitPerFeed();
         Log.d("test", "" + limit);
         entryDao.limitEntriesByFeed(feedId, limit);
+    }
+
+    public LiveData<List<EntryListItem>> getAllEntriesListLive() {
+        return entryDao.getAllEntriesListLive();
     }
 
     public LiveData<List<EntryInfo>> getAllEntriesLive() {

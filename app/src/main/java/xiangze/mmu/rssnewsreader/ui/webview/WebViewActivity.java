@@ -519,9 +519,12 @@ public class WebViewActivity extends AppCompatActivity implements ReloadDialog.R
 
     @Override
     public void onReExtract() {
-        webViewViewModel.reExtract(currentId);
-        loadEntryContent();
-        makeSnackbar("Clearing content and re-extracting...");
+        if (webViewViewModel != null && currentId != 0) {
+            GlobalState.setCurrentViewingId(0);
+            webViewViewModel.reExtract(currentId);
+            loadEntryContent();
+            makeSnackbar("Clearing content and re-extracting...");
+        }
     }
 
     private void translate() {
@@ -683,9 +686,25 @@ public class WebViewActivity extends AppCompatActivity implements ReloadDialog.R
         });
     }
 
-    public void showFakeLoading() { loading.setVisibility(View.VISIBLE); loading.setProgress(0); }
-    public void hideFakeLoading() { loading.setVisibility(View.GONE); }
-    public void updateLoadingProgress(int p) { loading.setProgress(p); if (p >= 100) hideFakeLoading(); }
+    public void showFakeLoading() {
+        loading.setIndeterminate(true);
+        loading.setVisibility(View.VISIBLE);
+    }
+
+    public void hideFakeLoading() {
+        loading.setVisibility(View.GONE);
+        loading.setIndeterminate(false);
+    }
+
+    public void updateLoadingProgress(int p) {
+        loading.setIndeterminate(false);
+        loading.setProgress(p);
+        if (p < 100) {
+            loading.setVisibility(View.VISIBLE);
+        } else {
+            hideFakeLoading();
+        }
+    }
     public void syncLoadingWithTts() { /* Logic to sync */ }
     private long lastHandledReloadFeedId = -1;
 

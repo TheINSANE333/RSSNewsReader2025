@@ -122,31 +122,7 @@ public class WebViewViewModel extends ViewModel {
     }
 
     public void reExtract(long id) {
-        entryRepository.updateHtml(null, id);
-        entryRepository.updateOriginalHtml(null, id);
-        entryRepository.updateTranslatedText(null, id);
-        entryRepository.updateTranslated(null, id);
-        entryRepository.updateTranslatedHtml(null, id);
-        entryRepository.updateSummarized(null, id);
-        entryRepository.updateSummarizedHtml(null, id);
-        entryRepository.updateSummarizedText(null, id);
-        entryRepository.updateContent(null, id);
-        entryRepository.updateSentCountByLink(0, id);
-        clearViewData();
-        setIsTranslatedView(false);
-        setIsSummarizedView(false);
-    }
-
-    @Inject
-    public WebViewViewModel(EntryRepository entryRepository, 
-                            xiangze.mmu.rssnewsreader.data.playlist.PlaylistRepository playlistRepository,
-                            SharedPreferencesRepository sharedPreferencesRepository) {
-        this.entryRepository = entryRepository;
-        this.playlistRepository = playlistRepository;
-        this.sharedPreferencesRepository = sharedPreferencesRepository;
-    }
-
-    public void resetEntry(long id) {
+        if (id <= 0) return;
         entryRepository.updateHtml(null, id);
         entryRepository.updateOriginalHtml(null, id);
         entryRepository.updateTranslatedText(null, id);
@@ -159,6 +135,22 @@ public class WebViewViewModel extends ViewModel {
         entryRepository.updateSentCountByLink(0, id);
         entryRepository.updatePriority(1, id);
         clearViewData();
+        setIsTranslatedView(false);
+        setIsSummarizedView(false);
+        triggerEntryRefresh(id);
+    }
+
+    @Inject
+    public WebViewViewModel(EntryRepository entryRepository, 
+                            xiangze.mmu.rssnewsreader.data.playlist.PlaylistRepository playlistRepository,
+                            SharedPreferencesRepository sharedPreferencesRepository) {
+        this.entryRepository = entryRepository;
+        this.playlistRepository = playlistRepository;
+        this.sharedPreferencesRepository = sharedPreferencesRepository;
+    }
+
+    public void resetEntry(long id) {
+        reExtract(id);
     }
 
     public void clearLiveEntryCache(long id) {

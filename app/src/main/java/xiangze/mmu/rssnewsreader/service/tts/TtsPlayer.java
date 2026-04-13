@@ -420,6 +420,7 @@ public class TtsPlayer extends PlayerAdapter implements TtsPlayerListener {
         sentences.clear();
         sentenceCounter = 0;
         isArticleFinished = false;
+        showFakeLoadingLiveData.postValue(true);
 
         // Force reset setup flag after 10s if it's still stuck, to allow manual play
         new Handler(Looper.getMainLooper()).postDelayed(() -> {

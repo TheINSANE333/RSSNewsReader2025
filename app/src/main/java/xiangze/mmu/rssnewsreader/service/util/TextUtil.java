@@ -221,56 +221,14 @@ public class TextUtil {
                                     })
                                     .doOnNext(translatedText -> {
                                         // Emit progress update
-                                        int progress = (int) (100.0 * (translatedElements.incrementAndGet()) / elements.size());
-                                        progressCallback.accept(progress);
-                                    })
-                                    .toList()
-                                    .map(ignored -> document.outerHtml());
-                        })
-                        .subscribe(
-                                emitter::onSuccess,
-                                emitter::onError
-                        );
-            } catch (Exception e) {
-                emitter.onError(e);
-            }
-        });
-    }
-
-    @SuppressLint("CheckResult")
-    public Single<String> translateHtmlLineByLine(String sourceLanguage, String targetLanguage, String html, String title, long articleId) {
-        Log.d(TAG, "translateHtmlLineByLine: from " + sourceLanguage + " to " + targetLanguage);
-        return Single.create(emitter -> {
-            try {
-                // First, translate the title
-                translateText(sourceLanguage, targetLanguage, title)
-                        .flatMap(translatedTitle -> {
-                            // Parse the HTML
-                            Document document = Jsoup.parse(html);
-                            // List of tags to extract text from
-                            List<String> tags = Arrays.asList("h2", "h3", "h4", "h5", "h6", "p", "td", "pre", "th", "li", "figcaption", "blockquote", "section");
-                            // Get all elements with the specified tags
-                            Elements elements = document.select(String.join(",", tags));
-
-                            Element existingTitleElement = document.select("p.translated-title").first();
-                            if (existingTitleElement == null) {
-                                Element titleParagraph = new Element(Tag.valueOf("p"), "");
-                                titleParagraph.text(translatedTitle);
-                                titleParagraph.addClass("translated-title");
-                                titleParagraph.attr("data-article-id", String.valueOf(articleId));
-                                document.body().prependChild(titleParagraph);
-                            }
-
-                            // Create a Flowable from the elements
-                            return Flowable.fromIterable(elements)
-                                    .flatMapMaybe(element -> {
-                                        if (element.hasText()) {
-                                            return translateText(sourceLanguage, targetLanguage, element.text()).map(translateText -> {
-                                                element.text(translateText);
-                                                return translateText;
-                                            }).toMaybe();
+                                        if (elements.size() > 0) {
+                                            int progress = (int) (100.0 * (translatedElements.incrementAndGet()) / elements.size());
+                                            try {
+                                                progressCallback.accept(progress);
+                                            } catch (Throwable e) {
+                                                Log.e(TAG, "Progress callback failed", e);
+                                            }
                                         }
-                                        return Maybe.empty();
                                     })
                                     .toList()
                                     .map(ignored -> document.outerHtml());
@@ -594,7 +552,7 @@ public class TextUtil {
         });
     }
 
-    public Single<String> summarizeDailyNews(List<xiangze.mmu.rssnewsreader.model.EntryInfo> entries, String targetLanguage) {
+    public Single<String> summarizeDailyNews(List<xiangze.mmu.rssnewsreader.data.entry.Entry> entries, String targetLanguage) {
         return Single.create(emitter -> {
             try {
                 if (entries == null || entries.isEmpty()) {
@@ -615,12 +573,12 @@ public class TextUtil {
 
                 StringBuilder userPrompt = new StringBuilder("Here are the news articles for today:\n\n");
                 for (int i = 0; i < entries.size(); i++) {
-                    xiangze.mmu.rssnewsreader.model.EntryInfo entry = entries.get(i);
-                    userPrompt.append(i + 1).append(". [").append(entry.getFeedTitle()).append("] ").append(entry.getEntryTitle()).append("\n");
+                    xiangze.mmu.rssnewsreader.data.entry.Entry entry = entries.get(i);
+                    userPrompt.append(i + 1).append(". ").append(entry.getTitle()).append("\n");
                     
                     String content = entry.getSummarized();
                     if (content == null || content.isEmpty()) {
-                        content = entry.getEntryDescription();
+                        content = entry.getDescription();
                     }
                     if (content != null && !content.isEmpty()) {
                         // Limit content per article to avoid context window issues

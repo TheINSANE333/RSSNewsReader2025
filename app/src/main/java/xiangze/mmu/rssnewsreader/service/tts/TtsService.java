@@ -316,10 +316,13 @@ public class TtsService extends MediaBrowserServiceCompat {
         public void onPlay() {
             Log.d(TAG, "onPlay called");
             ttsPlayer.setPausedManually(false);
-            if (!ttsPlayer.isPreparing()) {
-                ttsPlayer.setupMediaPlayer(false);
-                play();
+            if (ttsPlayer.isPreparing()) {
+                Log.d(TAG, "onPlay: Player is preparing, show feedback and wait for setupTts()");
+                ContextCompat.getMainExecutor(getApplicationContext()).execute(() -> ttsPlayer.showFakeLoading());
+                return;
             }
+            ttsPlayer.setupMediaPlayer(false);
+            play();
         }
 
         @Override

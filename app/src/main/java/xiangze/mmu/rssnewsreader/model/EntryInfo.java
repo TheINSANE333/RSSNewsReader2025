@@ -18,14 +18,13 @@ public class EntryInfo {
     private Date entryPublishedDate;
     private Date visitedDate;
     private String bookmark;
-    private String content;
-    private String html;
     private int priority;
-    private String originalHtml;
-    private String translatedHtml;
-    private String translated;
-    private String summarizedHtml;
-    private String summarized;
+    
+    // Status flags
+    private boolean hasContent;
+    private boolean hasOriginalHtml;
+    private boolean hasTranslated;
+    private boolean hasSummarized;
 
     // Feed
     private long feedId;
@@ -33,6 +32,9 @@ public class EntryInfo {
     private String feedLanguage;
     private String feedTitle;
     private String feedImageUrl;
+
+    @androidx.room.Ignore
+    private String summarizedSnippet;
 
     @Ignore
     private boolean selected;
@@ -206,7 +208,10 @@ public class EntryInfo {
         EntryInfo entryInfo = (EntryInfo) o;
         return entryId == entryInfo.entryId &&
                 priority == entryInfo.priority &&
-                Objects.equals(content, entryInfo.content) &&
+                hasContent == entryInfo.hasContent &&
+                hasOriginalHtml == entryInfo.hasOriginalHtml &&
+                hasTranslated == entryInfo.hasTranslated &&
+                hasSummarized == entryInfo.hasSummarized &&
                 Objects.equals(entryTitle, entryInfo.entryTitle) &&
                 Objects.equals(entryLink, entryInfo.entryLink) &&
                 Objects.equals(entryDescription, entryInfo.entryDescription) &&
@@ -233,21 +238,8 @@ public class EntryInfo {
         }
     }
 
-    public String getContent() {
-        return content;
-    }
-
-    public void setContent(String content) {
-        this.content = content;
-    }
-
-    public String getHtml() {
-        return html;
-    }
-
-    public void setHtml(String html) {
-        this.html = html;
-    }
+    public String getSummarizedSnippet() { return summarizedSnippet; }
+    public void setSummarizedSnippet(String summarizedSnippet) { this.summarizedSnippet = summarizedSnippet; }
 
     public int getPriority() {
         return priority;
@@ -257,42 +249,15 @@ public class EntryInfo {
         this.priority = priority;
     }
 
-    public String getOriginalHtml() {
-        return originalHtml;
-    }
-    public void   setOriginalHtml(String originalHtml) {
-        this.originalHtml = originalHtml;
-    }
+    public boolean isHasContent() { return hasContent; }
+    public void setHasContent(boolean hasContent) { this.hasContent = hasContent; }
 
-    public String getTranslatedHtml() {
-        return translatedHtml;
-    }
+    public boolean isHasOriginalHtml() { return hasOriginalHtml; }
+    public void setHasOriginalHtml(boolean hasOriginalHtml) { this.hasOriginalHtml = hasOriginalHtml; }
 
-    public void   setTranslatedHtml(String html) {
-        this.translatedHtml = html;
-    }
+    public boolean isHasTranslated() { return hasTranslated; }
+    public void setHasTranslated(boolean hasTranslated) { this.hasTranslated = hasTranslated; }
 
-    public String getTranslated() {
-        return translated;
-    }
-
-    public void setTranslated(String translated) {
-        this.translated = translated;
-    }
-
-    public String getSummarizedHtml() {
-        return summarizedHtml;
-    }
-
-    public void   setSummarizedHtml(String html) {
-        this.summarizedHtml = html;
-    }
-
-    public String getSummarized() {
-        return summarized;
-    }
-
-    public void setSummarized(String summarized) {
-        this.summarized = summarized;
-    }
+    public boolean isHasSummarized() { return hasSummarized; }
+    public void setHasSummarized(boolean hasSummarized) { this.hasSummarized = hasSummarized; }
 }

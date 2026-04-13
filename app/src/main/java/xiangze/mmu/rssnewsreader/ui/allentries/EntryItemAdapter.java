@@ -47,15 +47,11 @@ public class EntryItemAdapter extends ListAdapter<EntryInfo, EntryItemAdapter.En
     }
 
     private static boolean hasTranslation(EntryInfo e) {
-        String orig  = e.getOriginalHtml();
-        String trans = e.getTranslatedHtml();
-        return !TextUtils.isEmpty(trans) && (orig == null || !trans.equals(orig));
+        return e.isHasTranslated();
     }
 
     private static boolean hasSummarization(EntryInfo e) {
-        String orig  = e.getOriginalHtml();
-        String sum = e.getSummarizedHtml();
-        return !TextUtils.isEmpty(sum) && (orig == null || !sum.equals(orig));
+        return e.isHasSummarized();
     }
 
     private static final DiffUtil.ItemCallback<EntryInfo> DIFF_CALLBACK = new DiffUtil.ItemCallback<EntryInfo>() {
@@ -66,14 +62,14 @@ public class EntryItemAdapter extends ListAdapter<EntryInfo, EntryItemAdapter.En
 
         @Override
         public boolean areContentsTheSame(@NonNull EntryInfo oldE, @NonNull EntryInfo newE) {
-            boolean oldTranslated = hasTranslation(oldE);
-            boolean newTranslated = hasTranslation(newE);
+            boolean oldTranslated = oldE.isHasTranslated();
+            boolean newTranslated = newE.isHasTranslated();
 
-            boolean oldSummarized = hasSummarization(oldE);
-            boolean newSummarized = hasSummarization(newE);
+            boolean oldSummarized = oldE.isHasSummarized();
+            boolean newSummarized = newE.isHasSummarized();
 
-            boolean oldExtracted = !TextUtils.isEmpty(oldE.getContent());
-            boolean newExtracted = !TextUtils.isEmpty(newE.getContent());
+            boolean oldExtracted = oldE.isHasContent();
+            boolean newExtracted = newE.isHasContent();
 
             boolean sameBookmark = Objects.equals(oldE.getBookmark(), newE.getBookmark());
             boolean sameVisited  = Objects.equals(oldE.getVisitedDate(), newE.getVisitedDate());
@@ -144,7 +140,7 @@ public class EntryItemAdapter extends ListAdapter<EntryInfo, EntryItemAdapter.En
             textViewEntryPubDate.setText(pubDate);
 
             // Bind Summary Snippet
-            String summary = entryInfo.getSummarized();
+            String summary = entryInfo.getSummarizedSnippet();
             if (!TextUtils.isEmpty(summary)) {
                 textViewEntrySummary.setText(summary.trim());
                 textViewEntrySummary.setVisibility(View.VISIBLE);
@@ -228,24 +224,19 @@ public class EntryItemAdapter extends ListAdapter<EntryInfo, EntryItemAdapter.En
                 }
             });
 
-            String content = entryInfo.getContent();
-            int priority = entryInfo.getPriority();
-            boolean hasOriginalHtml   = !TextUtils.isEmpty(entryInfo.getOriginalHtml());
-            boolean hasTranslatedHtml = hasTranslation(entryInfo);
-            boolean hasSummarizedHtml = hasSummarization(entryInfo);
-
-//            Log.d("CHECK STATS", "Original: " + entryInfo.getOriginalHtml());
-//            Log.d("CHECK STATS", "Translated: " + entryInfo.getTranslatedHtml());
-//            Log.d("CHECK STATS", "Summarized: " + entryInfo.getSummarizedHtml());
+            boolean hasContent      = entryInfo.isHasContent();
+            int priority            = entryInfo.getPriority();
+            boolean hasOriginalHtml = entryInfo.isHasOriginalHtml();
+            boolean hasTranslatedHtml = entryInfo.isHasTranslated();
+            boolean hasSummarizedHtml = entryInfo.isHasSummarized();
 
             statusView.setText("");
 
             if (autoTranslateEnabled && autoSummarizeEnabled) {
-                Log.d("CHECK STATS", "Both enabled");
                 if (hasOriginalHtml && hasTranslatedHtml && hasSummarizedHtml) {
                     statusView.setBackgroundResource(R.drawable.status_dot_green);
                     statusView.setVisibility(View.VISIBLE);
-                } else if (content != null && !content.isEmpty()) {
+                } else if (hasContent) {
                     statusView.setBackgroundResource(R.drawable.status_dot_yellow);
                     statusView.setVisibility(View.VISIBLE);
                 }else {
@@ -253,26 +244,21 @@ public class EntryItemAdapter extends ListAdapter<EntryInfo, EntryItemAdapter.En
                     statusView.setVisibility(View.VISIBLE);
                 }
             } else if (autoSummarizeEnabled) {
-                Log.d("CHECK STATS", "Summarize enabled");
                 if (hasOriginalHtml && hasSummarizedHtml) {
-                    Log.d("CHECK STATS", "Green");
                     statusView.setBackgroundResource(R.drawable.status_dot_green);
                     statusView.setVisibility(View.VISIBLE);
-                } else if (content != null && !content.isEmpty()) {
-                    Log.d("CHECK STATS", "Yellow");
+                } else if (hasContent) {
                     statusView.setBackgroundResource(R.drawable.status_dot_yellow);
                     statusView.setVisibility(View.VISIBLE);
                 }else {
-                    Log.d("CHECK STATS", "Red");
                     statusView.setBackgroundResource(R.drawable.status_dot_red);
                     statusView.setVisibility(View.VISIBLE);
                 }
             } else if (autoTranslateEnabled) {
-                Log.d("CHECK STATS", "Translate enabled");
                 if (hasOriginalHtml && hasTranslatedHtml) {
                     statusView.setBackgroundResource(R.drawable.status_dot_green);
                     statusView.setVisibility(View.VISIBLE);
-                } else if (content != null && !content.isEmpty()) {
+                } else if (hasContent) {
                     statusView.setBackgroundResource(R.drawable.status_dot_yellow);
                     statusView.setVisibility(View.VISIBLE);
                 }else {
@@ -280,8 +266,7 @@ public class EntryItemAdapter extends ListAdapter<EntryInfo, EntryItemAdapter.En
                     statusView.setVisibility(View.VISIBLE);
                 }
             } else {
-                Log.d("CHECK STATS", "Both disabled");
-                if (content != null && !content.isEmpty()) {
+                if (hasContent) {
                     statusView.setBackgroundResource(R.drawable.status_dot_green);
                     statusView.setVisibility(View.VISIBLE);
                 } else if (priority > 0) {

@@ -222,20 +222,26 @@ public class TtsExtractor {
             extractionInProgress = false;
         }
 
-        if (extractionInProgress) {
-            Log.d(TAG, "Extraction already in progress for ID: " + currentIdInProgress);
-            return;
-        }
-
         // 1. PRIORITIZE: Check if the currently viewing article needs extraction
         long viewingId = GlobalState.getCurrentViewingId();
         Entry entry = null;
         if (viewingId != 0 && !failedIds.contains(viewingId)) {
             Entry viewingEntry = entryRepository.getEntryById(viewingId);
             if (viewingEntry != null && (viewingEntry.getContent() == null || viewingEntry.getContent().trim().isEmpty())) {
+                // If we are currently extracting SOMETHING ELSE, cancel it and prioritize this one
+                if (extractionInProgress && currentIdInProgress != viewingId) {
+                    Log.d(TAG, "Interrupting current extraction (" + currentIdInProgress + ") for prioritized viewingId: " + viewingId);
+                    cancelExtraction();
+                    // cancelExtraction() will reset flags and WebView, then we can proceed to extract viewingId
+                }
                 entry = viewingEntry;
                 Log.d(TAG, "Prioritizing currently viewing article from GlobalState: " + viewingId);
             }
+        }
+
+        if (extractionInProgress) {
+            Log.d(TAG, "Extraction already in progress for ID: " + currentIdInProgress);
+            return;
         }
 
         // 2. FALLBACK: Get the next highest priority empty entry
