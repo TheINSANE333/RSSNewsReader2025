@@ -1,11 +1,15 @@
 package xiangze.mmu.rssnewsreader.service.rss;
 
+import android.util.Log;
+
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Locale;
 
 public class RssItem {
+
+    private static final String TAG = "RssItem";
 
     private String title;
     private String description;
@@ -17,6 +21,10 @@ public class RssItem {
 
     public String getDescription() {
         return description;
+    }
+
+    public void setDescription(String description) {
+        this.description = description;
     }
 
     public String getImageUrl() {
@@ -39,10 +47,6 @@ public class RssItem {
         this.link = link;
     }
 
-    public void setDescription(String description) {
-        this.description = description;
-    }
-
     public void setTitle(String title) {
         this.title = title;
     }
@@ -54,16 +58,24 @@ public class RssItem {
         return pubDate;
     }
 
+    public void setPubDate(Date pubDate) {
+        this.pubDate = pubDate;
+    }
+
     public void setPubDate(String pubDate) {
+        if (pubDate == null || pubDate.isEmpty()) {
+            this.pubDate = new Date();
+            return;
+        }
+
         try {
             SimpleDateFormat dateFormat = new SimpleDateFormat("EEE, dd MMM yyyy HH:mm:ss Z", Locale.ENGLISH);
-            if (pubDate == null || pubDate.isEmpty()) {
-                this.pubDate = new Date();
-            } else {
-                this.pubDate = dateFormat.parse(pubDate);
-            }
+            this.pubDate = dateFormat.parse(pubDate);
         } catch (ParseException e) {
-            e.printStackTrace();
+            Log.e(TAG, "Failed to parse date: " + pubDate + ". " + e.getMessage());
+            if (this.pubDate == null) {
+                this.pubDate = new Date();
+            }
         }
     }
 

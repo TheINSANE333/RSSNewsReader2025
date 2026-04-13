@@ -73,9 +73,8 @@ public class WebFeedReader {
                     if (date != null) {
                         item.setPubDate(date);
                     } else {
-                        // Default to now if not found (handled by RssItem getter if null, 
-                        // but RssItem.setPubDate(null) sets it to now, so we can explicit it here or leave it)
-                        item.setPubDate(new java.util.Date().toString()); 
+                        // Default to now if not found (handled by RssItem getter if null)
+                        item.setPubDate((String) null); 
                     }
                     
                     items.add(item);
