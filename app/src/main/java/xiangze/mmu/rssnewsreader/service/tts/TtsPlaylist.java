@@ -72,8 +72,10 @@ public class TtsPlaylist {
                 if (imageUrl != null && !imageUrl.isEmpty()) {
                     localFeedImage[0] = Picasso.get().load(imageUrl).get();
                 }
-            } catch (IOException e) {
-                android.util.Log.e("TtsPlaylist", "Error loading feed image", e);
+            } catch (Exception e) {
+                // Catching Exception to cover Picasso's ResponseException (for 404s) and other IO issues.
+                // Log as Warning instead of Error for 404s to reduce log noise.
+                android.util.Log.w("TtsPlaylist", "Could not load feed image: " + e.getMessage());
             }
         });
         thread.start();

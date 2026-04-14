@@ -78,7 +78,7 @@ public class TtsNotification extends Notification {
     }
 
     public Notification getNotification(MediaMetadataCompat metaData, @NonNull PlaybackStateCompat state, MediaSessionCompat.Token token) {
-        MediaDescriptionCompat description = metaData.getDescription();
+        MediaDescriptionCompat description = (metaData != null) ? metaData.getDescription() : null;
         return buildNotification(state, token, description);
     }
 
@@ -100,15 +100,22 @@ public class TtsNotification extends Notification {
                 .setSmallIcon(R.drawable.ic_rss)
                 .setColor(Color.WHITE)
                 .setContentIntent(createContentIntent())
-                .setDeleteIntent(TtsMediaButtonReceiver.buildMediaButtonPendingIntent(ttsService, PlaybackStateCompat.ACTION_STOP))
-                .setContentTitle(description.getTitle())
-                .setContentText(description.getSubtitle())
-                .setLargeIcon(description.getIconBitmap())
-                .setPriority(NotificationCompat.PRIORITY_HIGH)
+                .setDeleteIntent(TtsMediaButtonReceiver.buildMediaButtonPendingIntent(ttsService, PlaybackStateCompat.ACTION_STOP));
+
+        if (description != null) {
+            builder.setContentTitle(description.getTitle())
+                    .setContentText(description.getSubtitle())
+                    .setLargeIcon(description.getIconBitmap());
+        } else {
+            builder.setContentTitle("RSS News Reader")
+                    .setContentText("Preparing playback...");
+        }
+
+        builder.setPriority(NotificationCompat.PRIORITY_HIGH)
                 .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
                 .setOnlyAlertOnce(true)
                 .setStyle(new androidx.media.app.NotificationCompat.MediaStyle()
-                        .setShowActionsInCompactView(0,2,4)
+                        .setShowActionsInCompactView(0, 2, 4)
                         .setMediaSession(token)
                         .setShowCancelButton(true)
                         .setCancelButtonIntent(TtsMediaButtonReceiver.buildMediaButtonPendingIntent(ttsService, PlaybackStateCompat.ACTION_STOP)));

@@ -131,26 +131,43 @@ public class TtsPlayer extends PlayerAdapter implements TtsPlayerListener {
     public void initTts(TtsService ttsService, PlaybackStateListener listener, MediaSessionCompat.Callback callback) {
         this.listener = listener;
         this.callback = callback;
+
+        if (tts != null) {
+            return;
+        }
+
+        // Initialize TTS. Note: onInit callback may happen on the main thread or a binder thread.
+        // We assign to the class variable 'tts' immediately so it's available in the callback.
         tts = new TextToSpeech(ttsService, status -> {
             if (status == TextToSpeech.SUCCESS) {
                 Log.d(TAG, "initTts successful");
                 isInit = true;
 
-                // CRITICAL: Bind TTS to the correct Audio Attributes so the system 
-                // knows it's part of our MediaSession / Audio Focus.
+                // CRITICAL: Bind TTS to the correct Audio Attributes.
                 AudioAttributes playbackAttributes = new AudioAttributes.Builder()
                         .setUsage(AudioAttributes.USAGE_MEDIA)
                         .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
                         .build();
-                tts.setAudioAttributes(playbackAttributes);
+
+                // Re-check tts for null in case shutdown was called quickly
+                if (tts != null) {
+                    try {
+                        tts.setAudioAttributes(playbackAttributes);
+                    } catch (Exception e) {
+                        Log.e(TAG, "Error setting audio attributes: " + e.getMessage());
+                    }
+                }
 
                 if (actionNeeded) {
                     Log.d(TAG, "Deferred auto-play activated — TTS is now ready");
                     setupTts();
                     actionNeeded = false;
                 }
+            } else {
+                Log.e(TAG, "TTS Initialization failed with status: " + status);
             }
         });
+
         tts.setOnUtteranceProgressListener(new UtteranceProgressListener() {
             @Override
             public void onStart(String utteranceId) {
@@ -296,6 +313,8 @@ public class TtsPlayer extends PlayerAdapter implements TtsPlayerListener {
         isPreparing = false;
         isArticleFinished = false;
         isSettingUpNewArticle = false;
+        sentences.clear();
+        sentenceCounter = 0;
         setUiControlPlayback(false);
         setNewState(PlaybackStateCompat.STATE_PAUSED);
         if (playbackUiListener != null) {
