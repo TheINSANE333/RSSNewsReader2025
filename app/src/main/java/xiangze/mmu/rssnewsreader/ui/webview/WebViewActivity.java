@@ -774,7 +774,10 @@ public class WebViewActivity extends AppCompatActivity implements ReloadDialog.R
 
             if (u != null && !u.startsWith("file:///android_res/")) {
                 final String executionToken = currentLoadToken;
-                int delay = feedRepository.getDelayTimeById(feedId);
+                // Reduce the initial delay from database delay to a faster baseline (e.g., 1s)
+                // but still respect if the database asks for something extremely specific.
+                int dbDelay = feedRepository.getDelayTimeById(feedId);
+                int delay = Math.min(dbDelay, 1); 
                 new Handler(Looper.getMainLooper()).postDelayed(() -> checkReadyState(v, executionToken, 1), delay * 1000L);
             }
         }
@@ -809,7 +812,8 @@ public class WebViewActivity extends AppCompatActivity implements ReloadDialog.R
 
             if (u != null && !u.startsWith("file:///android_res/")) {
                 final String executionToken = currentLoadToken;
-                int delay = feedRepository.getDelayTimeById(feedId);
+                int dbDelay = feedRepository.getDelayTimeById(feedId);
+                int delay = Math.min(dbDelay, 1);
                 new Handler(Looper.getMainLooper()).postDelayed(() -> checkReadyState(v, executionToken, 1), delay * 1000L);
             }
         }
@@ -821,19 +825,16 @@ public class WebViewActivity extends AppCompatActivity implements ReloadDialog.R
         view.evaluateJavascript("(function() { return document.readyState; })();", value -> {
             if (!executionToken.equals(currentLoadToken) || hasProcessedCurrentToken) return;
 
-            if (value != null && value.contains("complete")) {
-                new Handler(Looper.getMainLooper()).postDelayed(() -> extractHtml(view, executionToken), 5000);
-            } else if (value != null && value.contains("interactive")) {
-                if (attempt < 15) {
-                    new Handler(Looper.getMainLooper()).postDelayed(() -> checkReadyState(view, executionToken, attempt + 1), 2000);
-                } else {
-                    new Handler(Looper.getMainLooper()).postDelayed(() -> extractHtml(view, executionToken), 5000);
-                }
+            // Trigger extraction faster: if 'complete' or 'interactive', we can usually extract safely.
+            if (value != null && (value.contains("complete") || value.contains("interactive"))) {
+                // Reduced from 5000ms to 1000ms for much faster response
+                new Handler(Looper.getMainLooper()).postDelayed(() -> extractHtml(view, executionToken), 1000);
             } else {
-                if (attempt < 20) {
-                    new Handler(Looper.getMainLooper()).postDelayed(() -> checkReadyState(view, executionToken, attempt + 1), 2000);
+                if (attempt < 15) {
+                    new Handler(Looper.getMainLooper()).postDelayed(() -> checkReadyState(view, executionToken, attempt + 1), 1000);
                 } else {
-                    new Handler(Looper.getMainLooper()).postDelayed(() -> extractHtml(view, executionToken), 5000);
+                    // Fail-safe: extract anyway if we've waited too long
+                    extractHtml(view, executionToken);
                 }
             }
         });
