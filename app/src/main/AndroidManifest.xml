@@ -27,6 +27,11 @@
         android:theme="@style/Theme.RSSNewsReader"
         tools:targetApi="36" >
         <activity
+            android:name=".ui.webview.ChatGPTWebViewActivity"
+            android:exported="false"
+            android:theme="@style/Theme.RSSNewsReader" />
+
+        <activity
             android:name=".ui.webview.WebViewActivity"
             android:parentActivityName=".ui.main.MainActivity"
             android:exported="false"

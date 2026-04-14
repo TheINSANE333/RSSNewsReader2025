@@ -51,6 +51,7 @@ public class AllEntriesViewModel extends ViewModel {
     private final MutableLiveData<String> toastMessage = new MutableLiveData<>();
     private final MutableLiveData<Integer> unreadCount = new MutableLiveData<>();
     private final MutableLiveData<String> dailySummary = new MutableLiveData<>();
+    private final MutableLiveData<String> dailySummaryPrompt = new MutableLiveData<>();
     private final MutableLiveData<Boolean> isSummarizing = new MutableLiveData<>();
     private final LiveData<List<EntryListItem>> liveEntries;
 
@@ -79,6 +80,10 @@ public class AllEntriesViewModel extends ViewModel {
         return dailySummary;
     }
 
+    public LiveData<String> getDailySummaryPromptResult() {
+        return dailySummaryPrompt;
+    }
+
     public LiveData<Boolean> getIsSummarizing() {
         return isSummarizing;
     }
@@ -89,30 +94,34 @@ public class AllEntriesViewModel extends ViewModel {
 
     public void generateDailySummary(List<Long> feedIds) {
         isSummarizing.postValue(true);
-        
+
         entryRepository.getUnreadEntriesForFeedsEntity(feedIds)
                 .firstOrError()
-                .flatMap(entries -> {
-                    if (entries.isEmpty()) {
-                        return io.reactivex.rxjava3.core.Single.error(new Exception("No unread articles found in selected feeds."));
-                    }
-                    String targetLang = sharedPreferencesRepository.getDefaultTranslationLanguage();
-                    return textUtil.summarizeDailyNews(entries, targetLang);
-                })
                 .subscribeOn(Schedulers.io())
                 .observeOn(AndroidSchedulers.mainThread())
-                .subscribe(summary -> {
-                    dailySummary.postValue(summary);
+                .subscribe(entries -> {
+                    if (entries.isEmpty()) {
+                        toastMessage.postValue("No unread articles found in selected feeds.");
+                        isSummarizing.postValue(false);
+                        return;
+                    }
+                    String targetLang = sharedPreferencesRepository.getDefaultTranslationLanguage();
+                    String prompt = textUtil.getDailySummaryPrompt(entries, targetLang);
+                    dailySummaryPrompt.postValue(prompt);
                     isSummarizing.postValue(false);
                 }, throwable -> {
-                    Log.e("AllEntriesViewModel", "Error generating daily summary", throwable);
-                    toastMessage.postValue("Failed to generate summary: " + throwable.getMessage());
+                    Log.e("AllEntriesViewModel", "Error generating daily summary prompt", throwable);
+                    toastMessage.postValue("Failed to generate summary prompt: " + throwable.getMessage());
                     isSummarizing.postValue(false);
                 });
     }
 
     public void resetDailySummary() {
         dailySummary.postValue(null);
+    }
+
+    public void resetDailySummaryPrompt() {
+        dailySummaryPrompt.postValue(null);
     }
 
     public String getSortBy() {

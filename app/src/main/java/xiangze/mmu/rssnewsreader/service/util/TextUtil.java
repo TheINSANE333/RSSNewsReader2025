@@ -552,6 +552,54 @@ public class TextUtil {
         });
     }
 
+    public String getDailySummaryPrompt(List<xiangze.mmu.rssnewsreader.data.entry.Entry> entries, String targetLanguage) {
+        if (entries == null || entries.isEmpty()) {
+            return null;
+        }
+
+        final int MAX_LENGTH = 50000; 
+        StringBuilder prompt = new StringBuilder();
+        prompt.append("Please provide a concise daily news briefing in ").append(targetLanguage).append(" based on these unread articles. ");
+        prompt.append("Group them by topic with clear headings and bullet points. Start with the headline 'Daily News Briefing'.\n\n");
+
+        prompt.append("Articles List:\n\n");
+        
+        for (int i = 0; i < entries.size(); i++) {
+            StringBuilder entryPart = new StringBuilder();
+            xiangze.mmu.rssnewsreader.data.entry.Entry entry = entries.get(i);
+            entryPart.append(i + 1).append(". ").append(entry.getTitle()).append("\n");
+
+            String content = entry.getSummarized();
+            if (content == null || content.isEmpty()) {
+                content = entry.getDescription();
+            }
+            
+            if (content != null && !content.isEmpty()) {
+                String cleanContent = Jsoup.parse(content).text();
+                
+                // Limit individual article summaries to fit more articles overall
+                if (cleanContent.length() > 350) {
+                    cleanContent = cleanContent.substring(0, 350) + "...";
+                }
+                entryPart.append("Summary: ").append(cleanContent).append("\n");
+            }
+            entryPart.append("\n");
+
+            // Check if adding this entry exceeds the 50,000 char limit
+            if (prompt.length() + entryPart.length() > MAX_LENGTH - 100) {
+                prompt.append("... [truncated: too many articles for one prompt]");
+                break;
+            }
+            prompt.append(entryPart);
+        }
+
+        String finalPrompt = prompt.toString();
+        if (finalPrompt.length() > MAX_LENGTH) {
+            finalPrompt = finalPrompt.substring(0, MAX_LENGTH);
+        }
+        return finalPrompt;
+    }
+
     public Single<String> summarizeDailyNews(List<xiangze.mmu.rssnewsreader.data.entry.Entry> entries, String targetLanguage) {
         return Single.create(emitter -> {
             try {

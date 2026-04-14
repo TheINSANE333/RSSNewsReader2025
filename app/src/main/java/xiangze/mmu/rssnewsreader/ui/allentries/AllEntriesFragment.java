@@ -212,6 +212,20 @@ public class AllEntriesFragment extends Fragment implements EntryItemAdapter.Ent
             }
         });
 
+        allEntriesViewModel.getDailySummaryPromptResult().observe(getViewLifecycleOwner(), prompt -> {
+            if (prompt != null && !prompt.isEmpty()) {
+                Snackbar.make(binding.getRoot(), "Prompt ready for ChatGPT!", Snackbar.LENGTH_SHORT).show();
+
+                // Use static field to avoid TransactionTooLargeException
+                xiangze.mmu.rssnewsreader.ui.webview.ChatGPTWebViewActivity.sPrompt = prompt;
+
+                Intent intent = new Intent(requireContext(), xiangze.mmu.rssnewsreader.ui.webview.ChatGPTWebViewActivity.class);
+                startActivity(intent);
+
+                allEntriesViewModel.resetDailySummaryPrompt();
+            }
+        });
+
         allEntriesViewModel.getToastMessage().observe(getViewLifecycleOwner(), new Observer<String>() {
             @Override
             public void onChanged(String s) {
