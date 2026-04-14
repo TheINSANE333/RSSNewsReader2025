@@ -69,6 +69,10 @@ import xiangze.mmu.rssnewsreader.service.util.AutoTranslator;
 import xiangze.mmu.rssnewsreader.service.util.TextUtil;
 import xiangze.mmu.rssnewsreader.ui.feed.ReloadDialog;
 
+import xiangze.mmu.rssnewsreader.service.util.AdBlocker;
+import android.webkit.WebResourceRequest;
+import android.webkit.WebResourceResponse;
+
 @AndroidEntryPoint
 public class WebViewActivity extends AppCompatActivity implements ReloadDialog.ReloadAction, WebViewMenuHandler.MenuActionListener, WebViewListener {
     private final static String TAG = "WebViewActivity";
@@ -748,8 +752,26 @@ public class WebViewActivity extends AppCompatActivity implements ReloadDialog.R
             hasProcessedCurrentToken = false;
         }
 
+        @Override
+        public WebResourceResponse shouldInterceptRequest(WebView view, WebResourceRequest request) {
+            String url = request.getUrl().toString();
+            if (AdBlocker.isAd(url)) {
+                return AdBlocker.createEmptyResource();
+            }
+            return super.shouldInterceptRequest(view, request);
+        }
+
         @Override public void onPageFinished(WebView v, String u) { 
             super.onPageFinished(v, u);
+            // Hide common ad/clutter elements via JS injection
+            v.evaluateJavascript("(function() { " +
+                    "  var selectors = ['.ad-banner', '.social-share', '#cookie-consent', '.advertisement', '.sidebar', 'header.masthead', '.footer-ads'];" +
+                    "  selectors.forEach(function(s) {" +
+                    "    var elements = document.querySelectorAll(s);" +
+                    "    elements.forEach(function(el) { el.style.display = 'none'; });" +
+                    "  });" +
+                    "})();", null);
+
             if (u != null && !u.startsWith("file:///android_res/")) {
                 final String executionToken = currentLoadToken;
                 int delay = feedRepository.getDelayTimeById(feedId);
@@ -765,8 +787,26 @@ public class WebViewActivity extends AppCompatActivity implements ReloadDialog.R
             hasProcessedCurrentToken = false;
         }
 
+        @Override
+        public WebResourceResponse shouldInterceptRequest(WebView view, WebResourceRequest request) {
+            String url = request.getUrl().toString();
+            if (AdBlocker.isAd(url)) {
+                return AdBlocker.createEmptyResource();
+            }
+            return super.shouldInterceptRequest(view, request);
+        }
+
         @Override public void onPageFinished(WebView v, String u) {
             super.onPageFinished(v, u);
+            // Element hiding script
+            v.evaluateJavascript("(function() { " +
+                    "  var selectors = ['.ad-banner', '.social-share', '#cookie-consent', '.advertisement', '.sidebar', 'header.masthead', '.footer-ads'];" +
+                    "  selectors.forEach(function(s) {" +
+                    "    var elements = document.querySelectorAll(s);" +
+                    "    elements.forEach(function(el) { el.style.display = 'none'; });" +
+                    "  });" +
+                    "})();", null);
+
             if (u != null && !u.startsWith("file:///android_res/")) {
                 final String executionToken = currentLoadToken;
                 int delay = feedRepository.getDelayTimeById(feedId);
