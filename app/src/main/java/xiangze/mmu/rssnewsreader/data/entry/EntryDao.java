@@ -192,6 +192,34 @@ public interface EntryDao {
             "ORDER BY e.publishedDate DESC")
     LiveData<List<EntryInfo>> getAllEntriesInfoLive();
 
+    @RewriteQueriesToDropUnusedColumns
+    @Query("SELECT e.id as entryId, e.title as entryTitle, e.priority as priority, e.link as entryLink, e.description as entryDescription, e.imageUrl as entryImageUrl, e.publishedDate as entryPublishedDate, e.visitedDate as visitedDate, e.category as entryCategory, e.bookmark as bookmark, " +
+            "(e.content IS NOT NULL AND e.content != '') as hasContent, " +
+            "(e.original_html IS NOT NULL AND e.original_html != '') as hasOriginalHtml, " +
+            "(e.translated_html IS NOT NULL AND e.translated_html != '') as hasTranslated, " +
+            "(e.summarized_html IS NOT NULL AND e.summarized_html != '') as hasSummarized, " +
+            "f.id as feedId, f.ttsSpeechRate as ttsSpeechRate, f.language as feedLanguage, f.title as feedTitle, f.imageUrl as feedImageUrl " +
+            "FROM entry_table e " +
+            "INNER JOIN feed_table f ON e.feedId = f.id " +
+            "WHERE (e.summarized_html IS NULL OR e.summarized_html NOT LIKE '%summarized-title%') AND (e.original_html IS NOT NULL AND e.original_html != '') " +
+            "AND f.id = :feedId " +
+            "ORDER BY CASE WHEN e.priority = 0 THEN 999999 ELSE e.priority END ASC, e.id DESC")
+    List<EntryInfo> getUnsummarizedEntriesByFeed(long feedId);
+
+    @RewriteQueriesToDropUnusedColumns
+    @Query("SELECT e.id as entryId, e.title as entryTitle, e.priority as priority, e.link as entryLink, e.description as entryDescription, e.imageUrl as entryImageUrl, e.publishedDate as entryPublishedDate, e.visitedDate as visitedDate, e.category as entryCategory, e.bookmark as bookmark, " +
+            "(e.content IS NOT NULL AND e.content != '') as hasContent, " +
+            "(e.original_html IS NOT NULL AND e.original_html != '') as hasOriginalHtml, " +
+            "(e.translated_html IS NOT NULL AND e.translated_html != '') as hasTranslated, " +
+            "(e.summarized_html IS NOT NULL AND e.summarized_html != '') as hasSummarized, " +
+            "f.id as feedId, f.ttsSpeechRate as ttsSpeechRate, f.language as feedLanguage, f.title as feedTitle, f.imageUrl as feedImageUrl " +
+            "FROM entry_table e " +
+            "INNER JOIN feed_table f ON e.feedId = f.id " +
+            "WHERE (e.translated_html IS NULL OR e.translated_html NOT LIKE '%translated-title%') AND (e.original_html IS NOT NULL AND e.original_html != '') " +
+            "AND f.id = :feedId " +
+            "ORDER BY CASE WHEN e.priority = 0 THEN 999999 ELSE e.priority END ASC, e.id DESC")
+    List<EntryInfo> getUntranslatedEntriesByFeed(long feedId);
+
     @Query("SELECT e.* " +
             "FROM entry_table e " +
             "LEFT JOIN feed_table f ON e.feedId = f.id " +

@@ -57,20 +57,31 @@ public class TextUtil {
             return "";
         }
 
-        Log.d("TextUtil", "HTML: "+ html);
-
         Document doc = Jsoup.parse(html);
         StringBuilder content = new StringBuilder();
 
         // Initialize the sentence iterator
         BreakIterator iterator = BreakIterator.getSentenceInstance(Locale.ROOT);
 
-        // 1. Extract structured elements
+        // 1. Extract structured elements - Added h1 and div
         Elements elements = doc.select(
-                "h2, h3, h4, h5, h6, p, td, th, li, figcaption, blockquote, section, pre"
+                "h1, h2, h3, h4, h5, h6, p, td, th, li, figcaption, blockquote, section, pre, div"
         );
 
         for (Element element : elements) {
+            // Check if any ancestor is also in the selected elements to avoid double counting
+            boolean hasSelectedAncestor = false;
+            Element parent = element.parent();
+            while (parent != null) {
+                if (elements.contains(parent)) {
+                    hasSelectedAncestor = true;
+                    break;
+                }
+                parent = parent.parent();
+            }
+
+            if (hasSelectedAncestor) continue;
+
             String text = element.text().trim();
             if (!text.isEmpty()) {
                 appendSentences(content, text, delimiter, iterator);
@@ -190,8 +201,8 @@ public class TextUtil {
                         .flatMap(translatedTitle -> {
                             // Parse the HTML
                             Document document = Jsoup.parse(html);
-                            // List of tags to extract text from
-                            List<String> tags = Arrays.asList("h2", "h3", "h4", "h5", "h6", "p", "td", "pre", "th", "li", "figcaption", "blockquote", "section");
+                            // List of tags to extract text from - Added h1 and div
+                            List<String> tags = Arrays.asList("h1", "h2", "h3", "h4", "h5", "h6", "p", "td", "pre", "th", "li", "figcaption", "blockquote", "section", "div");
                             // Get all elements with the specified tags
                             Elements elements = document.select(String.join(",", tags));
 
@@ -506,6 +517,16 @@ public class TextUtil {
 
                 // Extract clean content to save tokens and improve focus (matching manual mode)
                 String cleanContent = extractHtmlContent(html, "--####--");
+
+                // Fallback to basic text extraction if structured extraction yielded nothing
+                // This prevents "There is no content to summarize" AI responses for poorly structured HTML
+                if (cleanContent.trim().length() < 50) {
+                    Log.d(TAG, "Structured extraction too short (" + cleanContent.length() + "). Falling back to Jsoup text.");
+                    String basicText = Jsoup.parse(html).text();
+                    if (basicText.length() > cleanContent.length()) {
+                        cleanContent = basicText;
+                    }
+                }
 
                 // Build the prompt (matching manual mode format)
                 String prompt = String.format(

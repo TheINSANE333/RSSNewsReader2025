@@ -7,6 +7,7 @@ import android.media.MediaPlayer;
 import android.net.Uri;
 import android.os.Handler;
 import android.os.Looper;
+import android.os.PowerManager;
 import android.os.SystemClock;
 import android.provider.Settings;
 import android.speech.tts.TextToSpeech;
@@ -57,6 +58,7 @@ public class TtsPlayer extends PlayerAdapter implements TtsPlayerListener {
     private final TtsExtractor ttsExtractor;
     private final EntryRepository entryRepository;
     private final SharedPreferencesRepository sharedPreferencesRepository;
+    private final PowerManager.WakeLock wakeLock;
 
     private int sentenceCounter;
     private List<String> sentences = new CopyOnWriteArrayList<>();
@@ -107,6 +109,7 @@ public class TtsPlayer extends PlayerAdapter implements TtsPlayerListener {
     public LiveData<Long> getAskForReloadLiveData() { return askForReloadLiveData; }
     public LiveData<Boolean> getShowFakeLoadingLiveData() { return showFakeLoadingLiveData; }
 
+    @SuppressLint("InvalidWakeLockTag")
     @Inject
     public TtsPlayer(@ApplicationContext Context context, TtsExtractor ttsExtractor, EntryRepository entryRepository, SharedPreferencesRepository sharedPreferencesRepository) {
         super(context);
@@ -115,6 +118,9 @@ public class TtsPlayer extends PlayerAdapter implements TtsPlayerListener {
         this.sharedPreferencesRepository = sharedPreferencesRepository;
         this.context = context;
         this.isPausedManually = sharedPreferencesRepository.getIsPausedManually();
+        
+        PowerManager powerManager = (PowerManager) context.getSystemService(Context.POWER_SERVICE);
+        this.wakeLock = powerManager.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "RSSReader:TtsWakeLock");
     }
 
     @Override
@@ -962,6 +968,23 @@ public class TtsPlayer extends PlayerAdapter implements TtsPlayerListener {
             stateBuilder.setActions(getAvailableActions());
             stateBuilder.setState(currentState, 0, 1.0f, SystemClock.elapsedRealtime());
             listener.onPlaybackStateChange(stateBuilder.build());
+        }
+
+        // Manage WakeLock to prevent CPU sleep during playback and preparation
+        if (state == PlaybackStateCompat.STATE_PLAYING || state == PlaybackStateCompat.STATE_BUFFERING) {
+            if (!wakeLock.isHeld()) {
+                Log.d(TAG, "Acquiring WakeLock for TTS playback/buffering");
+                wakeLock.acquire();
+            }
+        } else {
+            releaseWakeLock();
+        }
+    }
+
+    private void releaseWakeLock() {
+        if (wakeLock.isHeld()) {
+            Log.d(TAG, "Releasing WakeLock");
+            wakeLock.release();
         }
     }
 

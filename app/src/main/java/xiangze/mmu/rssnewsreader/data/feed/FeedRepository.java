@@ -14,6 +14,8 @@ import xiangze.mmu.rssnewsreader.service.rss.RssReader;
 import xiangze.mmu.rssnewsreader.service.rss.RssWorkManager;
 import xiangze.mmu.rssnewsreader.data.sharedpreferences.SharedPreferencesRepository;
 import xiangze.mmu.rssnewsreader.service.tts.TtsExtractor;
+import xiangze.mmu.rssnewsreader.service.util.AutoSummarizer;
+import xiangze.mmu.rssnewsreader.service.util.AutoTranslator;
 import xiangze.mmu.rssnewsreader.service.util.TextUtil;
 
 import java.util.ArrayList;
@@ -46,9 +48,11 @@ public class FeedRepository {
     private final SharedPreferencesRepository preferencesRepository;
     private final Provider<TtsExtractor> ttsExtractorProvider;
     private final TextUtil textUtil;
+    private final AutoSummarizer autoSummarizer;
+    private final AutoTranslator autoTranslator;
 
     @Inject
-    public FeedRepository(FeedDao feedDao, EntryRepository entryRepository, HistoryRepository historyRepository, RssWorkManager rssWorkManager, SharedPreferencesRepository sharedPreferencesRepository,  Provider<TtsExtractor> ttsExtractorProvider, TextUtil textUtil) {
+    public FeedRepository(FeedDao feedDao, EntryRepository entryRepository, HistoryRepository historyRepository, RssWorkManager rssWorkManager, SharedPreferencesRepository sharedPreferencesRepository,  Provider<TtsExtractor> ttsExtractorProvider, TextUtil textUtil, AutoSummarizer autoSummarizer, AutoTranslator autoTranslator) {
         this.feedDao = feedDao;
         this.entryRepository = entryRepository;
         this.historyRepository = historyRepository;
@@ -56,6 +60,8 @@ public class FeedRepository {
         this.preferencesRepository = sharedPreferencesRepository;
         this.ttsExtractorProvider = ttsExtractorProvider;
         this.textUtil = textUtil;
+        this.autoSummarizer = autoSummarizer;
+        this.autoTranslator = autoTranslator;
     }
 
     public List<Feed> getAllStaticFeeds() {
@@ -271,9 +277,14 @@ public class FeedRepository {
 
     public void updateFeedSettings(String title, String desc, String language, boolean autoSummarize, boolean autoTranslate, String link) {
         Completable.fromAction(() -> {
+            long feedId = feedDao.getIdByLink(link);
+            Feed existingFeed = null;
+            if (feedId > 0) {
+                existingFeed = feedDao.getFeedById(feedId);
+            }
+
             String finalLanguage = language;
             if (finalLanguage == null || finalLanguage.equals("Use Language Identifier")) {
-                long feedId = feedDao.getIdByLink(link);
                 StringBuilder sampleText = new StringBuilder();
                 if (title != null) sampleText.append(title).append(". ");
 
@@ -305,6 +316,21 @@ public class FeedRepository {
                 }
             }
             feedDao.updateFeedSettings(title, desc, finalLanguage, autoSummarize, autoTranslate, link);
+
+            // Check if settings were toggled ON and trigger processing
+            if (existingFeed != null) {
+                boolean summarizedToggledOn = autoSummarize && !existingFeed.isAutoSummarize();
+                boolean translatedToggledOn = autoTranslate && !existingFeed.isAutoTranslate();
+
+                if (summarizedToggledOn) {
+                    Log.d(TAG, "Auto-summarize enabled for feed " + feedId + ". Triggering batch processing.");
+                    this.autoSummarizer.runAutoSummarization();
+                }
+                if (translatedToggledOn) {
+                    Log.d(TAG, "Auto-translate enabled for feed " + feedId + ". Triggering batch processing.");
+                    this.autoTranslator.runAutoTranslation();
+                }
+            }
         })
         .subscribeOn(Schedulers.io())
         .subscribe(() -> {}, e -> Log.e(TAG, "Error updating feed settings", e));

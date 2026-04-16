@@ -39,6 +39,7 @@ import net.dankito.readability4j.extended.Readability4JExtended;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
+import org.jsoup.select.Elements;
 
 import java.io.StringReader;
 import java.util.ArrayList;
@@ -542,24 +543,28 @@ public class TtsExtractor {
                 doc.select("figure").attr("style", "width: 100%; margin-left:0");
                 doc.select("iframe").attr("style", "width: 100%; margin-left:0");
 
-                List<String> tags = Arrays.asList("h2", "h3", "h4", "h5", "h6", "p", "td", "pre", "th", "li", "figcaption", "blockquote", "section");
+                List<String> tags = Arrays.asList("h1", "h2", "h3", "h4", "h5", "h6", "p", "td", "pre", "th", "li", "figcaption", "blockquote", "section", "div");
 
                 // Initialize the Sentence Iterator with Locale.ROOT for universal language support
                 BreakIterator sentenceIterator = BreakIterator.getSentenceInstance(Locale.ROOT);
 
                 // Extract text by sentences
-                for (Element element : doc.getAllElements()) {
+                Elements allElements = doc.getAllElements();
+                for (Element element : allElements) {
                     if (tags.contains(element.tagName())) {
-                        // Check if this element contains other "target" tags to avoid double-processing nested content
-                        boolean hasNestedTag = false;
-                        for (Element child : element.children()) {
-                            if (tags.contains(child.tagName())) {
-                                hasNestedTag = true;
+                        // Check if any ancestor is also in the selected elements to avoid double counting
+                        // We only process the highest-level container in our tag list
+                        boolean hasSelectedAncestor = false;
+                        Element parent = element.parent();
+                        while (parent != null) {
+                            if (tags.contains(parent.tagName())) {
+                                hasSelectedAncestor = true;
                                 break;
                             }
+                            parent = parent.parent();
                         }
 
-                        if (!hasNestedTag) {
+                        if (!hasSelectedAncestor) {
                             String elementText = element.text().trim();
                             if (!elementText.isEmpty() && elementText.length() > 1) {
 
@@ -603,6 +608,17 @@ public class TtsExtractor {
 
                 // Only prepend title if it's not already at the start of the content
                 String tempContent = content.toString().trim();
+                
+                // Fallback to basic text if extraction yielded very little but body has content
+                if (tempContent.length() < MIN_CONTENT_LENGTH) {
+                    String bodyText = doc.body().text();
+                    if (bodyText.length() > tempContent.length() + 50) {
+                         Log.d(TAG, "Extraction too short (" + tempContent.length() + "). Falling back to body text (" + bodyText.length() + ")");
+                         tempContent = bodyText;
+                         content = new StringBuilder(tempContent);
+                    }
+                }
+
                 if (title != null && !title.trim().isEmpty()) {
                     String cleanTitle = title.trim();
                     boolean isRedundant = false;

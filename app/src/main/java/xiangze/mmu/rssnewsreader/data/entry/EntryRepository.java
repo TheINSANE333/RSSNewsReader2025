@@ -106,8 +106,16 @@ public class EntryRepository {
         return entryDao.getUnsummarizedEntriesInfo();
     }
 
+    public List<EntryInfo> getUnsummarizedEntriesByFeed(long feedId) {
+        return entryDao.getUnsummarizedEntriesByFeed(feedId);
+    }
+
     public List<EntryInfo> getAllUntranslatedEntries() {
         return entryDao.getUntranslatedEntriesInfo();
+    }
+
+    public List<EntryInfo> getUntranslatedEntriesByFeed(long feedId) {
+        return entryDao.getUntranslatedEntriesByFeed(feedId);
     }
 
     public List<Entry> getUncachedEntries() {
