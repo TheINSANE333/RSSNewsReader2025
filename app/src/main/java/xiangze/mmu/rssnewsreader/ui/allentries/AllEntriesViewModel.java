@@ -50,8 +50,7 @@ public class AllEntriesViewModel extends ViewModel {
     private final MutableLiveData<List<EntryListItem>> allEntries = new MutableLiveData<>();
     private final MutableLiveData<String> toastMessage = new MutableLiveData<>();
     private final MutableLiveData<Integer> unreadCount = new MutableLiveData<>();
-    private final MutableLiveData<String> dailySummary = new MutableLiveData<>();
-    private final MutableLiveData<String> dailySummaryPrompt = new MutableLiveData<>();
+    private final MutableLiveData<List<String>> dailySummaryPrompt = new MutableLiveData<>();
     private final MutableLiveData<Boolean> isSummarizing = new MutableLiveData<>();
     private final LiveData<List<EntryListItem>> liveEntries;
 
@@ -76,11 +75,7 @@ public class AllEntriesViewModel extends ViewModel {
         return liveEntries;
     }
 
-    public LiveData<String> getDailySummaryResult() {
-        return dailySummary;
-    }
-
-    public LiveData<String> getDailySummaryPromptResult() {
+    public LiveData<List<String>> getDailySummaryPromptResult() {
         return dailySummaryPrompt;
     }
 
@@ -106,18 +101,14 @@ public class AllEntriesViewModel extends ViewModel {
                         return;
                     }
                     String targetLang = sharedPreferencesRepository.getDefaultTranslationLanguage();
-                    String prompt = textUtil.getDailySummaryPrompt(entries, targetLang);
-                    dailySummaryPrompt.postValue(prompt);
+                    List<String> prompts = textUtil.getDailySummaryPrompts(entries, targetLang);
+                    dailySummaryPrompt.postValue(prompts);
                     isSummarizing.postValue(false);
                 }, throwable -> {
                     Log.e("AllEntriesViewModel", "Error generating daily summary prompt", throwable);
                     toastMessage.postValue("Failed to generate summary prompt: " + throwable.getMessage());
                     isSummarizing.postValue(false);
                 });
-    }
-
-    public void resetDailySummary() {
-        dailySummary.postValue(null);
     }
 
     public void resetDailySummaryPrompt() {

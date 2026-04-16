@@ -37,6 +37,14 @@
 
     <string name="reset_token_usage_title">Reset AI Token Usage</string>
     <string name="reset_token_usage_summary">Manually clear token and request limits if you hit a guard limit.</string>
+
+    <string name="chunk_limit_title">Chunk Limit (Words)</string>
+    <string name="chunk_limit_summary">Maximum number of words per chunk for batch processing</string>
+    <string name="max_files_title">Max Files</string>
+    <string name="max_files_summary">Maximum number of files (chunks) to generate for batch processing</string>
+    <string name="daily_summary_prompt_title">Daily Summary Prompt</string>
+    <string name="daily_summary_prompt_summary">Customize the prompt sent to the AI for daily news briefings. Use %s as a placeholder for the target language.</string>
+    <string name="daily_summary_prompt_default">Please provide a concise daily news briefing in %s based on these unread articles. Group them by topic with clear headings and bullet points. Start with the headline \'Daily News Briefing\'.\n\nArticles List:\n\n</string>
     <string name="token_usage_reset_success">Token usage limits have been reset.</string>
 
     <string name="ai_limit_settings_title">Set Token Limit</string>

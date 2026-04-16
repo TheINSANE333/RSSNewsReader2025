@@ -197,30 +197,77 @@ public class AllEntriesFragment extends Fragment implements EntryItemAdapter.Ent
             }
         });
 
-        allEntriesViewModel.getDailySummaryResult().observe(getViewLifecycleOwner(), summary -> {
-            if (summary != null && !summary.isEmpty()) {
-                // Clear the "Generating..." snackbar
-                Snackbar.make(binding.getRoot(), "Summary generated!", Snackbar.LENGTH_SHORT).show();
-                
-                // Launch ChatActivity with the summary
-                Intent intent = new Intent(requireContext(), ChatActivity.class);
-                intent.putExtra("initial_message", summary);
-                startActivity(intent);
-                
-                // Reset summary result to avoid re-triggering on rotation/back
-                allEntriesViewModel.resetDailySummary();
-            }
-        });
+        allEntriesViewModel.getDailySummaryPromptResult().observe(getViewLifecycleOwner(), prompts -> {
+            if (prompts != null && !prompts.isEmpty()) {
+                try {
+                    java.io.File cachePath = new java.io.File(requireContext().getCacheDir(), "shared_files");
+                    if (cachePath.exists()) {
+                        // Clear previous shared files
+                        java.io.File[] files = cachePath.listFiles();
+                        if (files != null) {
+                            for (java.io.File f : files) f.delete();
+                        }
+                    }
+                    cachePath.mkdirs();
 
-        allEntriesViewModel.getDailySummaryPromptResult().observe(getViewLifecycleOwner(), prompt -> {
-            if (prompt != null && !prompt.isEmpty()) {
-                Snackbar.make(binding.getRoot(), "Prompt ready for ChatGPT!", Snackbar.LENGTH_SHORT).show();
+                    ArrayList<android.net.Uri> contentUris = new ArrayList<>();
+                    int lastIndex = prompts.size() - 1;
+                    String systemInstruction = prompts.get(lastIndex);
+                    
+                    for (int i = 0; i < lastIndex; i++) {
+                        String fileName = "daily_summary_part_" + (i + 1) + ".txt";
+                        java.io.File newFile = new java.io.File(cachePath, fileName);
+                        
+                        java.io.FileWriter writer = new java.io.FileWriter(newFile);
+                        writer.write(prompts.get(i));
+                        writer.close();
 
-                // Use static field to avoid TransactionTooLargeException
-                xiangze.mmu.rssnewsreader.ui.webview.ChatGPTWebViewActivity.sPrompt = prompt;
+                        android.net.Uri contentUri = androidx.core.content.FileProvider.getUriForFile(
+                                requireContext(),
+                                requireContext().getPackageName() + ".fileprovider",
+                                newFile);
+                        if (contentUri != null) {
+                            contentUris.add(contentUri);
+                        }
+                    }
 
-                Intent intent = new Intent(requireContext(), xiangze.mmu.rssnewsreader.ui.webview.ChatGPTWebViewActivity.class);
-                startActivity(intent);
+                    if (!contentUris.isEmpty()) {
+                        Intent sendIntent = new Intent();
+                        if (contentUris.size() > 1) {
+                            sendIntent.setAction(Intent.ACTION_SEND_MULTIPLE);
+                            sendIntent.putParcelableArrayListExtra(Intent.EXTRA_STREAM, contentUris);
+                        } else {
+                            sendIntent.setAction(Intent.ACTION_SEND);
+                            sendIntent.putExtra(Intent.EXTRA_STREAM, contentUris.get(0));
+                        }
+                        
+                        sendIntent.setType("text/plain");
+                        sendIntent.putExtra(Intent.EXTRA_TEXT, systemInstruction);
+                        sendIntent.putExtra(Intent.EXTRA_SUBJECT, "Daily News Summary Prompt");
+                        
+                        // Copy to clipboard as fallback since many AI apps (like ChatGPT) ignore EXTRA_TEXT with files
+                        android.content.ClipboardManager clipboard = (android.content.ClipboardManager) requireContext().getSystemService(android.content.Context.CLIPBOARD_SERVICE);
+                        if (clipboard != null) {
+                            android.content.ClipData clip = android.content.ClipData.newPlainText("Daily Summary Prompt", systemInstruction);
+                            clipboard.setPrimaryClip(clip);
+                            Toast.makeText(requireContext(), "Prompt copied to clipboard (fallback)", Toast.LENGTH_SHORT).show();
+                        }
+
+                        // Use ClipData to pass both text and URIs (improves compatibility and handles permissions)
+                        android.content.ClipData clipData = android.content.ClipData.newPlainText("instruction", systemInstruction);
+                        for (android.net.Uri uri : contentUris) {
+                            clipData.addItem(new android.content.ClipData.Item(uri));
+                        }
+                        sendIntent.setClipData(clipData);
+                        sendIntent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+
+                        Intent shareIntent = Intent.createChooser(sendIntent, "Send Summary Files to AI App");
+                        startActivity(shareIntent);
+                    }
+                } catch (java.io.IOException e) {
+                    Log.e(TAG, "Error creating summary files", e);
+                    Toast.makeText(requireContext(), "Error creating summary files", Toast.LENGTH_SHORT).show();
+                }
 
                 allEntriesViewModel.resetDailySummaryPrompt();
             }

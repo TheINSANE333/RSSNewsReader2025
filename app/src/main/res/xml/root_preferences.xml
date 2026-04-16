@@ -242,6 +242,36 @@
             app:summary="@string/ai_limit_settings_summary"
             app:title="@string/ai_limit_settings_title" />
 
+        <SeekBarPreference
+            android:max="20000"
+            app:defaultValue="7500"
+            app:icon="@drawable/ic_bars"
+            app:key="chunk_limit"
+            app:min="500"
+            app:seekBarIncrement="500"
+            app:showSeekBarValue="true"
+            app:summary="@string/chunk_limit_summary"
+            app:title="@string/chunk_limit_title" />
+
+        <SeekBarPreference
+            android:max="50"
+            app:defaultValue="10"
+            app:icon="@drawable/ic_folder"
+            app:key="max_files"
+            app:min="1"
+            app:seekBarIncrement="1"
+            app:showSeekBarValue="true"
+            app:summary="@string/max_files_summary"
+            app:title="@string/max_files_title" />
+
+        <EditTextPreference
+            app:defaultValue="@string/daily_summary_prompt_default"
+            app:icon="@drawable/ic_pencil"
+            app:key="daily_summary_prompt"
+            app:summary="@string/daily_summary_prompt_summary"
+            app:title="@string/daily_summary_prompt_title"
+            app:useSimpleSummaryProvider="true" />
+
     </PreferenceCategory>
 
 </PreferenceScreen>

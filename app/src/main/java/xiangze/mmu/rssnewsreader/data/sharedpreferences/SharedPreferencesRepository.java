@@ -409,6 +409,30 @@ public class SharedPreferencesRepository {
         editor.putInt(TokenUsageGuard.KEY_LIMIT_TPD, tpd).apply();
     }
 
+    public int getChunkLimit() {
+        return sharedPreferences.getInt("chunk_limit", 7500);
+    }
+
+    public void setChunkLimit(int limit) {
+        editor.putInt("chunk_limit", limit).apply();
+    }
+
+    public int getMaxFiles() {
+        return sharedPreferences.getInt("max_files", 10);
+    }
+
+    public void setMaxFiles(int maxFiles) {
+        editor.putInt("max_files", maxFiles).apply();
+    }
+
+    public String getDailySummaryPrompt() {
+        return sharedPreferences.getString("daily_summary_prompt", context.getString(xiangze.mmu.rssnewsreader.R.string.daily_summary_prompt_default));
+    }
+
+    public void setDailySummaryPrompt(String prompt) {
+        editor.putString("daily_summary_prompt", prompt).apply();
+    }
+
     public Context getContext() {
         return context;
     }
