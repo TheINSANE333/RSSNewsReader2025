@@ -11,12 +11,12 @@ if (localPropertiesFile.exists()) {
 }
 
 android {
-    compileSdk = 36
+    compileSdk = 37
 
     defaultConfig {
         applicationId = "xiangze.mmu.rssnewsreader"
         minSdk = 29
-        targetSdk = 36
+        targetSdk = 37
         versionCode = 1
         versionName = "0.1.6"
 
@@ -65,10 +65,10 @@ dependencies {
     implementation 'androidx.appcompat:appcompat:1.7.1'
     implementation 'com.google.android.material:material:1.13.0'
     implementation 'androidx.constraintlayout:constraintlayout:2.2.1'
-    implementation 'androidx.navigation:navigation-fragment:2.9.7'
-    implementation 'androidx.navigation:navigation-ui:2.9.7'
+    implementation 'androidx.navigation:navigation-fragment:2.9.8'
+    implementation 'androidx.navigation:navigation-ui:2.9.8'
     implementation 'com.squareup.picasso:picasso:2.71828'
-    implementation 'org.jsoup:jsoup:1.22.1'
+    implementation 'org.jsoup:jsoup:1.22.2'
     implementation 'com.chimbori.crux:crux:5.1.0'
     implementation 'androidx.media:media:1.7.1'
     implementation 'androidx.webkit:webkit:1.15.0'
@@ -116,7 +116,7 @@ dependencies {
     implementation 'com.squareup.retrofit2:converter-gson:3.0.0'
     implementation 'com.squareup.okhttp3:logging-interceptor:5.3.2'
 
-    implementation platform('com.google.firebase:firebase-bom:34.11.0')
+    implementation platform('com.google.firebase:firebase-bom:34.12.0')
     implementation 'com.google.firebase:firebase-analytics'
 
     // Local LLM

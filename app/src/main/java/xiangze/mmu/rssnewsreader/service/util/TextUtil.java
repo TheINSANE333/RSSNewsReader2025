@@ -578,12 +578,12 @@ public class TextUtil {
             return new ArrayList<>();
         }
 
-        final int MAX_WORDS_PER_CHUNK = sharedPreferencesRepository.getChunkLimit();
+        final long MAX_WORDS_PER_CHUNK = sharedPreferencesRepository.getChunkLimit();
         final int MAX_FILES = sharedPreferencesRepository.getMaxFiles();
         List<String> prompts = new ArrayList<>();
         
         StringBuilder currentPrompt = new StringBuilder();
-        int currentWords = 0;
+        long currentWords = 0;
         
         for (int i = 0; i < entries.size(); i++) {
             StringBuilder entryPart = new StringBuilder();
@@ -623,7 +623,7 @@ public class TextUtil {
                 // For huge articles, we'll split the string into word-based chunks
                 String[] words = partString.split("\\s+");
                 StringBuilder hugePart = new StringBuilder();
-                int hugeWords = 0;
+                long hugeWords = 0;
                 for (String word : words) {
                     if (hugeWords + 1 > MAX_WORDS_PER_CHUNK) {
                         prompts.add(hugePart.toString());

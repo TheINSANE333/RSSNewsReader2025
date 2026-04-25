@@ -409,7 +409,14 @@ public class SharedPreferencesRepository {
         editor.putInt(TokenUsageGuard.KEY_LIMIT_TPD, tpd).apply();
     }
 
+    public boolean getEnableChunkLimit() {
+        return sharedPreferences.getBoolean("enable_chunk_limit", true);
+    }
+
     public int getChunkLimit() {
+        if (!getEnableChunkLimit()) {
+            return Integer.MAX_VALUE;
+        }
         return sharedPreferences.getInt("chunk_limit", 7500);
     }
 

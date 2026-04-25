@@ -242,9 +242,17 @@
             app:summary="@string/ai_limit_settings_summary"
             app:title="@string/ai_limit_settings_title" />
 
+        <SwitchPreferenceCompat
+            app:defaultValue="true"
+            app:icon="@drawable/ic_check"
+            app:key="enable_chunk_limit"
+            app:summary="Limit the number of words per chunk for batch processing. Disable for unlimited."
+            app:title="Enable Chunk Limit" />
+
         <SeekBarPreference
             android:max="20000"
             app:defaultValue="7500"
+            app:dependency="enable_chunk_limit"
             app:icon="@drawable/ic_bars"
             app:key="chunk_limit"
             app:min="500"

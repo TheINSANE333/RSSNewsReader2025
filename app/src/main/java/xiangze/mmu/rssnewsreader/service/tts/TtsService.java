@@ -80,7 +80,11 @@ public class TtsService extends MediaBrowserServiceCompat {
                 }
                 
                 Notification notification = ttsNotification.getNotification(data, state, getSessionToken());
-                startForeground(TtsNotification.TTS_NOTIFICATION_ID, notification);
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                    startForeground(TtsNotification.TTS_NOTIFICATION_ID, notification, android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK);
+                } else {
+                    startForeground(TtsNotification.TTS_NOTIFICATION_ID, notification);
+                }
                 serviceInStartedState = true;
             }
 
@@ -547,7 +551,11 @@ public class TtsService extends MediaBrowserServiceCompat {
 
                 if (!serviceInStartedState) {
                     ContextCompat.startForegroundService(TtsService.this, intent);
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                    startForeground(TtsNotification.TTS_NOTIFICATION_ID, notification, android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK);
+                } else {
                     startForeground(TtsNotification.TTS_NOTIFICATION_ID, notification);
+                }
                     serviceInStartedState = true;
                 } else {
                     ttsNotification.getNotificationManager().notify(TtsNotification.TTS_NOTIFICATION_ID, notification);
