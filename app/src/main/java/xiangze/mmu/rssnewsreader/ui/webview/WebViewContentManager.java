@@ -26,7 +26,7 @@ public class WebViewContentManager {
         this.listener = listener;
     }
 
-    public void loadHtml(String html, long currentId) {
+    public void loadHtml(String html, long currentId, boolean isSpeaking) {
         if (html == null || html.trim().isEmpty()) return;
 
         Single.fromCallable(() -> {
@@ -63,11 +63,15 @@ public class WebViewContentManager {
                 listener.finishedSetup();
             }
 
-            webView.postDelayed(() -> {
-                int scrollX = sharedPreferencesRepository.getScrollX(currentId);
-                int scrollY = sharedPreferencesRepository.getScrollY(currentId);
-                webView.scrollTo(scrollX, scrollY);
-            }, 300);
+            // Only restore manual scroll position if not currently speaking.
+            // If speaking, the highlight logic will handle scrolling to the right place.
+            if (!isSpeaking) {
+                webView.postDelayed(() -> {
+                    int scrollX = sharedPreferencesRepository.getScrollX(currentId);
+                    int scrollY = sharedPreferencesRepository.getScrollY(currentId);
+                    webView.scrollTo(scrollX, scrollY);
+                }, 300);
+            }
         }, throwable -> {
             Log.e(TAG, "Error processing HTML", throwable);
         });

@@ -459,7 +459,8 @@ public class TtsService extends MediaBrowserServiceCompat {
         }
 
         private void play() {
-            if (preparedData == null) {
+            long currentReadingId = sharedPreferencesRepository.getCurrentReadingEntryId();
+            if (preparedData == null || ttsPlayer.getCurrentId() != currentReadingId) {
                 onPrepare();
             } else {
                 ttsPlayer.play();

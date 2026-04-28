@@ -328,7 +328,7 @@ public class WebViewActivity extends AppCompatActivity implements ReloadDialog.R
         if (htmlToLoad != null && !htmlToLoad.trim().isEmpty()) {
             if (!htmlToLoad.equals(lastLoadedHtml)) {
                 lastLoadedHtml = htmlToLoad;
-                contentManager.loadHtml(htmlToLoad, currentId);
+                contentManager.loadHtml(htmlToLoad, currentId, ttsPlayer.isSpeaking());
             }
         } else {
             lastLoadedHtml = ""; // Reset since we are loading a URL
@@ -642,19 +642,47 @@ public class WebViewActivity extends AppCompatActivity implements ReloadDialog.R
         binding.functionButtonsReading.setVisibility(View.GONE);
         binding.functionButtons.setVisibility(View.VISIBLE);
         webView.setWebViewClient(new WebClient());
-        mMediaBrowserHelper = new MediaBrowserConnection(this);
+        if (mMediaBrowserHelper == null) {
+            mMediaBrowserHelper = new MediaBrowserConnection(this);
+        }
         setupMediaButtons();
+        mMediaBrowserHelper.onStart();
     }
 
     private void setupMediaButtons() {
         binding.playPauseButton.setOnClickListener(v -> {
-            if (isPlaying) mMediaBrowserHelper.getTransportControls().pause();
-            else mMediaBrowserHelper.getTransportControls().play();
+            if (mMediaBrowserHelper != null) {
+                MediaControllerCompat.TransportControls controls = mMediaBrowserHelper.getTransportControls();
+                if (controls != null) {
+                    if (isPlaying) controls.pause();
+                    else controls.play();
+                }
+            }
         });
-        binding.skipNextButton.setOnClickListener(v -> mMediaBrowserHelper.getTransportControls().skipToNext());
-        binding.skipPreviousButton.setOnClickListener(v -> mMediaBrowserHelper.getTransportControls().skipToPrevious());
-        binding.fastForwardButton.setOnClickListener(v -> mMediaBrowserHelper.getTransportControls().fastForward());
-        binding.rewindButton.setOnClickListener(v -> mMediaBrowserHelper.getTransportControls().rewind());
+        binding.skipNextButton.setOnClickListener(v -> {
+            if (mMediaBrowserHelper != null) {
+                MediaControllerCompat.TransportControls controls = mMediaBrowserHelper.getTransportControls();
+                if (controls != null) controls.skipToNext();
+            }
+        });
+        binding.skipPreviousButton.setOnClickListener(v -> {
+            if (mMediaBrowserHelper != null) {
+                MediaControllerCompat.TransportControls controls = mMediaBrowserHelper.getTransportControls();
+                if (controls != null) controls.skipToPrevious();
+            }
+        });
+        binding.fastForwardButton.setOnClickListener(v -> {
+            if (mMediaBrowserHelper != null) {
+                MediaControllerCompat.TransportControls controls = mMediaBrowserHelper.getTransportControls();
+                if (controls != null) controls.fastForward();
+            }
+        });
+        binding.rewindButton.setOnClickListener(v -> {
+            if (mMediaBrowserHelper != null) {
+                MediaControllerCompat.TransportControls controls = mMediaBrowserHelper.getTransportControls();
+                if (controls != null) controls.rewind();
+            }
+        });
     }
 
     private void setupReadingNavigation() {
@@ -772,7 +800,16 @@ public class WebViewActivity extends AppCompatActivity implements ReloadDialog.R
                     "  });" +
                     "})();", null);
 
-            if (u != null && !u.startsWith("file:///android_res/")) {
+            if (u != null && u.startsWith("file:///android_res/")) {
+                // If we are coming back from background and it's already speaking,
+                // sync the UI to the current speaking position.
+                if (ttsPlayer.isSpeaking()) {
+                    String currentHighlight = ttsPlayer.getHighlightTextLiveData().getValue();
+                    if (currentHighlight != null && !currentHighlight.isEmpty()) {
+                        contentManager.highlightText(currentHighlight);
+                    }
+                }
+            } else if (u != null) {
                 final String executionToken = currentLoadToken;
                 // Reduce the initial delay from database delay to a faster baseline (e.g., 1s)
                 // but still respect if the database asks for something extremely specific.
@@ -810,7 +847,14 @@ public class WebViewActivity extends AppCompatActivity implements ReloadDialog.R
                     "  });" +
                     "})();", null);
 
-            if (u != null && !u.startsWith("file:///android_res/")) {
+            if (u != null && u.startsWith("file:///android_res/")) {
+                if (ttsPlayer.isSpeaking()) {
+                    String currentHighlight = ttsPlayer.getHighlightTextLiveData().getValue();
+                    if (currentHighlight != null && !currentHighlight.isEmpty()) {
+                        contentManager.highlightText(currentHighlight);
+                    }
+                }
+            } else if (u != null) {
                 final String executionToken = currentLoadToken;
                 int dbDelay = feedRepository.getDelayTimeById(feedId);
                 int delay = Math.min(dbDelay, 1);

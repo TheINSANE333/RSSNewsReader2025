@@ -731,6 +731,14 @@ public class TtsPlayer extends PlayerAdapter implements TtsPlayerListener {
                 return;
             }
 
+            if (isArticleFinished) {
+                Log.d(TAG, "speak() called but article is finished. Skipping to next.");
+                if (callback != null) {
+                    callback.onSkipToNext();
+                }
+                return;
+            }
+
             if (!isInit || tts == null) {
                 Log.d(TAG, "speak() skipped — TTS not initialized yet. Waiting for init.");
                 actionNeeded = true;
