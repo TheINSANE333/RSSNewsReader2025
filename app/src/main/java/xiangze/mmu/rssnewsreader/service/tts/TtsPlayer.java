@@ -277,7 +277,8 @@ public class TtsPlayer extends PlayerAdapter implements TtsPlayerListener {
             }
         } else {
             if (isSentenceSplittingInProgress) {
-                Log.d(TAG, "Reached end of current batch (counter=" + sentenceCounter + ", size=" + currentSentencesSize + "), but splitting is still in progress. Waiting...");
+                sentenceCounter++;
+                Log.d(TAG, "Reached end of current batch, waiting for sentence #" + sentenceCounter + ". Splitting is still in progress.");
                 isWaitingForArticleCompletion = true;
                 // Transition to buffering while we wait for more sentences
                 setNewState(PlaybackStateCompat.STATE_BUFFERING);
@@ -331,6 +332,10 @@ public class TtsPlayer extends PlayerAdapter implements TtsPlayerListener {
     public void pauseTts() {
         if (tts != null && tts.isSpeaking()) {
             tts.stop();
+        }
+        processingSentenceIndex = -1;
+        if (currentId > 0) {
+            entryRepository.updateSentCount(sentenceCounter, currentId);
         }
         setPausedManually(true);
         setNewState(PlaybackStateCompat.STATE_PAUSED);
@@ -439,11 +444,11 @@ public class TtsPlayer extends PlayerAdapter implements TtsPlayerListener {
         }
 
         if (content != null) {
-            if (!content.equals(lastContent)) {
-                Log.d(TAG, "Content changed from " + (lastContent == null ? "null" : lastContent.length() + " chars") + " to " + content.length() + " chars, resetting sentence counter to 0");
+            if (!isNewArticle && !content.equals(lastContent)) {
+                Log.d(TAG, "Content changed for SAME article, resetting sentence counter to 0");
                 entryRepository.updateSentCount(0, currentId);
-                lastContent = content; // Update lastContent here
             }
+            lastContent = content; // Update lastContent here
             pendingExtractorId = -1; // New content provided directly, cancel any pending extractor callback
 
             // Run extraction in background
@@ -552,19 +557,20 @@ public class TtsPlayer extends PlayerAdapter implements TtsPlayerListener {
                         sentences.add(sentence);
                     }
 
-                    // If we were at the end of the list and stopped, but more sentences are now available, resume speaking
-                    if (isWaitingForArticleCompletion && !isPausedManually && currentState == PlaybackStateCompat.STATE_PLAYING && sentenceCounter < sentences.size() - 1) {
-                        Log.d(TAG, "Resuming playback as more sentences arrived.");
+                    // If we are waiting for sentences to catch up (either during playback or at start)
+                    if (isWaitingForArticleCompletion && !isPausedManually && 
+                        (currentState == PlaybackStateCompat.STATE_PLAYING || currentState == PlaybackStateCompat.STATE_BUFFERING) && 
+                        sentenceCounter < sentences.size()) {
+                        Log.d(TAG, "Resuming playback as more sentences arrived for counter " + sentenceCounter);
                         isWaitingForArticleCompletion = false;
-                        sentenceCounter++;
                         speak();
                     }
 
                     // Signal ready after a small batch of sentences are processed (e.g., 5 sentences)
-                    if (!firstBatchSignaled && sentences.size() >= 5) {
+                    if (!firstBatchSignaled && (sentences.size() >= 5 || i == sentenceList.size() - 1)) {
                         firstBatchSignaled = true;
                         int savedProgress = entryRepository.getSentCount(currentId);
-                        sentenceCounter = Math.max(0, Math.min(savedProgress, sentences.size() - 1));
+                        sentenceCounter = savedProgress; // NO CLAMP HERE
                         if (isInit) {
                             setupTts(extractionId);
                         } else {
@@ -748,7 +754,18 @@ public class TtsPlayer extends PlayerAdapter implements TtsPlayerListener {
             if (sentenceCounter < 0) sentenceCounter = 0;
 
             if (sentences == null || sentences.size() == 0 || sentenceCounter >= sentences.size()) {
-                Log.d(TAG, "No sentences ready or counter out of bounds, skipping speak(). size=" + (sentences == null ? "null" : sentences.size()) + ", counter=" + sentenceCounter);
+                if (isSentenceSplittingInProgress) {
+                    Log.d(TAG, "Waiting for splitting to catch up to counter " + sentenceCounter);
+                    isWaitingForArticleCompletion = true;
+                    setNewState(PlaybackStateCompat.STATE_BUFFERING);
+                } else {
+                    Log.d(TAG, "No sentences ready or counter out of bounds, skipping speak(). size=" + (sentences == null ? "null" : sentences.size()) + ", counter=" + sentenceCounter);
+                    if (sentenceCounter >= sentences.size() && sentences.size() > 0) {
+                        // Truly out of bounds
+                        sentenceCounter = 0;
+                        entryRepository.updateSentCount(0, currentId);
+                    }
+                }
                 return;
             }
 
@@ -934,6 +951,7 @@ public class TtsPlayer extends PlayerAdapter implements TtsPlayerListener {
     @Override
     protected void onPlay() {
         Log.d(TAG, "onPlay called. isPausedManually=" + isPausedManually + ", ttsReady=" + (tts != null));
+        setPausedManually(false);
         if (tts != null) {
             speak();
             setNewState(PlaybackStateCompat.STATE_PLAYING);
@@ -950,6 +968,10 @@ public class TtsPlayer extends PlayerAdapter implements TtsPlayerListener {
         if (tts != null && tts.isSpeaking()) {
             tts.stop();
         }
+        processingSentenceIndex = -1;
+        if (currentId > 0) {
+            entryRepository.updateSentCount(sentenceCounter, currentId);
+        }
         setNewState(PlaybackStateCompat.STATE_PAUSED);
     }
 
@@ -957,6 +979,10 @@ public class TtsPlayer extends PlayerAdapter implements TtsPlayerListener {
     protected void onStop() {
         stopMediaPlayer();
         Log.d(TAG, " player stopped");
+        processingSentenceIndex = -1;
+        if (currentId > 0) {
+            entryRepository.updateSentCount(sentenceCounter, currentId);
+        }
         if (tts != null) {
             tts.stop();
             tts.shutdown();
