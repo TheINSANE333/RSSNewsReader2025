@@ -59,6 +59,7 @@ public class TtsPlayer extends PlayerAdapter implements TtsPlayerListener {
     private final EntryRepository entryRepository;
     private final SharedPreferencesRepository sharedPreferencesRepository;
     private final PowerManager.WakeLock wakeLock;
+    private final android.net.wifi.WifiManager.WifiLock wifiLock;
 
     private int sentenceCounter;
     private List<String> sentences = new CopyOnWriteArrayList<>();
@@ -121,6 +122,9 @@ public class TtsPlayer extends PlayerAdapter implements TtsPlayerListener {
         
         PowerManager powerManager = (PowerManager) context.getSystemService(Context.POWER_SERVICE);
         this.wakeLock = powerManager.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "RSSReader:TtsWakeLock");
+
+        android.net.wifi.WifiManager wifiManager = (android.net.wifi.WifiManager) context.getApplicationContext().getSystemService(Context.WIFI_SERVICE);
+        this.wifiLock = wifiManager.createWifiLock(android.net.wifi.WifiManager.WIFI_MODE_FULL_HIGH_PERF, "RSSReader:TtsWifiLock");
     }
 
     @Override
@@ -190,6 +194,12 @@ public class TtsPlayer extends PlayerAdapter implements TtsPlayerListener {
                         if (index >= 0 && index < sentences.size()) {
                             String sentenceToHighlight = sentences.get(index);
                             highlightTextLiveData.postValue(sentenceToHighlight);
+                            
+                            // Save progress immediately as we start speaking this sentence
+                            if (currentId > 0) {
+                                sentenceCounter = index;
+                                entryRepository.updateSentCount(index, currentId);
+                            }
                         }
                     } catch (NumberFormatException e) {
                         Log.e(TAG, "Invalid utterance ID format: " + utteranceId);
@@ -266,11 +276,9 @@ public class TtsPlayer extends PlayerAdapter implements TtsPlayerListener {
             if (sentenceCounter < sentences.size()) {
                 if (!isPausedManually && currentState == PlaybackStateCompat.STATE_PLAYING) {
                     speak();
-                    entryRepository.updateSentCount(sentenceCounter, currentId);
                     Log.d(TAG, "Finished [#" + (sentenceCounter - 1) + "], speaking [#" + sentenceCounter + "]");
                 } else {
                     Log.d(TAG, "Sentence finished but player is paused/stopped (state=" + currentState + "). Counter incremented to: " + sentenceCounter);
-                    entryRepository.updateSentCount(sentenceCounter, currentId);
                 }
             } else {
                 Log.d(TAG, "sentenceCounter became out of bounds after increment, stopping (N-1 logic).");
@@ -334,9 +342,6 @@ public class TtsPlayer extends PlayerAdapter implements TtsPlayerListener {
             tts.stop();
         }
         processingSentenceIndex = -1;
-        if (currentId > 0) {
-            entryRepository.updateSentCount(sentenceCounter, currentId);
-        }
         setPausedManually(true);
         setNewState(PlaybackStateCompat.STATE_PAUSED);
         setUiControlPlayback(false);
@@ -367,13 +372,11 @@ public class TtsPlayer extends PlayerAdapter implements TtsPlayerListener {
             this.lastAutoRetriedId = -1;
         }
 
-        boolean wasPlayingIntent = (currentState == PlaybackStateCompat.STATE_PLAYING) || 
-                                   (currentState == PlaybackStateCompat.STATE_BUFFERING) || 
-                                   (tts != null && tts.isSpeaking()) || 
-                                   (isArticleFinished && isNewArticle);
-        isPausedManually = !wasPlayingIntent && sharedPreferencesRepository.getIsPausedManually();
-        sharedPreferencesRepository.setIsPausedManually(isPausedManually);
-        Log.d(TAG, "Detected isPausedManually = " + isPausedManually + " (wasPlayingIntent=" + wasPlayingIntent + ", state=" + currentState + ", finished=" + isArticleFinished + ")");
+        // CRITICAL FIX: Respect isPausedManually correctly. 
+        // We only want to auto-unpause if the user explicitly triggered a "next" while ALREADY playing.
+        // If they were paused, we should stay paused.
+        isPausedManually = sharedPreferencesRepository.getIsPausedManually();
+        Log.d(TAG, "Detected isPausedManually = " + isPausedManually + " (state=" + currentState + ", finished=" + isArticleFinished + ")");
 
         String resolvedLanguage = (language != null && language.equals("Use Language Identifier")) ? null : language;
         boolean isSameViewMode = (viewMode == null && this.lastViewMode == null) || (viewMode != null && viewMode.equals(this.lastViewMode));
@@ -410,6 +413,7 @@ public class TtsPlayer extends PlayerAdapter implements TtsPlayerListener {
         }
 
         isPreparing = true;
+        setNewState(PlaybackStateCompat.STATE_BUFFERING);
         isSettingUpNewArticle = true;
         isWaitingForArticleCompletion = false;
         sentences.clear();
@@ -992,6 +996,8 @@ public class TtsPlayer extends PlayerAdapter implements TtsPlayerListener {
         currentId = 0;
         isArticleFinished = false;
         setNewState(PlaybackStateCompat.STATE_STOPPED);
+        releaseWakeLock();
+        releaseWifiLock();
     }
 
     private void setNewState(@PlaybackStateCompat.State int state) {
@@ -1004,14 +1010,19 @@ public class TtsPlayer extends PlayerAdapter implements TtsPlayerListener {
             listener.onPlaybackStateChange(stateBuilder.build());
         }
 
-        // Manage WakeLock to prevent CPU sleep during playback and preparation
+        // Manage Locks to prevent CPU/Network sleep during playback and preparation
         if (state == PlaybackStateCompat.STATE_PLAYING || state == PlaybackStateCompat.STATE_BUFFERING) {
             if (!wakeLock.isHeld()) {
                 Log.d(TAG, "Acquiring WakeLock for TTS playback/buffering");
                 wakeLock.acquire();
             }
+            if (!wifiLock.isHeld()) {
+                Log.d(TAG, "Acquiring WifiLock for TTS playback/buffering");
+                wifiLock.acquire();
+            }
         } else {
             releaseWakeLock();
+            releaseWifiLock();
         }
     }
 
@@ -1019,6 +1030,13 @@ public class TtsPlayer extends PlayerAdapter implements TtsPlayerListener {
         if (wakeLock.isHeld()) {
             Log.d(TAG, "Releasing WakeLock");
             wakeLock.release();
+        }
+    }
+
+    private void releaseWifiLock() {
+        if (wifiLock.isHeld()) {
+            Log.d(TAG, "Releasing WifiLock");
+            wifiLock.release();
         }
     }
 

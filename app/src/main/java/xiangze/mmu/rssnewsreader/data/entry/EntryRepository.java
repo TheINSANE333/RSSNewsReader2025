@@ -351,8 +351,14 @@ public class EntryRepository {
     }
 
     public void updateSentCount(int sentCount, long id) {
-        Log.d(TAG, "speak: " + sentCount);
-        entryDao.updateSentCount(sentCount, id);
+        Completable.fromAction(() -> {
+            Log.d(TAG, "updateSentCount: " + sentCount + " for ID: " + id);
+            entryDao.updateSentCount(sentCount, id);
+        }).subscribeOn(Schedulers.io())
+          .subscribe(
+              () -> {},
+              throwable -> Log.e(TAG, "Error updating sent count", throwable)
+          );
     }
 
     public void updateSentCountByLink(int sentCount, long id) {

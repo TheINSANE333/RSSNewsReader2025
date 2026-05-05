@@ -214,12 +214,18 @@ public class AllEntriesFragment extends Fragment implements EntryItemAdapter.Ent
                     int lastIndex = prompts.size() - 1;
                     String systemInstruction = prompts.get(lastIndex);
                     
+                    StringBuilder combinedText = new StringBuilder();
+                    combinedText.append(systemInstruction).append("\n\n--- CONTENT BELOW ---\n\n");
+
                     for (int i = 0; i < lastIndex; i++) {
+                        String partText = prompts.get(i);
+                        combinedText.append(partText).append("\n\n");
+
                         String fileName = "daily_summary_part_" + (i + 1) + ".txt";
                         java.io.File newFile = new java.io.File(cachePath, fileName);
                         
                         java.io.FileWriter writer = new java.io.FileWriter(newFile);
-                        writer.write(prompts.get(i));
+                        writer.write(partText);
                         writer.close();
 
                         android.net.Uri contentUri = androidx.core.content.FileProvider.getUriForFile(
@@ -230,39 +236,51 @@ public class AllEntriesFragment extends Fragment implements EntryItemAdapter.Ent
                             contentUris.add(contentUri);
                         }
                     }
+                    
+                    // Create a "Full" version for AI apps that prefer a single file
+                    java.io.File fullFile = new java.io.File(cachePath, "daily_summary_FULL.txt");
+                    java.io.FileWriter fullWriter = new java.io.FileWriter(fullFile);
+                    fullWriter.write(combinedText.toString());
+                    fullWriter.close();
+                    
+                    android.net.Uri fullUri = androidx.core.content.FileProvider.getUriForFile(
+                            requireContext(),
+                            requireContext().getPackageName() + ".fileprovider",
+                            fullFile);
+                    if (fullUri != null) {
+                        contentUris.add(fullUri);
+                    }
 
                     if (!contentUris.isEmpty()) {
-                        Intent sendIntent = new Intent();
-                        if (contentUris.size() > 1) {
-                            sendIntent.setAction(Intent.ACTION_SEND_MULTIPLE);
-                            sendIntent.putParcelableArrayListExtra(Intent.EXTRA_STREAM, contentUris);
-                        } else {
-                            sendIntent.setAction(Intent.ACTION_SEND);
-                            sendIntent.putExtra(Intent.EXTRA_STREAM, contentUris.get(0));
-                        }
-                        
+                        // Create a final "All-in-one" file for best compatibility
+                        java.io.File finalFile = new java.io.File(cachePath, "news_articles_for_ai.txt");
+                        java.io.FileWriter finalWriter = new java.io.FileWriter(finalFile);
+                        finalWriter.write(combinedText.toString());
+                        finalWriter.close();
+
+                        android.net.Uri finalUri = androidx.core.content.FileProvider.getUriForFile(
+                                requireContext(),
+                                requireContext().getPackageName() + ".fileprovider",
+                                finalFile);
+
+                        Intent sendIntent = new Intent(Intent.ACTION_SEND);
                         sendIntent.setType("text/plain");
-                        sendIntent.putExtra(Intent.EXTRA_TEXT, systemInstruction);
-                        sendIntent.putExtra(Intent.EXTRA_SUBJECT, "Daily News Summary Prompt");
+                        sendIntent.putExtra(Intent.EXTRA_STREAM, finalUri);
+                        sendIntent.putExtra(Intent.EXTRA_SUBJECT, "News Summary Content");
                         
-                        // Copy to clipboard as fallback since many AI apps (like ChatGPT) ignore EXTRA_TEXT with files
+                        // CRITICAL: Copy prompt to clipboard so user can "paste it" after attaching the file
                         android.content.ClipboardManager clipboard = (android.content.ClipboardManager) requireContext().getSystemService(android.content.Context.CLIPBOARD_SERVICE);
                         if (clipboard != null) {
                             android.content.ClipData clip = android.content.ClipData.newPlainText("Daily Summary Prompt", systemInstruction);
                             clipboard.setPrimaryClip(clip);
-                            Toast.makeText(requireContext(), "Prompt copied to clipboard (fallback)", Toast.LENGTH_SHORT).show();
+                            Toast.makeText(requireContext(), "Prompt copied! Attach the file then paste your instruction.", Toast.LENGTH_LONG).show();
                         }
 
-                        // Use ClipData to pass both text and URIs (improves compatibility and handles permissions)
-                        android.content.ClipData clipData = android.content.ClipData.newPlainText("instruction", systemInstruction);
-                        for (android.net.Uri uri : contentUris) {
-                            clipData.addItem(new android.content.ClipData.Item(uri));
-                        }
-                        sendIntent.setClipData(clipData);
                         sendIntent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+                        // For ACTION_SEND with a file, some apps prefer the URI in ClipData as well
+                        sendIntent.setClipData(android.content.ClipData.newRawUri("News Content", finalUri));
 
-                        Intent shareIntent = Intent.createChooser(sendIntent, "Send Summary Files to AI App");
-                        startActivity(shareIntent);
+                        startActivity(Intent.createChooser(sendIntent, "Share to AI"));
                     }
                 } catch (java.io.IOException e) {
                     Log.e(TAG, "Error creating summary files", e);

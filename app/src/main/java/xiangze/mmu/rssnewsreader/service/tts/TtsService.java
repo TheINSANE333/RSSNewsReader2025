@@ -91,7 +91,8 @@ public class TtsService extends MediaBrowserServiceCompat {
             // Use the standard MediaButtonReceiver to handle the intent
             TtsMediaButtonReceiver.handleIntent(mediaSession, intent);
         }
-        return super.onStartCommand(intent, flags, startId);
+        super.onStartCommand(intent, flags, startId);
+        return START_STICKY;
     }
 
     @Override
@@ -527,6 +528,7 @@ public class TtsService extends MediaBrowserServiceCompat {
 
                 switch (state.getState()) {
                     case PlaybackStateCompat.STATE_PLAYING:
+                    case PlaybackStateCompat.STATE_BUFFERING:
                         if (!mediaSession.isActive()) {
                             mediaSession.setActive(true);
                         }
@@ -547,29 +549,40 @@ public class TtsService extends MediaBrowserServiceCompat {
             private final Intent intent = new Intent(TtsService.this, TtsService.class);
 
             private void moveServiceToStartedState(PlaybackStateCompat state) {
-                Log.d(TAG, "notification to play");
+                Log.d(TAG, "notification to play/buffer");
                 Notification notification = ttsNotification.getNotification(preparedData, state, getSessionToken());
 
                 if (!serviceInStartedState) {
                     ContextCompat.startForegroundService(TtsService.this, intent);
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                    startForeground(TtsNotification.TTS_NOTIFICATION_ID, notification, android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK);
-                } else {
-                    startForeground(TtsNotification.TTS_NOTIFICATION_ID, notification);
-                }
+                        startForeground(TtsNotification.TTS_NOTIFICATION_ID, notification, android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK);
+                    } else {
+                        startForeground(TtsNotification.TTS_NOTIFICATION_ID, notification);
+                    }
                     serviceInStartedState = true;
                 } else {
-                    ttsNotification.getNotificationManager().notify(TtsNotification.TTS_NOTIFICATION_ID, notification);
+                    // Even if already started, ensure we are in foreground for buffering/playing
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                        startForeground(TtsNotification.TTS_NOTIFICATION_ID, notification, android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK);
+                    } else {
+                        startForeground(TtsNotification.TTS_NOTIFICATION_ID, notification);
+                    }
                 }
             }
 
             private void updateNotificationForPause(PlaybackStateCompat state) {
-
                 Log.d(TAG, "notification to pause");
-
-                ServiceCompat.stopForeground(TtsService.this, ServiceCompat.STOP_FOREGROUND_DETACH);
-
+                
+                // Keep the service in foreground even when paused to prevent system from killing it during screen timeout.
+                // This is especially important for news reader apps where the user might pause for a long time.
                 Notification notification = ttsNotification.getNotification(preparedData, state, getSessionToken());
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                    startForeground(TtsNotification.TTS_NOTIFICATION_ID, notification, android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK);
+                } else {
+                    startForeground(TtsNotification.TTS_NOTIFICATION_ID, notification);
+                }
+                
+                // We still notify just in case startForeground didn't refresh it enough (unlikely but safe)
                 ttsNotification.getNotificationManager().notify(TtsNotification.TTS_NOTIFICATION_ID, notification);
             }
 

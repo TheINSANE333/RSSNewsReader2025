@@ -433,11 +433,7 @@ public class SharedPreferencesRepository {
     }
 
     public String getDailySummaryPrompt() {
-        return sharedPreferences.getString("daily_summary_prompt", context.getString(xiangze.mmu.rssnewsreader.R.string.daily_summary_prompt_default));
-    }
-
-    public void setDailySummaryPrompt(String prompt) {
-        editor.putString("daily_summary_prompt", prompt).apply();
+        return context.getString(xiangze.mmu.rssnewsreader.R.string.daily_summary_prompt_default);
     }
 
     public Context getContext() {
