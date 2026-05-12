@@ -37,6 +37,7 @@ public class SummarizationWorker extends ListenableWorker {
     private final EntryRepository entryRepository;
     private final TextUtil textUtil;
     private final SharedPreferencesRepository sharedPreferencesRepository;
+    private final xiangze.mmu.rssnewsreader.service.tts.TtsExtractor ttsExtractor;
     private Disposable currentDisposable;
 
     @AssistedInject
@@ -45,11 +46,13 @@ public class SummarizationWorker extends ListenableWorker {
             @Assisted @NonNull WorkerParameters workerParams,
             EntryRepository entryRepository,
             TextUtil textUtil,
-            SharedPreferencesRepository sharedPreferencesRepository) {
+            SharedPreferencesRepository sharedPreferencesRepository,
+            xiangze.mmu.rssnewsreader.service.tts.TtsExtractor ttsExtractor) {
         super(context, workerParams);
         this.entryRepository = entryRepository;
         this.textUtil = textUtil;
         this.sharedPreferencesRepository = sharedPreferencesRepository;
+        this.ttsExtractor = ttsExtractor;
     }
 
     @NonNull
@@ -139,6 +142,14 @@ public class SummarizationWorker extends ListenableWorker {
         String htmlSource = entryRepository.getOriginalHtmlById(entryInfo.getEntryId());
         if (htmlSource == null || htmlSource.trim().isEmpty()) {
             htmlSource = entryRepository.getHtmlById(entryInfo.getEntryId());
+        }
+
+        // Check if the current plain text content is an error message
+        String plainContent = entryRepository.getContentById(entryInfo.getEntryId());
+        if (textUtil.isErrorContent(plainContent)) {
+            Log.w(TAG, "Error content detected for " + entryInfo.getEntryTitle() + ". Triggering re-extraction.");
+            ttsExtractor.resetAndRetry(entryInfo.getEntryId());
+            return io.reactivex.rxjava3.core.Completable.complete(); // Skip for now
         }
 
         if (htmlSource == null || htmlSource.trim().isEmpty()) {

@@ -269,6 +269,13 @@ public class WebViewActivity extends AppCompatActivity implements ReloadDialog.R
         Entry entry = entryRepository.getEntryById(currentId);
         if (entry == null) return;
 
+        // Auto-reload if content is detected as an error message or too short
+        if (!sharedPreferencesRepository.getWebViewMode(currentId) && textUtil.isErrorContent(entry.getContent())) {
+            Log.d(TAG, "Error content detected for ID: " + currentId + ". Triggering auto re-extraction.");
+            ttsExtractor.resetAndRetry(currentId);
+            showFakeLoading();
+        }
+
         if (sharedPreferencesRepository.getWebViewMode(currentId)) {
             webView.loadUrl(currentLink);
             refreshButtonVisibility();
@@ -587,6 +594,15 @@ public class WebViewActivity extends AppCompatActivity implements ReloadDialog.R
 
         Entry entry = entryRepository.getEntryById(currentId);
         if (entry == null) return;
+        
+        // CHECK FOR ERROR CONTENT
+        if (textUtil.isErrorContent(entry.getContent())) {
+            Log.d(TAG, "Manual summarization requested for error content. Triggering reload.");
+            ttsExtractor.resetAndRetry(currentId);
+            showFakeLoading();
+            return; // Exit and wait for reload to finish
+        }
+
         final String sourceHtml = entry.getOriginalHtml() != null ? entry.getOriginalHtml() : entry.getHtml();
         if (sourceHtml == null) return;
 

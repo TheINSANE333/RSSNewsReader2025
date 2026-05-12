@@ -1053,6 +1053,32 @@ public class TextUtil {
         return result;
     }
 
+    public boolean isErrorContent(String text) {
+        if (text == null || text.trim().isEmpty()) return true;
+        String trimmed = text.trim();
+        
+        // Too short to be a real article
+        if (trimmed.length() < 100) {
+            // Check for common error indicators in short text
+            String lower = trimmed.toLowerCase();
+            if (lower.contains("extraction failed") || 
+                lower.contains("not found") || 
+                lower.contains("404") || 
+                lower.contains("error") || 
+                lower.contains("denied") ||
+                lower.contains("forbidden") ||
+                lower.contains("timeout") ||
+                lower.contains("no content")) {
+                return true;
+            }
+            
+            // If it's very short and doesn't look like a title/snippet, it's likely an error
+            return trimmed.length() < 30; 
+        }
+        
+        return false;
+    }
+
     public void onDestroy() {
         compositeDisposable.dispose();
     }
