@@ -692,8 +692,18 @@ public class WebViewActivity extends AppCompatActivity implements ReloadDialog.R
     }
 
     private void setupReadingNavigation() {
-        binding.nextArticleButton.setOnClickListener(v -> { if (ttsPlaylist.skipNext()) loadEntryContent(); });
-        binding.previousArticleButton.setOnClickListener(v -> { if (ttsPlaylist.skipPrevious()) loadEntryContent(); });
+        binding.nextArticleButton.setOnClickListener(v -> {
+            if (ttsPlaylist.skipNext()) {
+                currentId = ttsPlaylist.getPlayingId();
+                loadEntryContent();
+            }
+        });
+        binding.previousArticleButton.setOnClickListener(v -> {
+            if (ttsPlaylist.skipPrevious()) {
+                currentId = ttsPlaylist.getPlayingId();
+                loadEntryContent();
+            }
+        });
     }
 
     // Boilerplate / Infrastructure
