@@ -152,8 +152,10 @@ public interface EntryDao {
             "ORDER BY e.publishedDate DESC")
     LiveData<List<EntryListItem>> getAllEntriesListLive();
 
-    @Query("SELECT e.* FROM entry_table e " +
-            "WHERE e.visitedDate is null AND e.feedId IN (:feedIds)")
+    @Query("SELECT id, feedId, priority, title, link, description, content, html, imageUrl, category, publishedDate, visitedDate, bookmark, sentCountStopAt, isCached " +
+            "FROM entry_table " +
+            "WHERE visitedDate is null AND feedId IN (:feedIds) " +
+            "ORDER BY publishedDate DESC LIMIT 500")
     Flowable<List<Entry>> getUnreadEntriesForFeedsEntity(List<Long> feedIds);
 
     @RewriteQueriesToDropUnusedColumns
