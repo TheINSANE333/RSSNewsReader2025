@@ -20,6 +20,7 @@ import android.util.Log;
 import android.view.KeyEvent;
 import android.view.MenuItem;
 import android.view.View;
+import android.view.WindowManager;
 import android.webkit.WebChromeClient;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
@@ -110,6 +111,12 @@ public class WebViewActivity extends AppCompatActivity implements ReloadDialog.R
         public void onPlaybackStateChanged(@NonNull PlaybackStateCompat state) {
             isPlaying = state.getState() == PlaybackStateCompat.STATE_PLAYING;
             updatePlayPauseButtonIcon(isPlaying);
+            
+            if (isPlaying) {
+                getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+            } else {
+                getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+            }
         }
 
         @Override
