@@ -272,6 +272,13 @@
             app:summary="@string/max_files_summary"
             app:title="@string/max_files_title" />
 
+        <EditTextPreference
+            app:icon="@drawable/ic_pencil"
+            app:key="daily_summary_prompt"
+            app:title="@string/daily_summary_prompt_title"
+            app:summary="@string/daily_summary_prompt_summary"
+            app:useSimpleSummaryProvider="true" />
+
     </PreferenceCategory>
 
 </PreferenceScreen>
