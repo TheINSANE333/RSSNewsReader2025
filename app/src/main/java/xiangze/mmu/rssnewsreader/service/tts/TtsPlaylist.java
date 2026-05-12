@@ -22,7 +22,7 @@ public class TtsPlaylist {
     private final EntryRepository entryRepository;
     private final PlaylistRepository playlistRepository;
     private MediaMetadataCompat metadata;
-    private long playingId;
+    private volatile long playingId;
 
     @Inject
     public TtsPlaylist(EntryRepository entryRepository, PlaylistRepository playlistRepository) {

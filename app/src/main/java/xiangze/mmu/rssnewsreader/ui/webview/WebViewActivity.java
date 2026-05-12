@@ -118,21 +118,22 @@ public class WebViewActivity extends AppCompatActivity implements ReloadDialog.R
                 String mediaIdStr = metadata.getString(MediaMetadataCompat.METADATA_KEY_MEDIA_ID);
                 if (mediaIdStr != null) {
                     long newId = Long.parseLong(mediaIdStr);
-                    // Follow the TTS skip if it's a new article and we are in "Play Mode" (following the playlist)
-                    // or if the new ID matches what the playlist says is playing.
+                    // Follow the TTS skip if:
+                    // 1. We are in "Play Mode" (isReadingMode = false)
+                    // 2. We were already viewing what WAS playing (sync mode)
+                    // 3. The new ID matches what the playlist says is playing
                     if (newId != currentId && newId != 0) {
                         Log.d(TAG, "onMetadataChanged: New ID = " + newId + ", currentId = " + currentId + ", playingId = " + ttsPlaylist.getPlayingId());
                         
-                        // We follow if:
-                        // 1. The new ID is what the playlist is now playing (standard skip)
-                        // 2. The user is already viewing what WAS playing (sync mode)
-                        if (newId == ttsPlaylist.getPlayingId() || currentId == 0) {
+                        boolean shouldFollow = !isReadingMode || currentId == 0 || newId == ttsPlaylist.getPlayingId();
+                        
+                        if (shouldFollow) {
                             currentId = newId;
                             webViewViewModel.setCurrentId(currentId);
                             sharedPreferencesRepository.setCurrentReadingEntryId(currentId);
                             loadEntryContent();
                         } else {
-                            Log.d(TAG, "Ignoring metadata change as user might be browsing a different article manually.");
+                            Log.d(TAG, "Ignoring metadata change as user might be browsing a different article manually in Reading Mode.");
                         }
                     }
                 }
