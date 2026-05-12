@@ -911,7 +911,10 @@ public class WebViewActivity extends AppCompatActivity implements ReloadDialog.R
                     String h = r.nextString();
                     if (h != null && h.length() >= 500) ttsExtractor.processExtraction(currentId, currentLink, currentTitle, h);
                 }
-            } catch (Exception e) { Log.e(TAG, "Ex err", e); }
+            } catch (Throwable t) { 
+                Log.e(TAG, "Fatal error during JS extraction", t);
+                makeSnackbar("JS extraction crashed: " + t.getClass().getSimpleName());
+            }
         });
     }
 

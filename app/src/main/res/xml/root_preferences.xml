@@ -133,6 +133,12 @@
             android:title="@string/text_to_speech_settings"
             app:icon="@drawable/ic_speech" />
 
+        <Preference
+            android:key="key_tts_substitutions"
+            app:icon="@drawable/ic_letter_switch"
+            app:title="TTS Substitutions"
+            app:summary="Manage word replacements for text-to-speech." />
+
         <SwitchPreferenceCompat
             app:defaultValue="false"
             app:icon="@drawable/ic_music"

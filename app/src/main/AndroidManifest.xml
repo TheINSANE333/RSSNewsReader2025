@@ -40,6 +40,10 @@
             android:label="AI Chatbot"
             android:theme="@style/Theme.RSSNewsReader" />
         <activity
+            android:name=".ui.settings.TtsSubstitutionsActivity"
+            android:label="TTS Substitutions"
+            android:exported="false" />
+        <activity
             android:name=".ui.main.MainActivity"
             android:exported="true"
             android:theme="@style/Theme.App.Starting"

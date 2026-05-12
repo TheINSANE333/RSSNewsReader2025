@@ -58,6 +58,7 @@ public class TtsPlayer extends PlayerAdapter implements TtsPlayerListener {
     private final TtsExtractor ttsExtractor;
     private final EntryRepository entryRepository;
     private final SharedPreferencesRepository sharedPreferencesRepository;
+    private final xiangze.mmu.rssnewsreader.service.util.TextUtil textUtil;
     private final PowerManager.WakeLock wakeLock;
     private final android.net.wifi.WifiManager.WifiLock wifiLock;
 
@@ -112,11 +113,12 @@ public class TtsPlayer extends PlayerAdapter implements TtsPlayerListener {
 
     @SuppressLint("InvalidWakeLockTag")
     @Inject
-    public TtsPlayer(@ApplicationContext Context context, TtsExtractor ttsExtractor, EntryRepository entryRepository, SharedPreferencesRepository sharedPreferencesRepository) {
+    public TtsPlayer(@ApplicationContext Context context, TtsExtractor ttsExtractor, EntryRepository entryRepository, SharedPreferencesRepository sharedPreferencesRepository, xiangze.mmu.rssnewsreader.service.util.TextUtil textUtil) {
         super(context);
         this.ttsExtractor = ttsExtractor;
         this.entryRepository = entryRepository;
         this.sharedPreferencesRepository = sharedPreferencesRepository;
+        this.textUtil = textUtil;
         this.context = context;
         this.isPausedManually = sharedPreferencesRepository.getIsPausedManually();
         
@@ -549,7 +551,7 @@ public class TtsPlayer extends PlayerAdapter implements TtsPlayerListener {
                 for (int i = 0; i < sentenceList.size(); i++) {
                     if (extractionId != currentExtractionId) return;
 
-                    String sentence = sentenceList.get(i);
+                    String sentence = textUtil.applyTtsSubstitutions(sentenceList.get(i));
                     if (sentence.length() >= TextToSpeech.getMaxSpeechInputLength()) {
                         BreakIterator iterator = BreakIterator.getSentenceInstance();
                         iterator.setText(sentence);

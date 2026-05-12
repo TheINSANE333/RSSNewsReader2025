@@ -147,6 +147,15 @@ public class SettingsFragment extends PreferenceFragmentCompat {
             });
         }
 
+        Preference ttsSubstitutionsPreference = findPreference("key_tts_substitutions");
+        if (ttsSubstitutionsPreference != null) {
+            ttsSubstitutionsPreference.setOnPreferenceClickListener(preference -> {
+                Intent intent = new Intent(getActivity(), xiangze.mmu.rssnewsreader.ui.settings.TtsSubstitutionsActivity.class);
+                startActivity(intent);
+                return true;
+            });
+        }
+
         Preference getgroqKeyPreference = findPreference("get_groq_key");
         if (getgroqKeyPreference != null) {
             getgroqKeyPreference.setOnPreferenceClickListener(preference -> {

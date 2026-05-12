@@ -501,8 +501,11 @@ public class TtsExtractor {
             } else {
                 handleFailure(currentIdInProgress);
             }
-        } catch (Exception e) {
-            Log.e(TAG, "Exception during extraction", e);
+        } catch (Throwable t) {
+            Log.e(TAG, "Fatal error during processHtmlExtraction", t);
+            if (currentIdInProgress == GlobalState.getCurrentViewingId()) {
+                snackbarMessageLiveData.postValue("Extraction crashed (JS): " + t.getClass().getSimpleName());
+            }
             handleFailure(currentIdInProgress);
         }
     }
@@ -870,8 +873,11 @@ public class TtsExtractor {
             } else {
                 handleFailure(entryId);
             }
-        } catch (Exception e) {
-            Log.e(TAG, "Exception during extraction", e);
+        } catch (Throwable t) {
+            Log.e(TAG, "Fatal error during extraction for ID: " + entryId, t);
+            if (entryId == GlobalState.getCurrentViewingId()) {
+                snackbarMessageLiveData.postValue("Extraction crashed: " + t.getClass().getSimpleName() + " - " + t.getMessage());
+            }
             handleFailure(entryId);
         }
     }

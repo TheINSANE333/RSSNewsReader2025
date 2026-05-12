@@ -1037,6 +1037,22 @@ public class TextUtil {
         }
     }
 
+    public String applyTtsSubstitutions(String text) {
+        if (text == null || text.isEmpty()) return text;
+        java.util.Map<String, String> substitutions = sharedPreferencesRepository.getTtsSubstitutions();
+        if (substitutions.isEmpty()) return text;
+
+        String result = text;
+        for (java.util.Map.Entry<String, String> entry : substitutions.entrySet()) {
+            String key = entry.getKey();
+            String value = entry.getValue();
+            if (key != null && !key.isEmpty() && value != null) {
+                result = result.replace(key, value);
+            }
+        }
+        return result;
+    }
+
     public void onDestroy() {
         compositeDisposable.dispose();
     }

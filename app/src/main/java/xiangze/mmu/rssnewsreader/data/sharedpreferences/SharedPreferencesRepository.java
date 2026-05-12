@@ -333,6 +333,27 @@ public class SharedPreferencesRepository {
         return sharedPreferences.getBoolean(KEY_WEB_VIEW_MODE + entryId, false); // default to offline mode
     }
 
+    private static final String KEY_TTS_SUBSTITUTIONS = "tts_substitutions";
+
+    public java.util.Map<String, String> getTtsSubstitutions() {
+        String json = sharedPreferences.getString(KEY_TTS_SUBSTITUTIONS, "");
+        if (json.isEmpty()) {
+            java.util.Map<String, String> defaults = new java.util.HashMap<>();
+            defaults.put("Dr.", "Doctor");
+            defaults.put("St.", "Saint");
+            return defaults;
+        }
+        Gson gson = new Gson();
+        Type type = new TypeToken<java.util.Map<String, String>>() {}.getType();
+        return gson.fromJson(json, type);
+    }
+
+    public void setTtsSubstitutions(java.util.Map<String, String> substitutions) {
+        Gson gson = new Gson();
+        String json = gson.toJson(substitutions);
+        editor.putString(KEY_TTS_SUBSTITUTIONS, json).apply();
+    }
+
     public void setCurrentReadingEntryId(long entryId) {
         sharedPreferences.edit().putLong(KEY_CURRENT_READING_ENTRY_ID, entryId).apply();
     }

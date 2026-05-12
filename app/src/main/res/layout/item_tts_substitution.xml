@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:padding="8dp">
+
+    <TextView
+        android:id="@+id/originalTextView"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:text="Original"
+        android:textSize="16sp"
+        app:layout_constraintEnd_toStartOf="@id/arrowImageView"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_top_toTopOf="parent" />
+
+    <ImageView
+        android:id="@+id/arrowImageView"
+        android:layout_width="24dp"
+        android:layout_height="24dp"
+        android:src="@drawable/ic_baseline_fast_forward_24"
+        android:layout_marginHorizontal="8dp"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toStartOf="@id/replacementTextView"
+        app:layout_constraintStart_toEndOf="@id/originalTextView"
+        app:layout_top_toTopOf="parent" />
+
+    <TextView
+        android:id="@+id/replacementTextView"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:text="Replacement"
+        android:textSize="16sp"
+        android:textStyle="bold"
+        app:layout_constraintEnd_toStartOf="@id/deleteButton"
+        app:layout_constraintStart_toEndOf="@id/arrowImageView"
+        app:layout_top_toTopOf="parent" />
+
+    <ImageButton
+        android:id="@+id/deleteButton"
+        android:layout_width="48dp"
+        android:layout_height="48dp"
+        android:background="?attr/selectableItemBackgroundBorderless"
+        android:src="@drawable/ic_trash"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_top_toTopOf="parent" />
+
+</androidx.constraintlayout.widget.ConstraintLayout>

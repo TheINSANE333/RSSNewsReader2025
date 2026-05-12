@@ -73,7 +73,12 @@ public class WebViewContentManager {
                 }, 300);
             }
         }, throwable -> {
-            Log.e(TAG, "Error processing HTML", throwable);
+            Log.e(TAG, "Fatal error processing HTML", throwable);
+            if (listener != null) {
+                listener.makeSnackbar("HTML rendering crashed: " + throwable.getClass().getSimpleName());
+                listener.hideFakeLoading();
+                listener.finishedSetup();
+            }
         });
     }
 
