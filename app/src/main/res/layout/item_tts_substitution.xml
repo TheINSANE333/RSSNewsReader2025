@@ -13,7 +13,7 @@
         android:textSize="16sp"
         app:layout_constraintEnd_toStartOf="@id/arrowImageView"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_top_toTopOf="parent" />
+        app:layout_constraintTop_toTopOf="parent" />
 
     <ImageView
         android:id="@+id/arrowImageView"
@@ -24,7 +24,7 @@
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toStartOf="@id/replacementTextView"
         app:layout_constraintStart_toEndOf="@id/originalTextView"
-        app:layout_top_toTopOf="parent" />
+        app:layout_constraintTop_toTopOf="parent" />
 
     <TextView
         android:id="@+id/replacementTextView"
@@ -35,7 +35,7 @@
         android:textStyle="bold"
         app:layout_constraintEnd_toStartOf="@id/deleteButton"
         app:layout_constraintStart_toEndOf="@id/arrowImageView"
-        app:layout_top_toTopOf="parent" />
+        app:layout_constraintTop_toTopOf="parent" />
 
     <ImageButton
         android:id="@+id/deleteButton"
@@ -45,6 +45,6 @@
         android:src="@drawable/ic_trash"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_top_toTopOf="parent" />
+        app:layout_constraintTop_toTopOf="parent" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

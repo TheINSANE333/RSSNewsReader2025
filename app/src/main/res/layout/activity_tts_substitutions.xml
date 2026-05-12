@@ -14,7 +14,7 @@
         android:textSize="20sp"
         android:textStyle="bold"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_top_toStartOf="parent" />
+        app:layout_constraintTop_toTopOf="parent" />
 
     <TextView
         android:id="@+id/descTextView"
@@ -25,7 +25,7 @@
         android:layout_marginTop="8dp"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_top_toBottomOf="@id/titleTextView" />
+        app:layout_constraintTop_toBottomOf="@id/titleTextView" />
 
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/substitutionsRecyclerView"
@@ -35,7 +35,7 @@
         app:layout_constraintBottom_toTopOf="@id/addButton"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_top_toBottomOf="@id/descTextView"
+        app:layout_constraintTop_toBottomOf="@id/descTextView"
         tools:listitem="@layout/item_tts_substitution" />
 
     <com.google.android.material.button.MaterialButton
