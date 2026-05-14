@@ -10,6 +10,7 @@ import java.util.concurrent.TimeUnit;
 import xiangze.mmu.rssnewsreader.data.ai.ChatRequest;
 import xiangze.mmu.rssnewsreader.data.ai.ChatResponse;
 import xiangze.mmu.rssnewsreader.data.ai.Message;
+import xiangze.mmu.rssnewsreader.data.sharedpreferences.SharedPreferencesRepository;
 import xiangze.mmu.rssnewsreader.service.ai.AiService;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
@@ -19,17 +20,22 @@ import retrofit2.converter.gson.GsonConverterFactory;
 
 public class AiClient {
     private static final String BASE_URL = "https://api.groq.com/openai/v1/";
-    private final String userKey;
+    private String userKey;
     private static final String SITE_URL = "https://github.com/TheINSANE333/RSSNewsReader2025"; // Replace with your app/site URL
     private static final String SITE_NAME = "RSS News Reader 2025"; // Replace with your app name
 
     private AiService service;
     private final Context context;
+    private final SharedPreferencesRepository sharedPreferencesRepository;
 
     public AiClient(Context context) {
         this.context = context;
-        this.userKey = PreferenceManager.getDefaultSharedPreferences(context).getString("groq_api_key", "");
+        this.sharedPreferencesRepository = new SharedPreferencesRepository(context);
+        this.userKey = sharedPreferencesRepository.getGroqApiKey();
+        initializeService();
+    }
 
+    private void initializeService() {
         OkHttpClient okHttpClient = new OkHttpClient.Builder()
                 .connectTimeout(300, TimeUnit.SECONDS)
                 .readTimeout(300, TimeUnit.SECONDS)
@@ -43,7 +49,7 @@ public class AiClient {
                             .header("Content-Type", "application/json")
                             .method(original.method(), original.body());
                     
-                    if (!this.userKey.isEmpty()) {
+                    if (this.userKey != null && !this.userKey.isEmpty()) {
                         requestBuilder.header("Authorization", "Bearer " + this.userKey);
                     }
                     
@@ -69,6 +75,10 @@ public class AiClient {
     }
 
     public String getChatResponse(List<Message> messages, String model) throws IOException {
+        return getChatResponseInternal(messages, model, 0);
+    }
+
+    private String getChatResponseInternal(List<Message> messages, String model, int retryCount) throws IOException {
         if (model == null || model.isEmpty()) {
             model = PreferenceManager.getDefaultSharedPreferences(context).getString("ai_model", "llama-3.3-70b-versatile");
         }
@@ -130,10 +140,15 @@ public class AiClient {
                     errorMessage = "Invalid groq API Key";
                     break;
                 case 402:
-                    errorMessage = "Payment Required - Check your groq credits";
-                    break;
                 case 429:
-                    errorMessage = "Rate Limit Exceeded - Too many requests";
+                    if (retryCount < sharedPreferencesRepository.getSavedApiKeys().size()) {
+                        if (sharedPreferencesRepository.switchToNextKey()) {
+                            this.userKey = sharedPreferencesRepository.getGroqApiKey();
+                            initializeService();
+                            return getChatResponseInternal(messages, model, retryCount + 1);
+                        }
+                    }
+                    errorMessage = (errorCode == 429) ? "Rate Limit Exceeded - Too many requests" : "Payment Required - Check your groq credits";
                     break;
                 default:
                     // Try to get error message from response body

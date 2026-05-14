@@ -366,6 +366,25 @@ public class SharedPreferencesRepository {
         return sharedPreferences.getString("groq_api_key", "");
     }
 
+    public boolean switchToNextKey() {
+        List<ApiKey> keys = getSavedApiKeys();
+        if (keys.size() <= 1) {
+            return false;
+        }
+        String currentKey = getGroqApiKey();
+        int currentIndex = -1;
+        for (int i = 0; i < keys.size(); i++) {
+            if (keys.get(i).value.equals(currentKey)) {
+                currentIndex = i;
+                break;
+            }
+        }
+
+        int nextIndex = (currentIndex + 1) % keys.size();
+        setGroqApiKey(keys.get(nextIndex).value);
+        return true;
+    }
+
     public String getAiModel() {
         return sharedPreferences.getString("ai_model", "llama-3.3-70b-versatile");
     }
