@@ -95,6 +95,7 @@ public class WebViewActivity extends AppCompatActivity implements ReloadDialog.R
     private String currentLink;
     private String currentTitle;
     private String lastLoadedHtml = "";
+    private long lastLoadedEntryId = 0;
     private String currentLoadToken = "";
     private boolean hasProcessedCurrentToken = false;
     private boolean userManuallySwitchedToOriginal = false;
@@ -260,7 +261,10 @@ public class WebViewActivity extends AppCompatActivity implements ReloadDialog.R
         EntryInfo entryInfo = (currentId != 0) ? webViewViewModel.getEntryInfoById(currentId) : webViewViewModel.getLastVisitedEntry();
         if (entryInfo == null) { makeSnackbar("No article to load."); return; }
 
-        if (currentId != entryInfo.getEntryId()) {
+        boolean isNewArticle = (lastLoadedEntryId != entryInfo.getEntryId());
+        lastLoadedEntryId = entryInfo.getEntryId();
+
+        if (isNewArticle) {
             userManuallySwitchedToOriginal = false; // Reset for new article
             lastLoadedHtml = ""; // Reset cache to force reload on new article
         }
@@ -294,23 +298,18 @@ public class WebViewActivity extends AppCompatActivity implements ReloadDialog.R
 
         // Only auto-summarize if the user hasn't explicitly said they want the original content for this article
         if (!userManuallySwitchedToOriginal) {
-            // If already true (e.g. from observeLiveEntry race), don't override with false unless we don't have a summary
+            // For new articles, always set the correct state based on available content.
+            // For same-article refreshes, only promote to summarized/translated, never demote.
             if (hasSummary) {
                 webViewViewModel.setIsSummarizedView(true);
-            } else {
-                Boolean current = webViewViewModel.getIsSummarizedViewLiveData().getValue();
-                if (!Boolean.TRUE.equals(current)) {
-                    webViewViewModel.setIsSummarizedView(false);
-                }
+            } else if (isNewArticle) {
+                webViewViewModel.setIsSummarizedView(false);
             }
             
             if (hasTranslation && !hasSummary) {
                 webViewViewModel.setIsTranslatedView(true);
-            } else {
-                Boolean current = webViewViewModel.getIsTranslatedViewLiveData().getValue();
-                if (!Boolean.TRUE.equals(current)) {
-                    webViewViewModel.setIsTranslatedView(false);
-                }
+            } else if (isNewArticle) {
+                webViewViewModel.setIsTranslatedView(false);
             }
         }
         
