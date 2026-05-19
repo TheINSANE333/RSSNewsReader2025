@@ -192,66 +192,72 @@ public class TtsExtractor {
     }
 
     public void resetAndRetry(long entryId) {
-        Log.d(TAG, "resetAndRetry called for article ID: " + entryId);
-        
-        // Remove from failed list if present
-        while (failedIds.remove(Long.valueOf(entryId))) {
-            // Keep removing in case of duplicates
-        }
-        
-        // Reset retry count
-        retryCountMap.remove(entryId);
-        
-        // Clear content to trigger re-extraction
-        entryRepository.updateContent(null, entryId);
-        
-        // Ensure extraction is not currently "in progress" for this ID
-        if (currentIdInProgress == entryId) {
-            extractionInProgress = false;
-            currentIdInProgress = -1;
-        }
+        Schedulers.single().scheduleDirect(() -> {
+            synchronized (this) {
+                Log.d(TAG, "resetAndRetry called for article ID: " + entryId);
+                
+                // Remove from failed list if present
+                while (failedIds.remove(Long.valueOf(entryId))) {
+                    // Keep removing in case of duplicates
+                }
+                
+                // Reset retry count
+                retryCountMap.remove(entryId);
+                
+                // Clear content to trigger re-extraction
+                entryRepository.updateContent(null, entryId);
+                
+                // Ensure extraction is not currently "in progress" for this ID
+                if (currentIdInProgress == entryId) {
+                    extractionInProgress = false;
+                    currentIdInProgress = -1;
+                }
 
-        // Trigger extraction
-        extractAllEntries();
+                // Trigger extraction
+                extractAllEntries();
+            }
+        });
     }
 
     public void extractAllEntries() {
-        Log.d(TAG, "extractAllEntries called | extractionInProgress = " + extractionInProgress);
+        Schedulers.single().scheduleDirect(() -> {
+            synchronized (this) {
+                Log.d(TAG, "extractAllEntries called | extractionInProgress = " + extractionInProgress);
 
-        if (extractionInProgress && currentIdInProgress == -1) {
-            Log.w(TAG, "Recovery: extractionInProgress = true but currentIdInProgress == -1 → Resetting flag.");
-            extractionInProgress = false;
-        }
-
-        // 1. PRIORITIZE: Check if the currently viewing article needs extraction
-        long viewingId = GlobalState.getCurrentViewingId();
-        Entry entry = null;
-        if (viewingId != 0 && !failedIds.contains(viewingId)) {
-            Entry viewingEntry = entryRepository.getEntryById(viewingId);
-            if (viewingEntry != null && (viewingEntry.getContent() == null || viewingEntry.getContent().trim().isEmpty())) {
-                // If we are currently extracting SOMETHING ELSE, cancel it and prioritize this one
-                if (extractionInProgress && currentIdInProgress != viewingId) {
-                    Log.d(TAG, "Interrupting current extraction (" + currentIdInProgress + ") for prioritized viewingId: " + viewingId);
-                    cancelExtraction();
-                    // cancelExtraction() will reset flags and WebView, then we can proceed to extract viewingId
+                if (extractionInProgress && currentIdInProgress == -1) {
+                    Log.w(TAG, "Recovery: extractionInProgress = true but currentIdInProgress == -1 → Resetting flag.");
+                    extractionInProgress = false;
                 }
-                entry = viewingEntry;
-                Log.d(TAG, "Prioritizing currently viewing article from GlobalState: " + viewingId);
-            }
-        }
 
-        if (extractionInProgress) {
-            Log.d(TAG, "Extraction already in progress for ID: " + currentIdInProgress);
-            return;
-        }
+                // 1. PRIORITIZE: Check if the currently viewing article needs extraction
+                long viewingId = GlobalState.getCurrentViewingId();
+                Entry entry = null;
+                if (viewingId != 0 && !failedIds.contains(viewingId)) {
+                    Entry viewingEntry = entryRepository.getEntryById(viewingId);
+                    if (viewingEntry != null && (viewingEntry.getContent() == null || viewingEntry.getContent().trim().isEmpty())) {
+                        // If we are currently extracting SOMETHING ELSE, cancel it and prioritize this one
+                        if (extractionInProgress && currentIdInProgress != viewingId) {
+                            Log.d(TAG, "Interrupting current extraction (" + currentIdInProgress + ") for prioritized viewingId: " + viewingId);
+                            cancelExtraction();
+                            // cancelExtraction() will reset flags and WebView, then we can proceed to extract viewingId
+                        }
+                        entry = viewingEntry;
+                        Log.d(TAG, "Prioritizing currently viewing article from GlobalState: " + viewingId);
+                    }
+                }
 
-        // 2. FALLBACK: Get the next highest priority empty entry
-        if (entry == null) {
-            entry = entryRepository.getEmptyContentEntry();
-            if (entry != null && failedIds.contains(entry.getId())) {
-                entry = null;
-            }
-        }
+                if (extractionInProgress) {
+                    Log.d(TAG, "Extraction already in progress for ID: " + currentIdInProgress);
+                    return;
+                }
+
+                // 2. FALLBACK: Get the next highest priority empty entry
+                if (entry == null) {
+                    entry = entryRepository.getEmptyContentEntry();
+                    if (entry != null && failedIds.contains(entry.getId())) {
+                        entry = null;
+                    }
+                }
 
         // 3. RETRY LOGIC: If no new empty entries, try retrying a failed one
         if (entry == null && !failedIds.isEmpty()) {
@@ -311,9 +317,11 @@ public class TtsExtractor {
         } else {
             Log.d(TAG, "No entry returned by getEmptyContentEntry()");
         }
+            }
+        });
     }
 
-    public void cancelExtraction() {
+    public synchronized void cancelExtraction() {
         Log.d(TAG, "cancelExtraction called - resetting extraction state");
         extractionInProgress = false;
         currentIdInProgress = -1;

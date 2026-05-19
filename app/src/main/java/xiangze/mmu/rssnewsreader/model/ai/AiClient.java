@@ -55,7 +55,7 @@ public class AiClient {
                     
                     return chain.proceed(requestBuilder.build());
                 })
-                .addInterceptor(new HttpLoggingInterceptor().setLevel(HttpLoggingInterceptor.Level.BODY))
+                .addInterceptor(new HttpLoggingInterceptor().setLevel(xiangze.mmu.rssnewsreader.BuildConfig.DEBUG ? HttpLoggingInterceptor.Level.BODY : HttpLoggingInterceptor.Level.NONE))
                 .build();
 
         Retrofit retrofit = new Retrofit.Builder()

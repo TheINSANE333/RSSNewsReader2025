@@ -125,7 +125,8 @@ public class WebViewActivity extends AppCompatActivity implements ReloadDialog.R
             if (metadata != null) {
                 String mediaIdStr = metadata.getString(MediaMetadataCompat.METADATA_KEY_MEDIA_ID);
                 if (mediaIdStr != null) {
-                    long newId = Long.parseLong(mediaIdStr);
+                    try {
+                        long newId = Long.parseLong(mediaIdStr);
                     // Follow the TTS skip if:
                     // 1. We are in "Play Mode" (isReadingMode = false)
                     // 2. We were already viewing what WAS playing (sync mode)
@@ -143,6 +144,9 @@ public class WebViewActivity extends AppCompatActivity implements ReloadDialog.R
                         } else {
                             Log.d(TAG, "Ignoring metadata change as user might be browsing a different article manually in Reading Mode.");
                         }
+                    }
+                    } catch (NumberFormatException e) {
+                        Log.e(TAG, "Invalid media ID format: " + mediaIdStr);
                     }
                 }
             }
@@ -641,6 +645,10 @@ public class WebViewActivity extends AppCompatActivity implements ReloadDialog.R
 
     private void toggleBookmark() {
         Entry entry = entryRepository.getEntryById(currentId);
+        if (entry == null) {
+            Log.w(TAG, "toggleBookmark: entry is null for ID " + currentId);
+            return;
+        }
         String newVal = "Y".equals(entry.getBookmark()) ? "N" : "Y";
         webViewViewModel.updateBookmark(newVal, currentId);
         makeSnackbar(newVal.equals("Y") ? "Bookmarked" : "Removed");
@@ -787,7 +795,13 @@ public class WebViewActivity extends AppCompatActivity implements ReloadDialog.R
         new ReloadDialog(this, fid, R.string.reload_confirmation, R.string.reload_suggestion_message).show(getSupportFragmentManager(), ReloadDialog.TAG); 
     }
     @Override public void makeSnackbar(String m) { Snackbar.make(binding.getRoot(), m, Snackbar.LENGTH_SHORT).show(); }
-    @Override public void reload() { webViewViewModel.resetEntry(currentId); finish(); startActivity(getIntent()); }
+    @Override public void reload() {
+        webViewViewModel.resetEntry(currentId);
+        finish();
+        Intent reloadIntent = new Intent(this, WebViewActivity.class);
+        reloadIntent.putExtra("force_id", false);
+        startActivity(reloadIntent);
+    }
 
     private String getLanguageForCurrentView(long id, boolean p, String d) {
         if (p) {
@@ -808,7 +822,20 @@ public class WebViewActivity extends AppCompatActivity implements ReloadDialog.R
         sharedPreferencesRepository.setScrollY(currentId, webView.getScrollY());
         super.onPause();
     }
-    @Override protected void onDestroy() { compositeDisposable.dispose(); super.onDestroy(); }
+    @Override
+    protected void onSaveInstanceState(@NonNull Bundle outState) {
+        super.onSaveInstanceState(outState);
+        outState.putLong("current_id", currentId);
+        outState.putBoolean("is_reading_mode", isReadingMode);
+    }
+    @Override protected void onDestroy() {
+        if (contentManager != null) {
+            contentManager.dispose();
+        }
+        compositeDisposable.clear();
+        xiangze.mmu.rssnewsreader.data.GlobalState.setCurrentViewingId(0);
+        super.onDestroy();
+    }
 
     private class WebClient extends WebViewClient {
         @Override

@@ -90,9 +90,6 @@ public class TtsNotification extends Notification {
                     NotificationManager.IMPORTANCE_LOW
             );
             ttsChannel.setDescription("Text To Speech Notification Channel");
-            ttsChannel.enableVibration(true);
-            ttsChannel.setVibrationPattern(
-                    new long[]{100, 200, 300, 400, 500, 400, 300, 200, 400});
             notificationManager.createNotificationChannel(ttsChannel);
         }
 

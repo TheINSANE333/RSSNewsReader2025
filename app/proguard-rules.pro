@@ -12,10 +12,18 @@
 #   public *;
 #}
 
-# Uncomment this to preserve the line number information for
-# debugging stack traces.
-#-keepattributes SourceFile,LineNumberTable
+# Preserve line number information for debugging stack traces.
+-keepattributes SourceFile,LineNumberTable
 
-# If you keep the line number information, uncomment this to
-# hide the original source file name.
-#-renamesourcefileattribute SourceFile
+# Hide the original source file name.
+-renamesourcefileattribute SourceFile
+
+# Suppress warnings for SLF4J (used by readability4j / essence)
+-dontwarn org.slf4j.impl.StaticLoggerBinder
+
+# Keep Retrofit and Gson model classes
+-keepattributes Signature
+-keepattributes *Annotation*
+-keep class xiangze.mmu.rssnewsreader.data.ai.** { *; }
+-keep class retrofit2.** { *; }
+-dontwarn retrofit2.**

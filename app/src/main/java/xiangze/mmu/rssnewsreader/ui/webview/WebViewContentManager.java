@@ -10,6 +10,7 @@ import xiangze.mmu.rssnewsreader.model.EntryInfo;
 
 import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers;
 import io.reactivex.rxjava3.core.Single;
+import io.reactivex.rxjava3.disposables.Disposable;
 import io.reactivex.rxjava3.schedulers.Schedulers;
 
 public class WebViewContentManager {
@@ -18,6 +19,7 @@ public class WebViewContentManager {
     private final WebViewViewModel viewModel;
     private final SharedPreferencesRepository sharedPreferencesRepository;
     private final WebViewListener listener;
+    private Disposable currentHtmlTask;
 
     public WebViewContentManager(WebView webView, WebViewViewModel viewModel, SharedPreferencesRepository sharedPreferencesRepository, WebViewListener listener) {
         this.webView = webView;
@@ -29,7 +31,11 @@ public class WebViewContentManager {
     public void loadHtml(String html, long currentId, boolean isSpeaking) {
         if (html == null || html.trim().isEmpty()) return;
 
-        Single.fromCallable(() -> {
+        if (currentHtmlTask != null && !currentHtmlTask.isDisposed()) {
+            currentHtmlTask.dispose();
+        }
+        
+        currentHtmlTask = Single.fromCallable(() -> {
             String processedHtml = html;
             if (html.contains("--####--")) {
                 processedHtml = html.replace("--####--", "<br><br>");
@@ -40,15 +46,18 @@ public class WebViewContentManager {
 
             EntryInfo entryInfo = viewModel.getEntryInfoById(currentId);
             if (entryInfo != null && doc.selectFirst(".entry-header") == null) {
-                doc.selectFirst("body").prepend(
-                        viewModel.getHtml(
-                                entryInfo.getEntryTitle(),
-                                entryInfo.getFeedTitle(),
-                                entryInfo.getEntryPublishedDate(),
-                                entryInfo.getFeedImageUrl(),
-                                sharedPreferencesRepository.getNight()
-                        )
-                );
+                org.jsoup.nodes.Element body = doc.selectFirst("body");
+                if (body != null) {
+                    body.prepend(
+                            viewModel.getHtml(
+                                    entryInfo.getEntryTitle(),
+                                    entryInfo.getFeedTitle(),
+                                    entryInfo.getEntryPublishedDate(),
+                                    entryInfo.getFeedImageUrl(),
+                                    sharedPreferencesRepository.getNight()
+                            )
+                    );
+                }
             }
             return doc.html();
         })
@@ -80,6 +89,12 @@ public class WebViewContentManager {
                 listener.finishedSetup();
             }
         });
+    }
+
+    public void dispose() {
+        if (currentHtmlTask != null && !currentHtmlTask.isDisposed()) {
+            currentHtmlTask.dispose();
+        }
     }
 
     public void highlightText(String searchText) {

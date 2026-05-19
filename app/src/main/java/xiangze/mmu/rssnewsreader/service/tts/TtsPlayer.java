@@ -64,6 +64,7 @@ public class TtsPlayer extends PlayerAdapter implements TtsPlayerListener {
 
     private int sentenceCounter;
     private List<String> sentences = new CopyOnWriteArrayList<>();
+    private List<String> originalSentences = new CopyOnWriteArrayList<>();
 
     private int currentState;
     private int processingSentenceIndex = -1;
@@ -194,7 +195,7 @@ public class TtsPlayer extends PlayerAdapter implements TtsPlayerListener {
                         }
                         // Accessing sentences.size() and sentences.get() on a CopyOnWriteArrayList is thread-safe
                         if (index >= 0 && index < sentences.size()) {
-                            String sentenceToHighlight = sentences.get(index);
+                            String sentenceToHighlight = originalSentences.size() > index ? originalSentences.get(index) : sentences.get(index);
                             highlightTextLiveData.postValue(sentenceToHighlight);
                             
                             // Save progress immediately as we start speaking this sentence
@@ -331,6 +332,7 @@ public class TtsPlayer extends PlayerAdapter implements TtsPlayerListener {
         isArticleFinished = false;
         isSettingUpNewArticle = false;
         sentences.clear();
+        originalSentences.clear();
         sentenceCounter = 0;
         setUiControlPlayback(false);
         setNewState(PlaybackStateCompat.STATE_PAUSED);
@@ -419,6 +421,7 @@ public class TtsPlayer extends PlayerAdapter implements TtsPlayerListener {
         isSettingUpNewArticle = true;
         isWaitingForArticleCompletion = false;
         sentences.clear();
+        originalSentences.clear();
         sentenceCounter = 0;
         isArticleFinished = false;
         showFakeLoadingLiveData.postValue(true);
@@ -551,16 +554,19 @@ public class TtsPlayer extends PlayerAdapter implements TtsPlayerListener {
                 for (int i = 0; i < sentenceList.size(); i++) {
                     if (extractionId != currentExtractionId) return;
 
-                    String sentence = textUtil.applyTtsSubstitutions(sentenceList.get(i));
+                    String originalSentence = sentenceList.get(i);
+                    String sentence = textUtil.applyTtsSubstitutions(originalSentence);
                     if (sentence.length() >= TextToSpeech.getMaxSpeechInputLength()) {
                         BreakIterator iterator = BreakIterator.getSentenceInstance();
                         iterator.setText(sentence);
                         int start = iterator.first();
                         for (int end = iterator.next(); end != BreakIterator.DONE; start = end, end = iterator.next()) {
                             sentences.add(sentence.substring(start, end));
+                            originalSentences.add(originalSentence); // Add the full original sentence for highlighting
                         }
                     } else {
                         sentences.add(sentence);
+                        originalSentences.add(originalSentence);
                     }
 
                     // If we are waiting for sentences to catch up (either during playback or at start)
@@ -625,7 +631,11 @@ public class TtsPlayer extends PlayerAdapter implements TtsPlayerListener {
                         entryRepository.updateSentCount(0, currentId);
                         sentenceCounter = 0;
                         isArticleFinished = true;
-                        callback.onSkipToNext();
+                        if (callback != null) {
+                            callback.onSkipToNext();
+                        } else {
+                            Log.e(TAG, "Callback is null in extractToTts finally block, cannot skip to next!");
+                        }
                     }
                 }
             }
@@ -1016,7 +1026,7 @@ public class TtsPlayer extends PlayerAdapter implements TtsPlayerListener {
         if (state == PlaybackStateCompat.STATE_PLAYING || state == PlaybackStateCompat.STATE_BUFFERING) {
             if (!wakeLock.isHeld()) {
                 Log.d(TAG, "Acquiring WakeLock for TTS playback/buffering");
-                wakeLock.acquire();
+                wakeLock.acquire(30 * 60 * 1000L); // 30 minute timeout to prevent indefinite hold
             }
             if (!wifiLock.isHeld()) {
                 Log.d(TAG, "Acquiring WifiLock for TTS playback/buffering");
@@ -1071,6 +1081,10 @@ public class TtsPlayer extends PlayerAdapter implements TtsPlayerListener {
     }
 
     public void setTtsSpeechRate(float speechRate) {
+        if (tts == null) {
+            Log.w(TAG, "setTtsSpeechRate: TTS is null, cannot set speech rate.");
+            return;
+        }
         if (speechRate == 0) {
             try {
                 int systemRate = Settings.Secure.getInt(context.getContentResolver(), Settings.Secure.TTS_DEFAULT_RATE);

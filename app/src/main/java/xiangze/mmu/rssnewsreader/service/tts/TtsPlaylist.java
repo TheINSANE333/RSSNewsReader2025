@@ -80,7 +80,7 @@ public class TtsPlaylist {
         });
         thread.start();
         try {
-            thread.join();
+            thread.join(5000); // 5 second max wait
         } catch (InterruptedException e) {
             android.util.Log.e("TtsPlaylist", "Metadata thread interrupted", e);
         }
@@ -92,6 +92,7 @@ public class TtsPlaylist {
         String html = localHtml[0];
         String translated = localTranslated[0];
         Bitmap feedImage = localFeedImage[0];
+        long dateMillis = entryInfo.getEntryPublishedDate() != null ? entryInfo.getEntryPublishedDate().getTime() : 0L;
 
         metadata = new MediaMetadataCompat.Builder()
                 .putString(MediaMetadataCompat.METADATA_KEY_MEDIA_ID, Long.toString(entryInfo.getEntryId()))
@@ -105,7 +106,7 @@ public class TtsPlaylist {
                 .putString("summarized", localSummarized[0])
                 .putString("html", html)
                 .putString("language", entryInfo.getFeedLanguage())
-                .putLong("date", entryInfo.getEntryPublishedDate().getTime())
+                .putLong("date", dateMillis)
                 .putBitmap(MediaMetadataCompat.METADATA_KEY_DISPLAY_ICON, feedImage)
                 .putString("feedImageUrl", entryInfo.getFeedImageUrl())
                 .putString("entryImageUrl", entryInfo.getEntryImageUrl())
