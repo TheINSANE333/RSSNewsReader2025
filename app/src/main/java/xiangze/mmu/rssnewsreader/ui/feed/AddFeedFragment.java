@@ -89,6 +89,11 @@ public class AddFeedFragment extends Fragment implements FeedViewModel.AddFeedCa
             }
         });
 
+        binding.discoverButton.setOnClickListener(v -> {
+            androidx.navigation.Navigation.findNavController(requireView())
+                    .navigate(R.id.discoveryFragment);
+        });
+
         return binding.getRoot();
     }
 

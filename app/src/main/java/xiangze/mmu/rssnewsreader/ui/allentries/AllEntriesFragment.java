@@ -125,6 +125,7 @@ public class AllEntriesFragment extends Fragment implements EntryItemAdapter.Ent
 
         ConstraintLayout emptyContainer = binding.emptyContainer;
         RecyclerView entriesRecycler = binding.entriesRecycler;
+        
         entriesRecycler.setLayoutManager(new LinearLayoutManager(getContext()));
         entriesRecycler.setHasFixedSize(true);
         boolean autoTranslate = sharedPreferencesRepository.getAutoTranslate();

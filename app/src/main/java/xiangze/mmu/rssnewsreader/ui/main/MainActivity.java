@@ -107,6 +107,12 @@ public class MainActivity extends AppCompatActivity {
         SplashScreen splashScreen = SplashScreen.installSplashScreen(this);
         super.onCreate(savedInstanceState);
 
+        if (sharedPreferencesRepository.isFirstLaunch()) {
+            startActivity(new Intent(this, xiangze.mmu.rssnewsreader.ui.onboarding.OnboardingActivity.class));
+            finish();
+            return;
+        }
+
         splashScreen.setOnExitAnimationListener(splashScreenView -> {
             final android.view.View iconView = splashScreenView.getIconView();
             final long duration = 500L;

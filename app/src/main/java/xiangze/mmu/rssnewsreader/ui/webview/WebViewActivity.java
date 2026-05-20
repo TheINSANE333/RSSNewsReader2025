@@ -164,6 +164,19 @@ public class WebViewActivity extends AppCompatActivity implements ReloadDialog.R
         setupObservers();
         setupBackNavigation();
         loadInitialState(savedInstanceState);
+        
+        if (sharedPreferencesRepository.isFirstArticleView()) {
+            showFirstViewTooltips();
+            sharedPreferencesRepository.setFirstArticleView(false);
+        }
+    }
+
+    private void showFirstViewTooltips() {
+        new AlertDialog.Builder(this)
+                .setTitle("Article Tips")
+                .setMessage("Click the 'Translate' or 'Summarize' icons in the toolbar to use AI features. You can also listen to the article by clicking 'Switch to Playing Mode' in the menu.")
+                .setPositiveButton("Got it", null)
+                .show();
     }
 
     private void initializeFields() {

@@ -54,6 +54,21 @@
             app:popExitAnim="@anim/slide_out_right_fade"/>
     </fragment>
     <fragment
+        android:id="@+id/discoveryFragment"
+        android:name="xiangze.mmu.rssnewsreader.ui.discovery.DiscoveryFragment"
+        android:label="Discover Feeds"
+        tools:layout="@layout/fragment_discovery" >
+        <action
+            android:id="@+id/action_discoveryFragment_to_feedFragment"
+            app:destination="@id/feedFragment"
+            app:popUpTo="@id/feedFragment"
+            app:popUpToInclusive="true"
+            app:enterAnim="@anim/fade_in"
+            app:exitAnim="@anim/fade_out"
+            app:popEnterAnim="@anim/fade_in"
+            app:popExitAnim="@anim/fade_out"/>
+    </fragment>
+    <fragment
         android:id="@+id/helpFragment"
         android:name="xiangze.mmu.rssnewsreader.ui.help.HelpFragment"
         android:label="Help"

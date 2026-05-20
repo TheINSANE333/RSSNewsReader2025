@@ -30,6 +30,8 @@ public class SharedPreferencesRepository {
     private static final String KEY_WEB_VIEW_MODE = "web_view_mode_";
     private static final String KEY_CURRENT_READING_ENTRY_ID = "current_reading_entry_id";
     private static final String KEY_SAVED_API_KEYS = "saved_api_keys";
+    private static final String KEY_FIRST_LAUNCH = "is_first_launch";
+    private static final String KEY_FIRST_ARTICLE_VIEW = "is_first_article_view";
 
     public static class ApiKey {
         public String name;
@@ -478,6 +480,22 @@ public class SharedPreferencesRepository {
 
     public void setDailySummaryPrompt(String prompt) {
         editor.putString("daily_summary_prompt", prompt).apply();
+    }
+
+    public boolean isFirstLaunch() {
+        return sharedPreferences.getBoolean(KEY_FIRST_LAUNCH, true);
+    }
+
+    public void setFirstLaunch(boolean isFirstLaunch) {
+        editor.putBoolean(KEY_FIRST_LAUNCH, isFirstLaunch).apply();
+    }
+
+    public boolean isFirstArticleView() {
+        return sharedPreferences.getBoolean(KEY_FIRST_ARTICLE_VIEW, true);
+    }
+
+    public void setFirstArticleView(boolean isFirstArticleView) {
+        editor.putBoolean(KEY_FIRST_ARTICLE_VIEW, isFirstArticleView).apply();
     }
 
     public Context getContext() {
