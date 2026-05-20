@@ -410,6 +410,12 @@ public class TextUtil {
                     baseSystemPrompt
                 ));
 
+                // Validate content before sending to AI - prevent translating error pages
+                if (isErrorHtml(html)) {
+                    progressThread.interrupt();
+                    throw new Exception("Article content appears to be an error page or failed to load properly. Please retry.");
+                }
+
                 // Build the prompt
                 messages.add(new Message(
                     "user",
@@ -526,6 +532,12 @@ public class TextUtil {
                     if (basicText.length() > cleanContent.length()) {
                         cleanContent = basicText;
                     }
+                }
+
+                // Validate content before sending to AI - prevent summarizing error pages
+                if (isErrorContent(cleanContent) || isErrorHtml(html)) {
+                    progressThread.interrupt();
+                    throw new Exception("Article content appears to be an error page or failed to load properly. Please retry.");
                 }
 
                 // Build the prompt (matching manual mode format)
@@ -1056,11 +1068,42 @@ public class TextUtil {
     public boolean isErrorContent(String text) {
         if (text == null || text.trim().isEmpty()) return true;
         String trimmed = text.trim();
+        String lower = trimmed.toLowerCase();
         
+        // Check for error indicators regardless of length
+        // These patterns indicate the AI received an error page instead of article content
+        if (lower.contains("webpage could not be loaded") ||
+            lower.contains("page could not be loaded") ||
+            lower.contains("unable to load") ||
+            lower.contains("failed to load") ||
+            lower.contains("err_name_not_resolved") ||
+            lower.contains("err_connection_refused") ||
+            lower.contains("err_connection_timed_out") ||
+            lower.contains("err_internet_disconnected") ||
+            lower.contains("err_network_changed") ||
+            lower.contains("err_connection_reset") ||
+            lower.contains("err_ssl_protocol_error") ||
+            lower.contains("net::err_") ||
+            lower.contains("dns_probe_finished") ||
+            lower.contains("this site can\u2019t be reached") ||
+            lower.contains("this site can't be reached") ||
+            lower.contains("the webpage is not available") ||
+            lower.contains("web page is not available") ||
+            lower.contains("could not be loaded due to") ||
+            lower.contains("check your internet connection") ||
+            lower.contains("no internet connection") ||
+            lower.contains("network error") ||
+            lower.contains("connection was reset") ||
+            lower.contains("connection timed out") ||
+            lower.contains("the connection was reset") ||
+            lower.contains("took too long to respond") ||
+            lower.contains("server not found")) {
+            return true;
+        }
+
         // Too short to be a real article
         if (trimmed.length() < 100) {
             // Check for common error indicators in short text
-            String lower = trimmed.toLowerCase();
             if (lower.contains("extraction failed") || 
                 lower.contains("not found") || 
                 lower.contains("404") || 
@@ -1076,6 +1119,58 @@ public class TextUtil {
             return trimmed.length() < 30; 
         }
         
+        return false;
+    }
+
+    /**
+     * Checks raw HTML for indicators that the page is an error page, not actual article content.
+     * This catches cases where the WebView loaded a browser error page or server error page.
+     */
+    public boolean isErrorHtml(String html) {
+        if (html == null || html.trim().isEmpty()) return true;
+        String lower = html.toLowerCase();
+
+        // Check for Chrome/WebView error page indicators
+        if (lower.contains("neterror") ||
+            lower.contains("err_name_not_resolved") ||
+            lower.contains("err_connection_refused") ||
+            lower.contains("err_connection_timed_out") ||
+            lower.contains("err_internet_disconnected") ||
+            lower.contains("err_connection_reset") ||
+            lower.contains("net::err_") ||
+            lower.contains("dns_probe_finished_nxdomain") ||
+            lower.contains("dns-error-page") ||
+            lower.contains("interstitial-wrapper")) {
+            return true;
+        }
+
+        // Check for common server error pages
+        if ((lower.contains("<title>") && (
+            lower.contains("<title>404") ||
+            lower.contains("<title>403") ||
+            lower.contains("<title>500") ||
+            lower.contains("<title>502") ||
+            lower.contains("<title>503") ||
+            lower.contains("<title>error") ||
+            lower.contains("<title>page not found") ||
+            lower.contains("<title>access denied") ||
+            lower.contains("<title>service unavailable") ||
+            lower.contains("<title>server error")))) {
+            return true;
+        }
+
+        // Extract just the text content and check if it's too thin
+        try {
+            String textContent = Jsoup.parse(html).text().trim();
+            // An HTML page with less than 50 chars of actual text is likely an error page
+            if (textContent.length() < 50) {
+                return true;
+            }
+        } catch (Exception e) {
+            // If we can't even parse it, it's probably bad
+            return true;
+        }
+
         return false;
     }
 

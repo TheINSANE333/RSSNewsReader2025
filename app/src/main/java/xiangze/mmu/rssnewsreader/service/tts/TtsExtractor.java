@@ -526,8 +526,8 @@ public class TtsExtractor {
             return;
         }
 
-        if (html.contains("ERR_NAME_NOT_RESOLVED")) {
-            Log.w(TAG, "HTML contains ERR_NAME_NOT_RESOLVED. Retrying extraction...");
+        if (textUtil.isErrorHtml(html)) {
+            Log.w(TAG, "Error page detected in HTML for ID: " + entryId + ". Retrying extraction...");
             handleFailure(entryId);
             return;
         }

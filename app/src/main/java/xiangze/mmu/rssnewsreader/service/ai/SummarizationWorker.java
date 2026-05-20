@@ -157,6 +157,13 @@ public class SummarizationWorker extends ListenableWorker {
             return io.reactivex.rxjava3.core.Completable.complete();
         }
 
+        // Check if the HTML source itself is an error page (e.g., browser error, 404, etc.)
+        if (textUtil.isErrorHtml(htmlSource)) {
+            Log.w(TAG, "Error HTML detected for " + entryInfo.getEntryTitle() + ". Triggering re-extraction.");
+            ttsExtractor.resetAndRetry(entryInfo.getEntryId());
+            return io.reactivex.rxjava3.core.Completable.complete(); // Skip for now
+        }
+
         final String finalHtmlSource = htmlSource;
         int summaryLength = sharedPreferencesRepository.getSummaryLength();
         

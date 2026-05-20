@@ -590,8 +590,26 @@ public class WebViewActivity extends AppCompatActivity implements ReloadDialog.R
         
         Entry entry = entryRepository.getEntryById(currentId);
         if (entry == null) return;
+
+        // Check for error content before translating
+        if (textUtil.isErrorContent(entry.getContent())) {
+            Log.d(TAG, "Translation requested for error content. Triggering reload.");
+            ttsExtractor.resetAndRetry(currentId);
+            showFakeLoading();
+            return;
+        }
+
         final String sourceHtml = entry.getOriginalHtml() != null ? entry.getOriginalHtml() : entry.getHtml();
         if (sourceHtml == null) return;
+
+        // Check if the HTML source is an error page
+        if (textUtil.isErrorHtml(sourceHtml)) {
+            Log.d(TAG, "Translation requested but HTML is an error page. Triggering reload.");
+            ttsExtractor.resetAndRetry(currentId);
+            showFakeLoading();
+            makeSnackbar("Article failed to load. Re-extracting...");
+            return;
+        }
         
         final EntryInfo info = webViewViewModel.getEntryInfoById(currentId);
         final String targetLang = sharedPreferencesRepository.getDefaultTranslationLanguage();
@@ -648,6 +666,15 @@ public class WebViewActivity extends AppCompatActivity implements ReloadDialog.R
 
         final String sourceHtml = entry.getOriginalHtml() != null ? entry.getOriginalHtml() : entry.getHtml();
         if (sourceHtml == null) return;
+
+        // Check if the HTML source is an error page
+        if (textUtil.isErrorHtml(sourceHtml)) {
+            Log.d(TAG, "Manual summarization requested but HTML is an error page. Triggering reload.");
+            ttsExtractor.resetAndRetry(currentId);
+            showFakeLoading();
+            makeSnackbar("Article failed to load. Re-extracting...");
+            return;
+        }
 
         final EntryInfo info = webViewViewModel.getEntryInfoById(currentId);
         final String targetLang = sharedPreferencesRepository.getDefaultTranslationLanguage();
