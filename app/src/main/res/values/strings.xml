@@ -195,7 +195,7 @@
     <string name="help_what_is_rss">What is RSS?</string>
     <string name="help_what_is_rss_desc">RSS (Really Simple Syndication) is a technology that allows you to gather and receive updates from various news websites in a standardized format. By subscribing to RSS feeds, you can stay informed and effortlessly access the latest articles from your favorite sources.\n\nRSS eliminates the need to visit multiple websites individually to check for updates. Instead, the RSS news reader app collects and organizes the content from subscribed feeds into a single place. This way, you can conveniently browse and read news articles and other updates from various sources without the need to visit each website separately.\n\nWith the app\'s RSS functionality, you can easily discover new content, personalize your news feed by selecting specific sources, and stay up to date with the latest information across different categories. The app automatically fetches and presents the newest articles from your subscribed feeds, allowing you to efficiently consume news and stay informed with just a few taps.</string>
     <string name="help_start">How to get started?</string>
-    <string name="help_start_desc">To subscribe to a news source, navigate to the feed page and paste the URL to the text box under the \'Add\' tab. Once the feed is successfully extracted, the articles will be displayed in the News page if the feed is not empty.\n\nTo obtain the URL, you can look for an RSS feed on your desired website and copy the link. Alternatively, you can check if your website has an RSS feed by using the link provided on the feed page under the \'Add\' tab.\n\nHowever, if the website does not support RSS, you can visit https://rss.app to generate your own feed.</string>
+    <string name="help_start_desc">To subscribe to a news source, navigate to the feed page and paste the URL to the text box under the \'Add\' tab. Once the feed is successfully extracted, the articles will be displayed in the News page if the feed is not empty.\n\nTo obtain the URL, you can look for an RSS feed on your desired website and copy the link. Alternatively, you can check if your website has an RSS feed by using the link provided on the feed page under the \'Add\' tab.\n\nHowever, if the website does not support RSS, you can search and paste the news page link directly eg. https://www.bbc.com/.</string>
     <string name="help_change_feed_language">How to change the language of a feed?</string>
     <string name="help_change_feed_language_desc">To change the language of a feed, you can go to the \'Manage\' tab on the feed page and click on the edit button. Select the desired language for the feed.\n\nNote: If you choose a language other than \'Use Language Identifier\', text-to-speech will use that language regardless of other settings.</string>
     <string name="help_wrong_language">Why is the text-to-speech speaking in the wrong language?</string>
@@ -214,6 +214,16 @@
     <string name="help_import_music_desc">You can import an audio file on the Settings page under \'Upload background music\'. Please note that only audio files are supported, and video files are not supported. It is recommended to use the OGG format to avoid any distortion when looping.</string>
     <string name="help_buttons">Icon button functionalities</string>
     <string name="help_buttons_desc">To learn about the functionalities of the icon buttons, simply long-press the button to view the description.</string>
+
+    <string name="help_ai_features">How to use AI Features (Translate, Summarize, Chat)?</string>
+    <string name="help_ai_features_desc">Once you have set up your API Key in Settings, you can use AI tools when reading an article. In the article view, tap the Translate icon on the top bar to translate the article into your preferred language. Tap the Summarize icon to get a quick summary. You can also tap the Chatbot icon in the menu to ask questions about the article.</string>
+
+    <string name="help_organizing_articles">How to Bookmark and Filter Articles?</string>
+    <string name="help_organizing_articles_desc">You can bookmark an article to read it later by tapping the Bookmark icon while viewing it, or by swiping on it in the news list. At the bottom of the news list, tap the Filter button to quickly sort articles or view only your bookmarked or unread items. You can also delete older items by sending them to the bin.</string>
+
+    <string name="help_tts_substitutions">What are TTS Substitutions?</string>
+    <string name="help_tts_substitutions_desc">TTS Substitutions allow you to replace specific words or abbreviations before the Text-To-Speech engine reads them aloud. For example, you can tell the app to replace \"Dr.\" with \"Doctor\" or \"St.\" with \"Street\". You can manage these substitutions in the Settings menu to ensure a smoother listening experience.</string>
+
 
     <!-- Feed -->
     <string name="rss_search_link">Search RSS feeds by keywords using this link:\nhttps://rssfinder.app/</string>
