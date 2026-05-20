@@ -94,6 +94,15 @@ public class AddFeedFragment extends Fragment implements FeedViewModel.AddFeedCa
                     .navigate(R.id.discoveryFragment);
         });
 
+        if (getArguments() != null) {
+            String recommendedUrl = getArguments().getString("recommended_url");
+            if (recommendedUrl != null && !recommendedUrl.isEmpty()) {
+                if (binding.rssLink.getEditText() != null) {
+                    binding.rssLink.getEditText().setText(recommendedUrl);
+                }
+            }
+        }
+
         return binding.getRoot();
     }
 

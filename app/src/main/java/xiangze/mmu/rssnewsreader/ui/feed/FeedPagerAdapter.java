@@ -6,8 +6,11 @@ import androidx.viewpager2.adapter.FragmentStateAdapter;
 
 public class FeedPagerAdapter extends FragmentStateAdapter {
 
+    private final android.os.Bundle fragmentArguments;
+
     public FeedPagerAdapter(@NonNull Fragment fragment) {
         super(fragment);
+        this.fragmentArguments = fragment.getArguments();
     }
 
     @NonNull
@@ -16,7 +19,11 @@ public class FeedPagerAdapter extends FragmentStateAdapter {
         if (position == 1) {
             return new ManageFeedFragment();
         }
-        return new AddFeedFragment();
+        AddFeedFragment addFeedFragment = new AddFeedFragment();
+        if (fragmentArguments != null) {
+            addFeedFragment.setArguments(fragmentArguments);
+        }
+        return addFeedFragment;
     }
 
     @Override
