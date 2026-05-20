@@ -71,8 +71,12 @@ import xiangze.mmu.rssnewsreader.service.util.TextUtil;
 import xiangze.mmu.rssnewsreader.ui.feed.ReloadDialog;
 
 import xiangze.mmu.rssnewsreader.service.util.AdBlocker;
+import xiangze.mmu.rssnewsreader.util.ApiKeyPromptDialog;
 import android.webkit.WebResourceRequest;
 import android.webkit.WebResourceResponse;
+import android.graphics.Typeface;
+import com.getkeepsafe.taptargetview.TapTarget;
+import com.getkeepsafe.taptargetview.TapTargetSequence;
 
 @AndroidEntryPoint
 public class WebViewActivity extends AppCompatActivity implements ReloadDialog.ReloadAction, WebViewMenuHandler.MenuActionListener, WebViewListener {
@@ -172,11 +176,21 @@ public class WebViewActivity extends AppCompatActivity implements ReloadDialog.R
     }
 
     private void showFirstViewTooltips() {
-        new AlertDialog.Builder(this)
-                .setTitle("Article Tips")
-                .setMessage("Click the 'Translate' or 'Summarize' icons in the toolbar to use AI features. You can also listen to the article by clicking 'Switch to Playing Mode' in the menu.")
-                .setPositiveButton("Got it", null)
-                .show();
+        binding.getRoot().postDelayed(() -> {
+            new TapTargetSequence(this)
+                .targets(
+                    TapTarget.forToolbarMenuItem(toolbar, R.id.translate, "Translate Article", "Tap here to instantly translate this article into your preferred language using AI.")
+                        .cancelable(false).tintTarget(true).outerCircleColor(R.color.primary).targetCircleColor(R.color.onPrimary)
+                        .titleTextSize(20).titleTextColor(R.color.onPrimary).descriptionTextSize(16).descriptionTextColor(R.color.onPrimary).textTypeface(Typeface.SANS_SERIF),
+                    TapTarget.forToolbarMenuItem(toolbar, R.id.summarize, "Summarize Article", "Too long? Tap here to generate a concise summary.")
+                        .cancelable(false).tintTarget(true).outerCircleColor(R.color.primary).targetCircleColor(R.color.onPrimary)
+                        .titleTextSize(20).titleTextColor(R.color.onPrimary).descriptionTextSize(16).descriptionTextColor(R.color.onPrimary).textTypeface(Typeface.SANS_SERIF),
+                    TapTarget.forToolbarOverflow(toolbar, "More Options", "Switch to Play Mode to listen to this article, toggle reading modes, and more.")
+                        .cancelable(false).tintTarget(true).outerCircleColor(R.color.primary).targetCircleColor(R.color.onPrimary)
+                        .titleTextSize(20).titleTextColor(R.color.onPrimary).descriptionTextSize(16).descriptionTextColor(R.color.onPrimary).textTypeface(Typeface.SANS_SERIF)
+                )
+                .start();
+        }, 500); // Give time for menu to inflate
     }
 
     private void initializeFields() {
@@ -569,7 +583,10 @@ public class WebViewActivity extends AppCompatActivity implements ReloadDialog.R
 
     private void translate() {
         String model = sharedPreferencesRepository.getTranslationModel(); 
-        if (!new AiClient(this).hasKey(model)) return;
+        if (!new AiClient(this).hasKey(model)) {
+            ApiKeyPromptDialog.show(this, sharedPreferencesRepository, this::translate);
+            return;
+        }
         
         Entry entry = entryRepository.getEntryById(currentId);
         if (entry == null) return;
@@ -613,7 +630,10 @@ public class WebViewActivity extends AppCompatActivity implements ReloadDialog.R
 
     private void summarize() {
         String model = sharedPreferencesRepository.getSummarizationModel(); 
-        if (!new AiClient(this).hasKey(model)) return;
+        if (!new AiClient(this).hasKey(model)) {
+            ApiKeyPromptDialog.show(this, sharedPreferencesRepository, this::summarize);
+            return;
+        }
 
         Entry entry = entryRepository.getEntryById(currentId);
         if (entry == null) return;

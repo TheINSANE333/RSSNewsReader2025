@@ -31,7 +31,8 @@ public class SharedPreferencesRepository {
     private static final String KEY_CURRENT_READING_ENTRY_ID = "current_reading_entry_id";
     private static final String KEY_SAVED_API_KEYS = "saved_api_keys";
     private static final String KEY_FIRST_LAUNCH = "is_first_launch";
-    private static final String KEY_FIRST_ARTICLE_VIEW = "is_first_article_view";
+    private static final String KEY_FIRST_ARTICLE_VIEW = "is_first_article_view_v2";
+    private static final String KEY_FIRST_MAIN_ACTIVITY_VIEW = "is_first_main_activity_view_v2";
 
     public static class ApiKey {
         public String name;
@@ -496,6 +497,14 @@ public class SharedPreferencesRepository {
 
     public void setFirstArticleView(boolean isFirstArticleView) {
         editor.putBoolean(KEY_FIRST_ARTICLE_VIEW, isFirstArticleView).apply();
+    }
+
+    public boolean isFirstMainActivityView() {
+        return sharedPreferences.getBoolean(KEY_FIRST_MAIN_ACTIVITY_VIEW, true);
+    }
+
+    public void setFirstMainActivityView(boolean isFirst) {
+        editor.putBoolean(KEY_FIRST_MAIN_ACTIVITY_VIEW, isFirst).apply();
     }
 
     public Context getContext() {

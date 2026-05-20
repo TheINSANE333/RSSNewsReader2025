@@ -226,6 +226,18 @@ public class SettingsFragment extends PreferenceFragmentCompat {
         addButton.setLayoutParams(btnParams);
         addButton.setOnClickListener(v -> showAddApiKeyDialog(listLayout));
         rootLayout.addView(addButton);
+        
+        com.google.android.material.button.MaterialButton getFreeKeyButton = new com.google.android.material.button.MaterialButton(requireContext());
+        getFreeKeyButton.setText("Get Free Key");
+        android.widget.LinearLayout.LayoutParams btnParams2 = new android.widget.LinearLayout.LayoutParams(
+                android.widget.LinearLayout.LayoutParams.MATCH_PARENT,
+                android.widget.LinearLayout.LayoutParams.WRAP_CONTENT);
+        getFreeKeyButton.setLayoutParams(btnParams2);
+        getFreeKeyButton.setOnClickListener(v -> {
+            Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse("https://console.groq.com/keys"));
+            startActivity(intent);
+        });
+        rootLayout.addView(getFreeKeyButton);
 
         builder.setView(rootLayout);
         builder.setPositiveButton(R.string.yes, null);

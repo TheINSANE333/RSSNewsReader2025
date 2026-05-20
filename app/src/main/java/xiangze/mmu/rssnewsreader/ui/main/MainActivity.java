@@ -12,6 +12,10 @@ import android.widget.Toast;
 import xiangze.mmu.rssnewsreader.R;
 import xiangze.mmu.rssnewsreader.databinding.ActivityMainBinding;
 
+import com.getkeepsafe.taptargetview.TapTarget;
+import com.getkeepsafe.taptargetview.TapTargetView;
+import android.graphics.Typeface;
+
 import androidx.activity.OnBackPressedCallback;
 import androidx.activity.result.ActivityResult;
 import androidx.activity.result.ActivityResultCallback;
@@ -316,6 +320,68 @@ public class MainActivity extends AppCompatActivity {
         mainActivityViewModel.getAllFeeds().observe(this, feeds -> adapter.submitList(feeds));
 
         ttsExtractor.extractAllEntries();
+        
+        // Show interactive walkthrough on first launch
+        if (sharedPreferencesRepository.isFirstMainActivityView()) {
+            sharedPreferencesRepository.setFirstMainActivityView(false);
+            
+            // Post delay to ensure toolbar is fully rendered
+            binding.getRoot().postDelayed(() -> {
+                TapTargetView.showFor(this,
+                    TapTarget.forToolbarNavigationIcon(toolbar, "Open Menu", "Access all your feeds, settings, and add new sources from here.")
+                        .cancelable(false)
+                        .tintTarget(true)
+                        .outerCircleColor(R.color.primary)
+                        .targetCircleColor(R.color.onPrimary)
+                        .titleTextSize(20)
+                        .titleTextColor(R.color.onPrimary)
+                        .descriptionTextSize(16)
+                        .descriptionTextColor(R.color.onPrimary)
+                        .textTypeface(Typeface.SANS_SERIF)
+                        .drawShadow(true),
+                    new TapTargetView.Listener() {
+                        @Override
+                        public void onTargetClick(TapTargetView view) {
+                            super.onTargetClick(view);
+                            drawerLayout.openDrawer(androidx.core.view.GravityCompat.START);
+                            drawerLayout.addDrawerListener(new androidx.drawerlayout.widget.DrawerLayout.SimpleDrawerListener() {
+                                @Override
+                                public void onDrawerOpened(android.view.View drawerView) {
+                                    drawerLayout.removeDrawerListener(this);
+                                    
+                                    View helpBtn = binding.navigationView.findViewById(R.id.helpButton);
+                                    android.graphics.Rect bounds = new android.graphics.Rect();
+                                    helpBtn.getGlobalVisibleRect(bounds);
+                                    // Restrict the bounds to just the left side (the icon)
+                                    int iconArea = (int) (56 * getResources().getDisplayMetrics().density);
+                                    bounds.right = bounds.left + iconArea;
+                                    
+                                    TapTargetView.showFor(MainActivity.this,
+                                        TapTarget.forBounds(bounds, "Need Help?", "If you ever get stuck, tap here to access the comprehensive help guide.")
+                                            .cancelable(false)
+                                            .transparentTarget(true)
+                                            .outerCircleColor(R.color.primary)
+                                            .targetCircleColor(R.color.onPrimary)
+                                            .titleTextSize(20)
+                                            .titleTextColor(R.color.onPrimary)
+                                            .descriptionTextSize(16)
+                                            .descriptionTextColor(R.color.onPrimary)
+                                            .textTypeface(Typeface.SANS_SERIF)
+                                            .drawShadow(true),
+                                        new TapTargetView.Listener() {
+                                            @Override
+                                            public void onTargetClick(TapTargetView view) {
+                                                super.onTargetClick(view);
+                                                helpBtn.performClick();
+                                            }
+                                        }
+                                    );
+                                }
+                            });
+                        }
+                    });
+            }, 1000); // Wait for entry animations to finish
+        }
     }
 
     @Override

@@ -121,4 +121,7 @@ dependencies {
 
     // Local LLM
     implementation 'com.google.mediapipe:tasks-genai:0.10.35'
+    
+    // TapTargetView for walkthroughs
+    implementation 'com.getkeepsafe.taptargetview:taptargetview:1.13.3'
 }
