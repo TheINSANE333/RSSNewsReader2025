@@ -32,7 +32,7 @@
 
     <item
         android:id="@+id/toggleSummarization"
-        android:icon="@drawable/ic_checkmark"
+        android:icon="@drawable/ic_check"
         android:title="Show Original"
         android:contentDescription="Toggle Summarization"
         android:visible="false"

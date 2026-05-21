@@ -1,6 +1,7 @@
 <PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto">
 
+    <!-- SYNC & STORAGE -->
     <PreferenceCategory
         android:layout="@layout/text_preference_category"
         app:title="@string/sync_header">
@@ -27,6 +28,7 @@
 
     </PreferenceCategory>
 
+    <!-- INTERFACE & READING -->
     <PreferenceCategory
         android:layout="@layout/text_preference_category"
         app:title="@string/interface_header">
@@ -48,81 +50,7 @@
 
     </PreferenceCategory>
 
-    <PreferenceCategory
-        android:layout="@layout/text_preference_category"
-        app:title="@string/translation_header">
-        
-        <ListPreference
-            app:entries="@array/defaultTranslationLanguage"
-            app:entryValues="@array/defaultTranslationLanguage_values"
-            app:icon="@drawable/ic_baseline_language_24"
-            app:key="defaultTranslationLanguage"
-            app:title="@string/translationLanguage_title"
-            app:useSimpleSummaryProvider="true" />
-
-        <ListPreference
-            app:defaultValue="allAtOnce"
-            app:entries="@array/translationMethod"
-            app:entryValues="@array/translationMethod_values"
-            app:icon="@drawable/ic_auto_mode"
-            app:key="translationMethod"
-            app:summary="@string/translationMethod_summary"
-            app:title="@string/translationMethod_title" />
-
-        <SwitchPreferenceCompat
-            app:defaultValue="false"
-            app:icon="@drawable/ic_auto_translate"
-            app:key="autoTranslate"
-            app:summaryOff="@string/auto_translate_off"
-            app:summaryOn="@string/auto_translate_on"
-            app:title="@string/auto_translate_title" />
-
-        <SeekBarPreference
-            android:max="100"
-            app:defaultValue="50"
-            app:icon="@drawable/ic_language"
-            app:key="confidenceThreshold"
-            app:min="10"
-            app:seekBarIncrement="10"
-            app:showSeekBarValue="true"
-            app:summary="@string/confidence_threshold_summary"
-            app:title="@string/confidence_threshold_title" />
-
-        <SwitchPreferenceCompat
-            app:defaultValue="false"
-            app:icon="@drawable/ic_summary"
-            app:key="autoSummarize"
-            app:summaryOff="@string/auto_summarize_off"
-            app:summaryOn="@string/auto_summarize_on"
-            app:title="@string/auto_summarize_title" />
-
-        <SeekBarPreference
-            android:max="300"
-            app:defaultValue="200"
-            app:icon="@drawable/ic_summary"
-            app:key="summaryLength"
-            app:min="100"
-            app:seekBarIncrement="10"
-            app:showSeekBarValue="true"
-            app:summary="@string/summarize_summary"
-            app:title="@string/summarize_title" />
-
-        <EditTextPreference
-            app:icon="@drawable/ic_pencil"
-            app:key="customTranslationPrompt"
-            app:title="@string/custom_translation_prompt_title"
-            app:summary="@string/custom_translation_prompt_summary"
-            app:useSimpleSummaryProvider="true" />
-
-        <EditTextPreference
-            app:icon="@drawable/ic_pencil"
-            app:key="customSummarizationPrompt"
-            app:title="@string/custom_summarization_prompt_title"
-            app:summary="@string/custom_summarization_prompt_summary"
-            app:useSimpleSummaryProvider="true" />
-
-    </PreferenceCategory>
-
+    <!-- TEXT TO SPEECH -->
     <PreferenceCategory
         android:layout="@layout/text_preference_category"
         app:title="@string/text_to_speech_header">
@@ -138,6 +66,14 @@
             app:icon="@drawable/ic_letter_switch"
             app:title="TTS Substitutions"
             app:summary="Manage word replacements for text-to-speech." />
+
+        <EditTextPreference
+            app:icon="@drawable/ic_pencil"
+            app:key="abbreviation_list"
+            app:title="@string/abbreviation_list_title"
+            app:summary="@string/abbreviation_list_summary"
+            app:useSimpleSummaryProvider="true"
+            app:defaultValue="Mr., Mrs., Ms., Dr., Prof., Sr., Jr., St., vs., etc., e.g., i.e., Fig., No., Rev." />
 
         <SwitchPreferenceCompat
             app:defaultValue="false"
@@ -167,39 +103,36 @@
             app:summary="@string/background_music_volume_summary"
             app:title="@string/background_music_volume" />
 
-        <EditTextPreference
-            app:icon="@drawable/ic_pencil"
-            app:key="abbreviation_list"
-            app:title="@string/abbreviation_list_title"
-            app:summary="@string/abbreviation_list_summary"
-            app:useSimpleSummaryProvider="true"
-            app:defaultValue="Mr., Mrs., Ms., Dr., Prof., Sr., Jr., St., vs., etc., e.g., i.e., Fig., No., Rev." />
-
     </PreferenceCategory>
 
+    <!-- AI FEATURES & API KEYS -->
     <PreferenceCategory
         android:layout="@layout/text_preference_category"
         app:title="@string/ai_header">
+        
+        <Preference
+            app:icon="@drawable/ic_gear"
+            app:key="manage_api_keys"
+            app:summary="@string/manage_api_keys_summary"
+            app:title="@string/manage_api_keys_title" />
 
-        <ListPreference
-            app:defaultValue="meta-llama/llama-3.3-70b-instruct:free"
-            app:entries="@array/ai_model"
-            app:entryValues="@array/ai_model_values"
-            app:icon="@drawable/ic_chatbot"
-            app:key="translation_model"
-            app:title="@string/translation_model_title"
-            app:summary="@string/translation_model_summary"
-            app:useSimpleSummaryProvider="true" />
+        <Preference
+            app:icon="@drawable/ic_dashboard"
+            app:key="ai_limit_settings"
+            app:summary="@string/ai_limit_settings_summary"
+            app:title="@string/ai_limit_settings_title" />
+            
+        <Preference
+            app:key="download_local_model"
+            app:title="Manage Local Model"
+            app:summary="Download or import a model file for local AI use."
+            app:icon="@drawable/ic_import" />
 
-        <ListPreference
-            app:defaultValue="meta-llama/llama-3.3-70b-instruct:free"
-            app:entries="@array/ai_model"
-            app:entryValues="@array/ai_model_values"
-            app:icon="@drawable/ic_chatbot"
-            app:key="summarization_model"
-            app:title="@string/summarization_model_title"
-            app:summary="@string/summarization_model_summary"
-            app:useSimpleSummaryProvider="true" />
+        <Preference
+            app:key="delete_local_model"
+            app:title="Delete Local Models"
+            app:summary="Delete downloaded model files to free up space."
+            app:icon="@drawable/ic_trash" />
 
         <ListPreference
             app:defaultValue="meta-llama/llama-3.3-70b-instruct:free"
@@ -211,43 +144,123 @@
             app:summary="@string/chatbot_model_summary"
             app:useSimpleSummaryProvider="true" />
 
-        <Preference
-            app:key="download_local_model"
-            app:title="Manage Local Model"
-            app:summary="Download or import a model file for local AI use."
-            app:icon="@drawable/ic_import" />
+    </PreferenceCategory>
 
-        <Preference
-            app:key="delete_local_model"
-            app:title="Delete Local Models"
-            app:summary="Delete downloaded model files to free up space."
-            app:icon="@drawable/ic_cancel" />
+    <!-- TRANSLATION -->
+    <PreferenceCategory
+        android:layout="@layout/text_preference_category"
+        app:title="@string/translation_header">
 
-        <EditTextPreference
+        <ListPreference
+            app:defaultValue="meta-llama/llama-3.3-70b-instruct:free"
+            app:entries="@array/ai_model"
+            app:entryValues="@array/ai_model_values"
             app:icon="@drawable/ic_chatbot"
-            app:key="groq_api_key"
-            app:summary="@string/groq_api_key_summary"
-            app:title="@string/groq_api_key_title"
+            app:key="translation_model"
+            app:title="@string/translation_model_title"
+            app:summary="@string/translation_model_summary"
+            app:useSimpleSummaryProvider="true" />
+            
+        <ListPreference
+            app:entries="@array/defaultTranslationLanguage"
+            app:entryValues="@array/defaultTranslationLanguage_values"
+            app:icon="@drawable/ic_baseline_language_24"
+            app:key="defaultTranslationLanguage"
+            app:title="@string/translationLanguage_title"
             app:useSimpleSummaryProvider="true" />
 
-        <Preference
-            app:icon="@drawable/ic_gear"
-            app:key="manage_api_keys"
-            app:summary="@string/manage_api_keys_summary"
-            app:title="@string/manage_api_keys_title" />
+        <SwitchPreferenceCompat
+            app:defaultValue="false"
+            app:icon="@drawable/ic_auto_translate"
+            app:key="autoTranslate"
+            app:summaryOff="@string/auto_translate_off"
+            app:summaryOn="@string/auto_translate_on"
+            app:title="@string/auto_translate_title" />
 
-        <Preference
-            app:icon="@drawable/ic_help"
-            app:key="get_groq_key"
-            app:summary="@string/get_groq_key_summary"
-            app:title="@string/get_groq_key_title" />
+        <ListPreference
+            app:defaultValue="allAtOnce"
+            app:entries="@array/translationMethod"
+            app:entryValues="@array/translationMethod_values"
+            app:icon="@drawable/ic_auto_mode"
+            app:key="translationMethod"
+            app:summary="@string/translationMethod_summary"
+            app:title="@string/translationMethod_title" />
 
-        <Preference
-            app:icon="@drawable/ic_gear"
-            app:key="ai_limit_settings"
-            app:summary="@string/ai_limit_settings_summary"
-            app:title="@string/ai_limit_settings_title" />
+        <SeekBarPreference
+            android:max="100"
+            app:defaultValue="50"
+            app:icon="@drawable/ic_analytics"
+            app:key="confidenceThreshold"
+            app:min="10"
+            app:seekBarIncrement="10"
+            app:showSeekBarValue="true"
+            app:summary="@string/confidence_threshold_summary"
+            app:title="@string/confidence_threshold_title" />
 
+        <EditTextPreference
+            app:icon="@drawable/ic_pencil"
+            app:key="customTranslationPrompt"
+            app:title="@string/custom_translation_prompt_title"
+            app:summary="@string/custom_translation_prompt_summary"
+            app:useSimpleSummaryProvider="true" />
+
+    </PreferenceCategory>
+
+    <!-- SUMMARIZATION & PROCESSING -->
+    <PreferenceCategory
+        android:layout="@layout/text_preference_category"
+        app:title="Summarization &amp; Processing">
+
+        <ListPreference
+            app:defaultValue="meta-llama/llama-3.3-70b-instruct:free"
+            app:entries="@array/ai_model"
+            app:entryValues="@array/ai_model_values"
+            app:icon="@drawable/ic_chatbot"
+            app:key="summarization_model"
+            app:title="@string/summarization_model_title"
+            app:summary="@string/summarization_model_summary"
+            app:useSimpleSummaryProvider="true" />
+
+        <SwitchPreferenceCompat
+            app:defaultValue="false"
+            app:icon="@drawable/ic_summary"
+            app:key="autoSummarize"
+            app:summaryOff="@string/auto_summarize_off"
+            app:summaryOn="@string/auto_summarize_on"
+            app:title="@string/auto_summarize_title" />
+
+        <SeekBarPreference
+            android:max="300"
+            app:defaultValue="200"
+            app:icon="@drawable/ic_summary"
+            app:key="summaryLength"
+            app:min="100"
+            app:seekBarIncrement="10"
+            app:showSeekBarValue="true"
+            app:summary="@string/summarize_summary"
+            app:title="@string/summarize_title" />
+
+        <EditTextPreference
+            app:icon="@drawable/ic_pencil"
+            app:key="customSummarizationPrompt"
+            app:title="@string/custom_summarization_prompt_title"
+            app:summary="@string/custom_summarization_prompt_summary"
+            app:useSimpleSummaryProvider="true" />
+            
+        <EditTextPreference
+            app:icon="@drawable/ic_pencil"
+            app:key="daily_summary_prompt"
+            app:title="@string/daily_summary_prompt_title"
+            app:summary="@string/daily_summary_prompt_summary"
+            app:useSimpleSummaryProvider="true" />
+
+    </PreferenceCategory>
+
+    <!-- BATCH PROCESSING & LIMITS -->
+    <PreferenceCategory
+        android:layout="@layout/text_preference_category"
+        app:title="Batch Processing Limits">
+        
         <SwitchPreferenceCompat
             app:defaultValue="true"
             app:icon="@drawable/ic_check"
@@ -259,7 +272,7 @@
             android:max="20000"
             app:defaultValue="7500"
             app:dependency="enable_chunk_limit"
-            app:icon="@drawable/ic_bars"
+            app:icon="@drawable/ic_segment"
             app:key="chunk_limit"
             app:min="500"
             app:seekBarIncrement="500"
@@ -270,20 +283,13 @@
         <SeekBarPreference
             android:max="50"
             app:defaultValue="10"
-            app:icon="@drawable/ic_folder"
+            app:icon="@drawable/ic_copy"
             app:key="max_files"
             app:min="1"
             app:seekBarIncrement="1"
             app:showSeekBarValue="true"
             app:summary="@string/max_files_summary"
             app:title="@string/max_files_title" />
-
-        <EditTextPreference
-            app:icon="@drawable/ic_pencil"
-            app:key="daily_summary_prompt"
-            app:title="@string/daily_summary_prompt_title"
-            app:summary="@string/daily_summary_prompt_summary"
-            app:useSimpleSummaryProvider="true" />
 
     </PreferenceCategory>
 

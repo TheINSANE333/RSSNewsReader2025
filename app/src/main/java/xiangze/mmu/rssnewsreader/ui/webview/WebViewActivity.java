@@ -488,7 +488,7 @@ public class WebViewActivity extends AppCompatActivity implements ReloadDialog.R
         if (sumToggle != null) {
             sumToggle.setVisible(hasOriginal && hasSummarized);
             sumToggle.setTitle(isSummarized ? "Show Original" : "Show Summary");
-            sumToggle.setIcon(isSummarized ? R.drawable.ic_checkmark : R.drawable.ic_summary);
+            sumToggle.setIcon(isSummarized ? R.drawable.ic_check : R.drawable.ic_summary);
         }
         
         boolean isWebViewMode = sharedPreferencesRepository.getWebViewMode(currentId);
