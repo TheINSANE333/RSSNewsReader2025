@@ -138,7 +138,9 @@ public class Feed {
 
     @Override
     public int hashCode() {
-        return Objects.hash(id, title, link, description, imageUrl, language, autoSummarize, autoTranslate);
+        int result = Objects.hash(id, title, link, description, imageUrl, language, autoSummarize, autoTranslate, delayTime);
+        result = 31 * result + Float.floatToIntBits(ttsSpeechRate);
+        return result;
     }
 
     public boolean isPreloaded() {

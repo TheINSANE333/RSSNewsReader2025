@@ -730,7 +730,7 @@ public class WebViewActivity extends AppCompatActivity implements ReloadDialog.R
     private void switchReadMode() {
         binding.functionButtonsReading.setVisibility(View.VISIBLE);
         binding.functionButtons.setVisibility(View.GONE);
-        webView.setWebViewClient(new ReadingWebClient());
+        webView.setWebViewClient(new WebClient());
         setupReadingNavigation();
     }
 
@@ -941,52 +941,9 @@ public class WebViewActivity extends AppCompatActivity implements ReloadDialog.R
                 int dbDelay = feedRepository.getDelayTimeById(feedId);
                 int delay = Math.min(dbDelay, 1); 
                 new Handler(Looper.getMainLooper()).postDelayed(() -> checkReadyState(v, executionToken, 1), delay * 1000L);
-            }
         }
     }
-    private class ReadingWebClient extends WebViewClient {
-        @Override
-        public void onPageStarted(WebView view, String url, Bitmap favicon) {
-            super.onPageStarted(view, url, favicon);
-            currentLoadToken = java.util.UUID.randomUUID().toString();
-            hasProcessedCurrentToken = false;
-        }
-
-        @Override
-        public WebResourceResponse shouldInterceptRequest(WebView view, WebResourceRequest request) {
-            String url = request.getUrl().toString();
-            if (AdBlocker.isAd(url)) {
-                return AdBlocker.createEmptyResource();
-            }
-            return super.shouldInterceptRequest(view, request);
-        }
-
-        @Override public void onPageFinished(WebView v, String u) {
-            super.onPageFinished(v, u);
-            // Element hiding script
-            v.evaluateJavascript("(function() { " +
-                    "  var selectors = ['.ad-banner', '.social-share', '#cookie-consent', '.advertisement', '.sidebar', 'header.masthead', '.footer-ads'];" +
-                    "  selectors.forEach(function(s) {" +
-                    "    var elements = document.querySelectorAll(s);" +
-                    "    elements.forEach(function(el) { el.style.display = 'none'; });" +
-                    "  });" +
-                    "})();", null);
-
-            if (u != null && u.startsWith("file:///android_res/")) {
-                if (ttsPlayer.isSpeaking()) {
-                    String currentHighlight = ttsPlayer.getHighlightTextLiveData().getValue();
-                    if (currentHighlight != null && !currentHighlight.isEmpty()) {
-                        contentManager.highlightText(currentHighlight);
-                    }
-                }
-            } else if (u != null) {
-                final String executionToken = currentLoadToken;
-                int dbDelay = feedRepository.getDelayTimeById(feedId);
-                int delay = Math.min(dbDelay, 1);
-                new Handler(Looper.getMainLooper()).postDelayed(() -> checkReadyState(v, executionToken, 1), delay * 1000L);
-            }
-        }
-    }
+}
 
     private void checkReadyState(WebView view, String executionToken, int attempt) {
         if (!executionToken.equals(currentLoadToken) || hasProcessedCurrentToken) return;

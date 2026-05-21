@@ -29,7 +29,7 @@ public class AiClient {
     private final SharedPreferencesRepository sharedPreferencesRepository;
 
     public AiClient(Context context) {
-        this.context = context;
+        this.context = context.getApplicationContext();
         this.sharedPreferencesRepository = new SharedPreferencesRepository(context);
         this.userKey = sharedPreferencesRepository.getGroqApiKey();
         initializeService();

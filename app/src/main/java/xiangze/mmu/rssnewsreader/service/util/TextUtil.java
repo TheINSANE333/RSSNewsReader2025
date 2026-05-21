@@ -32,7 +32,7 @@ import javax.inject.Inject;
 import io.reactivex.rxjava3.core.Flowable;
 import io.reactivex.rxjava3.core.Maybe;
 import io.reactivex.rxjava3.core.Single;
-import io.reactivex.rxjava3.disposables.CompositeDisposable;
+
 import io.reactivex.rxjava3.functions.Consumer;
 import io.reactivex.rxjava3.schedulers.Schedulers;
 import xiangze.mmu.rssnewsreader.data.ai.Message;
@@ -43,13 +43,13 @@ public class TextUtil {
     public static final String TAG = TextUtil.class.getSimpleName();
     private static final Semaphore GLOBAL_TRANSLATION_LOCK = new Semaphore(1, true);
     private static final Semaphore GLOBAL_SUMMARIZATION_LOCK = new Semaphore(1, true);
-    private final CompositeDisposable compositeDisposable;
+
     private final SharedPreferencesRepository sharedPreferencesRepository;
 
     @Inject
     public TextUtil(SharedPreferencesRepository sharedPreferencesRepository) {
         this.sharedPreferencesRepository = sharedPreferencesRepository;
-        compositeDisposable = new CompositeDisposable();
+
     }
 
     public String extractHtmlContent(String html, String delimiter) {
@@ -254,11 +254,7 @@ public class TextUtil {
         });
     }
 
-//    private String createTranslationPrompt(String source, String target, String content, String title) {
-//        return "Translate the following HTML content from " + source + " to " + target + ".\n" +
-//                "Title context: " + title + "\n\n" +
-//                "HTML Content:\n" + content;
-//    }
+
 
     private String translateChunkWithRetry(AiClient aiClient, List<Message> messages, String model) {
         try {
@@ -697,124 +693,9 @@ public class TextUtil {
         return prompts.get(0); // For backward compatibility if needed, though we should update callers
     }
 
-//    public Single<String> summarizeDailyNews(List<xiangze.mmu.rssnewsreader.data.entry.Entry> entries, String targetLanguage) {
-//        return Single.create(emitter -> {
-//            try {
-//                if (entries == null || entries.isEmpty()) {
-//                    emitter.onError(new Exception("No news articles to summarize."));
-//                    return;
-//                }
-//
-//                AiClient aiClient = new AiClient(sharedPreferencesRepository.getContext());
-//                List<Message> messages = new ArrayList<>();
-//
-//                String systemPrompt = "You are a professional news anchor. Provide a concise daily news briefing based on the following headlines and summaries from today's unread articles. " +
-//                        "Group related stories together and highlight the most important events. " +
-//                        "Use clear headings and bullet points. " +
-//                        "The response should be in " + targetLanguage + ". " +
-//                        "Start your response with a catchy headline like 'Daily News Briefing - [Date]'.";
-//
-//                messages.add(new Message("system", systemPrompt));
-//
-//                StringBuilder userPrompt = new StringBuilder("Here are the news articles for today:\n\n");
-//                for (int i = 0; i < entries.size(); i++) {
-//                    xiangze.mmu.rssnewsreader.data.entry.Entry entry = entries.get(i);
-//                    userPrompt.append(i + 1).append(". ").append(entry.getTitle()).append("\n");
-//
-//                    String content = entry.getSummarized();
-//                    if (content == null || content.isEmpty()) {
-//                        content = entry.getDescription();
-//                    }
-//                    if (content != null && !content.isEmpty()) {
-//                        // Limit content per article to avoid context window issues
-//                        if (content.length() > 500) {
-//                            content = content.substring(0, 500) + "...";
-//                        }
-//                        userPrompt.append("Summary: ").append(content).append("\n");
-//                    }
-//                    userPrompt.append("\n");
-//
-//                    // Limit total input size if needed (e.g., first 20 articles)
-//                    if (i >= 20) {
-//                        userPrompt.append("... and more articles.");
-//                        break;
-//                    }
-//                }
-//
-//                messages.add(new Message("user", userPrompt.toString()));
-//
-//                String summarizationModel = sharedPreferencesRepository.getSummarizationModel();
-//                String summary = aiClient.getChatResponse(messages, summarizationModel);
-//
-//                if (summary == null || summary.trim().isEmpty()) {
-//                    emitter.onError(new Exception("AI returned empty response."));
-//                } else {
-//                    emitter.onSuccess(summary);
-//                }
-//            } catch (Exception e) {
-//                emitter.onError(e);
-//            }
-//        });
-//    }
 
-//    @SuppressLint("CheckResult")
-//    public Single<String> translateHtmlByParagraph(String sourceLanguage, String targetLanguage, String html, String title, long articleId, Consumer<Integer> progressCallback) {
-//        Log.d(TAG, "translateHtmlByParagraph: from " + sourceLanguage + " to " + targetLanguage);
-//        Log.d(TAG, "translateHtmlByParagraph CALLED");
-//        return Single.create(emitter -> {
-//            try {
-//                translateText(sourceLanguage, targetLanguage, title)
-//                        .flatMap(translatedTitle -> {
-//                            Document document = Jsoup.parse(html);
-//                            List<String> tags = Arrays.asList("p", "section", "blockquote");
-//                            Elements paragraphs = document.select(String.join(",", tags));
-//                            Log.d(TAG, "Found " + paragraphs.size() + " paragraphs for translation");
-//
-//                            Element existingTitleElement = document.select("p.translated-title").first();
-//                            if (existingTitleElement == null) {
-//                                Element titleParagraph = new Element(Tag.valueOf("p"), "");
-//                                titleParagraph.text(translatedTitle);
-//                                titleParagraph.addClass("translated-title");
-//                                titleParagraph.attr("data-article-id", String.valueOf(articleId));
-//                                document.body().prependChild(titleParagraph);
-//                            }
-//
-//                            AtomicInteger translatedCount = new AtomicInteger(0);
-//                            int total = paragraphs.size();
-//
-//                            return Flowable.fromIterable(paragraphs)
-//                                    .flatMapMaybe(paragraph -> {
-//                                        if (paragraph.hasText()) {
-//                                            return translateText(sourceLanguage, targetLanguage, paragraph.text())
-//                                                    .map(translatedText -> {
-//                                                        paragraph.text(translatedText);
-//                                                        int progress = (int) ((translatedCount.incrementAndGet() / (float) total) * 100);
-//                                                        try {
-//                                                            progressCallback.accept(progress);
-//                                                        } catch (Exception e) {
-//                                                            Log.e(TAG, "Progress callback failed", e);
-//                                                        }
-//                                                        return translatedText;
-//                                                    }).toMaybe();
-//                                        }
-//                                        return Maybe.empty();
-//                                    })
-//                                    .toList()
-//                                    .map(ignored -> document.outerHtml());
-//                        })
-//                        .subscribe(
-//                                emitter::onSuccess,
-//                                error -> {
-//                                    Log.e(TAG, "Error during paragraph translation", error);
-//                                    emitter.onError(error);
-//                                }
-//                        );
-//            } catch (Exception e) {
-//                Log.e(TAG, "Unexpected error in translateHtmlByParagraph", e);
-//                emitter.onError(e);
-//            }
-//        });
-//    }
+
+
 
     public Single<String> translateText(String sourceLanguage, String targetLanguage, String text) {
         return Single.create(emitter -> {
@@ -1174,7 +1055,5 @@ public class TextUtil {
         return false;
     }
 
-    public void onDestroy() {
-        compositeDisposable.dispose();
-    }
+
 }

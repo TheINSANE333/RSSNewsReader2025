@@ -649,6 +649,9 @@ public class AllEntriesFragment extends Fragment implements EntryItemAdapter.Ent
     @Override
     public void onDestroyView() {
         super.onDestroyView();
+        if (compositeDisposable != null) {
+            compositeDisposable.clear();
+        }
         binding = null;
     }
 
@@ -789,7 +792,8 @@ public class AllEntriesFragment extends Fragment implements EntryItemAdapter.Ent
     }
 
     private void showFeedSelectionDialog() {
-        allEntriesViewModel.getFeedsWithUnreadArticles()
+        compositeDisposable.add(
+            allEntriesViewModel.getFeedsWithUnreadArticles()
                 .firstOrError()
                 .subscribeOn(Schedulers.io())
                 .observeOn(AndroidSchedulers.mainThread())
@@ -832,7 +836,8 @@ public class AllEntriesFragment extends Fragment implements EntryItemAdapter.Ent
                 }, throwable -> {
                     Log.e(TAG, "Error fetching feeds with unread articles", throwable);
                     Snackbar.make(binding.getRoot(), "Error loading feeds.", Snackbar.LENGTH_SHORT).show();
-                });
+                })
+        );
     }
 
     public void enterSelectionMode() {

@@ -6,7 +6,7 @@ import androidx.room.RoomDatabase;
 import androidx.room.migration.Migration;
 import androidx.sqlite.db.SupportSQLiteDatabase;
 
-import android.database.Cursor;
+
 import android.util.Log;
 
 import xiangze.mmu.rssnewsreader.data.entry.Entry;
@@ -147,9 +147,6 @@ public abstract class AppDatabase extends RoomDatabase {
         @Override
         public void onCreate(@NonNull SupportSQLiteDatabase db) {
             super.onCreate(db);
-
-            // since db is not instantiated at this stage (db will only be created after build()), dagger will create an instance to run this
-//            FeedDao feedDao = database.get().feedDao();
         }
     }
 }

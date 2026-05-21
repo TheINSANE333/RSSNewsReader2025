@@ -12,7 +12,7 @@ import xiangze.mmu.rssnewsreader.model.EntryListItem;
 import xiangze.mmu.rssnewsreader.service.util.TextUtil;
 
 import java.util.Date;
-import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -23,6 +23,7 @@ import io.reactivex.rxjava3.annotations.NonNull;
 import io.reactivex.rxjava3.core.Completable;
 import io.reactivex.rxjava3.core.CompletableObserver;
 import io.reactivex.rxjava3.core.Flowable;
+import io.reactivex.rxjava3.disposables.CompositeDisposable;
 import io.reactivex.rxjava3.disposables.Disposable;
 import io.reactivex.rxjava3.schedulers.Schedulers;
 
@@ -33,7 +34,14 @@ public class EntryRepository {
     private final HistoryRepository historyRepository;
     private final SharedPreferencesRepository sharedPreferencesRepository;
     private final TextUtil textUtil;
-    private final Map<Long, Entry> entryCache = new HashMap<>();
+    private static final int MAX_CACHE_SIZE = 100;
+    private final Map<Long, Entry> entryCache = new LinkedHashMap<Long, Entry>(MAX_CACHE_SIZE, 0.75f, true) {
+        @Override
+        protected boolean removeEldestEntry(java.util.Map.Entry<Long, xiangze.mmu.rssnewsreader.data.entry.Entry> eldest) {
+            return size() > MAX_CACHE_SIZE;
+        }
+    };
+    private final CompositeDisposable compositeDisposable = new CompositeDisposable();
 
     @Inject
     public EntryRepository(EntryDao entryDao, HistoryRepository historyRepository, SharedPreferencesRepository sharedPreferencesRepository, TextUtil textUtil) {
@@ -239,47 +247,27 @@ public class EntryRepository {
     }
 
     public void update(Entry entry) {
-        entryDao.update(entry)
+        compositeDisposable.add(
+            entryDao.update(entry)
                 .subscribeOn(Schedulers.io())
                 .observeOn(AndroidSchedulers.mainThread())
-                .subscribe(new CompletableObserver() {
-                    @Override
-                    public void onSubscribe(@NonNull Disposable d) {
-                        Log.d(TAG, "update onSubscribe: called");
-                    }
-
-                    @Override
-                    public void onComplete() {
-                        Log.d(TAG, "update onComplete: called");
-                    }
-
-                    @Override
-                    public void onError(@NonNull Throwable e) {
-                        Log.e(TAG, "update onError: ", e);
-                    }
-                });
+                .subscribe(
+                    () -> Log.d(TAG, "update onComplete: called"),
+                    e -> Log.e(TAG, "update onError: ", e)
+                )
+        );
     }
 
     public void delete(Entry entry) {
-        entryDao.delete(entry)
+        compositeDisposable.add(
+            entryDao.delete(entry)
                 .subscribeOn(Schedulers.io())
                 .observeOn(AndroidSchedulers.mainThread())
-                .subscribe(new CompletableObserver() {
-                    @Override
-                    public void onSubscribe(@NonNull Disposable d) {
-                        Log.d(TAG, "delete onSubscribe: called");
-                    }
-
-                    @Override
-                    public void onComplete() {
-                        Log.d(TAG, "delete onComplete: called");
-                    }
-
-                    @Override
-                    public void onError(@NonNull Throwable e) {
-                        Log.e(TAG, "delete onError: ", e);
-                    }
-                });
+                .subscribe(
+                    () -> Log.d(TAG, "delete onComplete: called"),
+                    e -> Log.e(TAG, "delete onError: ", e)
+                )
+        );
     }
 
     public boolean checkIdExist(long id) {
@@ -351,19 +339,19 @@ public class EntryRepository {
     }
 
     public void updateSentCount(int sentCount, long id) {
-        Completable.fromAction(() -> {
-            Log.d(TAG, "updateSentCount: " + sentCount + " for ID: " + id);
-            entryDao.updateSentCount(sentCount, id);
-        }).subscribeOn(Schedulers.io())
-          .subscribe(
-              () -> {},
-              throwable -> Log.e(TAG, "Error updating sent count", throwable)
-          );
+        compositeDisposable.add(
+            Completable.fromAction(() -> {
+                Log.d(TAG, "updateSentCount: " + sentCount + " for ID: " + id);
+                entryDao.updateSentCount(sentCount, id);
+            }).subscribeOn(Schedulers.io())
+              .subscribe(
+                  () -> {},
+                  throwable -> Log.e(TAG, "Error updating sent count", throwable)
+              )
+        );
     }
 
-    public void updateSentCountByLink(int sentCount, long id) {
-        entryDao.updateSentCountByLink(sentCount, id);
-    }
+
 
     public int getSentCount(long id) {
         return entryDao.getSentCount(id);
@@ -421,7 +409,7 @@ public class EntryRepository {
 
     public void limitEntriesByFeedId(long feedId) {
         int limit = sharedPreferencesRepository.getEntriesLimitPerFeed();
-        Log.d("test", "" + limit);
+        Log.d(TAG, "limitEntriesByFeedId: limit=" + limit);
         entryDao.limitEntriesByFeed(feedId, limit);
     }
 
@@ -492,7 +480,7 @@ public class EntryRepository {
     }
 
     public void updateTranslatedText(String translatedContent, long entryId) {
-        entryDao.updateTranslatedText(translatedContent, entryId);
+        entryDao.updateTranslated(translatedContent, entryId);
 
         Entry entry = getEntryById(entryId);
         if (entry != null) {
@@ -503,7 +491,7 @@ public class EntryRepository {
     }
 
     public void updateSummarizedText(String summarizedContent, long entryId) {
-        entryDao.updateSummarizedText(summarizedContent, entryId);
+        entryDao.updateSummarized(summarizedContent, entryId);
 
         Entry entry = getEntryById(entryId);
         if (entry != null) {
@@ -529,6 +517,11 @@ public class EntryRepository {
 
     public void resetTranslated(long id) {
         entryDao.resetTranslated(id);
+    }
+
+
+    public void dispose() {
+        compositeDisposable.clear();
     }
 
 }

@@ -1,8 +1,5 @@
 package xiangze.mmu.rssnewsreader.data;
 
-import javax.inject.Singleton;
-
-@Singleton
 public class GlobalState {
     private static volatile long currentViewingId = 0;
 

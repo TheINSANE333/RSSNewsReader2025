@@ -100,7 +100,5 @@ public class PlaylistRepository {
         return list;
     }
 
-//    public void updateVisitedDate(int entryId) {
-//        historyDao
-//    }
 }
+

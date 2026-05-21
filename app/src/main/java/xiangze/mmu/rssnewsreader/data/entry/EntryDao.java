@@ -337,8 +337,7 @@ public interface EntryDao {
     @Query("UPDATE entry_table SET sentCountStopAt = :sentCount WHERE id = :id")
     void updateSentCount(int sentCount, long id);
 
-    @Query("UPDATE entry_table SET sentCountStopAt = :sentCount WHERE id = :id")
-    void updateSentCountByLink(int sentCount, long id);
+
 
     @Query("UPDATE entry_table SET title = :title WHERE feedId = :feedId AND link = :link")
     void updateTitle(long feedId, String title, String link);
@@ -420,14 +419,12 @@ public interface EntryDao {
     @Query("UPDATE entry_table SET translated = :translated WHERE id = :id")
     void updateTranslated(String translated, long id);
 
-    @Query("UPDATE entry_table SET translated = :translated WHERE id = :id")
-    void updateTranslatedText(String translated, long id);
+
 
     @Query("UPDATE entry_table SET summarized = :summarized WHERE id = :id")
     void updateSummarized(String summarized, long id);
 
-    @Query("UPDATE entry_table SET summarized = :summarized WHERE id = :id")
-    void updateSummarizedText(String summarized, long id);
+
 
     @Query("UPDATE entry_table SET summarized = NULL, summarized_html = NULL WHERE id = :id")
     void resetSummarized(long id);

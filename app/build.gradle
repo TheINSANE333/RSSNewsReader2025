@@ -87,6 +87,7 @@ dependencies {
     implementation 'androidx.lifecycle:lifecycle-reactivestreams:2.10.0'
     androidTestImplementation 'androidx.test.ext:junit:1.3.0'
     testImplementation 'androidx.work:work-testing:2.11.2'
+    testImplementation 'junit:junit:4.13.2'
     androidTestImplementation 'junit:junit:4.13.2'
     androidTestImplementation 'androidx.test.espresso:espresso-core:3.7.0'
     androidTestImplementation 'androidx.test:core:1.7.0'
@@ -123,5 +124,5 @@ dependencies {
     implementation 'com.google.mediapipe:tasks-genai:0.10.35'
     
     // TapTargetView for walkthroughs
-    implementation 'com.getkeepsafe.taptargetview:taptargetview:1.13.3'
+    implementation 'com.getkeepsafe.taptargetview:taptargetview:1.15.0'
 }

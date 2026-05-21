@@ -34,6 +34,7 @@ import io.reactivex.rxjava3.annotations.NonNull;
 import io.reactivex.rxjava3.core.Completable;
 import io.reactivex.rxjava3.core.CompletableObserver;
 import io.reactivex.rxjava3.core.Flowable;
+import io.reactivex.rxjava3.disposables.CompositeDisposable;
 import io.reactivex.rxjava3.disposables.Disposable;
 import io.reactivex.rxjava3.schedulers.Schedulers;
 
@@ -50,6 +51,7 @@ public class FeedRepository {
     private final TextUtil textUtil;
     private final AutoSummarizer autoSummarizer;
     private final AutoTranslator autoTranslator;
+    private final CompositeDisposable compositeDisposable = new CompositeDisposable();
 
     @Inject
     public FeedRepository(FeedDao feedDao, EntryRepository entryRepository, HistoryRepository historyRepository, RssWorkManager rssWorkManager, SharedPreferencesRepository sharedPreferencesRepository,  Provider<TtsExtractor> ttsExtractorProvider, TextUtil textUtil, AutoSummarizer autoSummarizer, AutoTranslator autoTranslator) {
@@ -85,13 +87,15 @@ public class FeedRepository {
     }
 
     public void update(Feed feed) {
-        feedDao.update(feed)
+        compositeDisposable.add(
+            feedDao.update(feed)
                 .subscribeOn(Schedulers.io())
                 .observeOn(AndroidSchedulers.mainThread())
                 .subscribe(() -> {
                     Log.d(TAG, "update onComplete: called");
                     isLoading.postValue(false);
-                }, e -> Log.e(TAG, "update onError: ", e));
+                }, e -> Log.e(TAG, "update onError: ", e))
+        );
     }
 
     public Completable delete(Feed feed) {
@@ -115,13 +119,15 @@ public class FeedRepository {
     }
 
     public void deleteAllFeeds() {
-        feedDao.deleteAllFeeds()
+        compositeDisposable.add(
+            feedDao.deleteAllFeeds()
                 .subscribeOn(Schedulers.io())
                 .observeOn(AndroidSchedulers.mainThread())
                 .subscribe(() -> {
                     Log.d(TAG, "deleteAllFeeds onComplete: called");
                     isLoading.postValue(false);
-                }, e -> Log.e(TAG, "deleteAllFeeds onError: ", e));
+                }, e -> Log.e(TAG, "deleteAllFeeds onError: ", e))
+        );
     }
 
     public io.reactivex.rxjava3.core.Completable addNewFeed(RssFeed feed) {
@@ -208,11 +214,13 @@ public class FeedRepository {
         Feed feed = feedDao.getFeedById(feedId);
         if (feed != null && !feed.isPreloaded()) {
             feed.setPreloaded(true);
-            feedDao.update(feed)
+            compositeDisposable.add(
+                feedDao.update(feed)
                     .subscribeOn(Schedulers.io())
                     .observeOn(AndroidSchedulers.mainThread())
                     .subscribe(() -> Log.d(TAG, "markFeedAsPreloaded: Complete"),
-                            e -> Log.e(TAG, "markFeedAsPreloaded: Error " + e.getMessage()));
+                            e -> Log.e(TAG, "markFeedAsPreloaded: Error " + e.getMessage()))
+            );
         } else {
             Log.w(TAG, "markFeedAsPreloaded: Feed not found for ID " + feedId);
         }
@@ -276,7 +284,8 @@ public class FeedRepository {
     }
 
     public void updateFeedSettings(String title, String desc, String language, boolean autoSummarize, boolean autoTranslate, String link) {
-        Completable.fromAction(() -> {
+        compositeDisposable.add(
+            Completable.fromAction(() -> {
             long feedId = feedDao.getIdByLink(link);
             Feed existingFeed = null;
             if (feedId > 0) {
@@ -333,7 +342,11 @@ public class FeedRepository {
             }
         })
         .subscribeOn(Schedulers.io())
-        .subscribe(() -> {}, e -> Log.e(TAG, "Error updating feed settings", e));
+        .subscribe(
+            () -> {},
+            e -> Log.e(TAG, "Error updating feed settings", e)
+        )
+        );
     }
 
     public float getTtsSpeechRateById(long id) {
@@ -354,5 +367,9 @@ public class FeedRepository {
 
     public Flowable<List<Feed>> getFeedsWithUnreadArticles() {
         return feedDao.getFeedsWithUnreadArticles();
+    }
+
+    public void dispose() {
+        compositeDisposable.clear();
     }
 }

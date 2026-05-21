@@ -198,7 +198,7 @@ public class EntryInfo {
 
     @Override
     public int hashCode() {
-        return Objects.hash(entryId, entryTitle, entryLink, entryDescription, entryImageUrl, entryCategory, entryPublishedDate, feedTitle, feedImageUrl);
+        return Objects.hash(entryId, entryTitle, entryLink, entryDescription, entryImageUrl, entryCategory, entryPublishedDate, feedTitle, feedImageUrl, priority, hasContent, hasOriginalHtml, hasTranslated, hasSummarized, visitedDate, bookmark);
     }
 
     @Override

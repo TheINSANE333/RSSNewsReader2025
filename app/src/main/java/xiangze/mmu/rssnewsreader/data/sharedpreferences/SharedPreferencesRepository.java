@@ -21,7 +21,6 @@ import xiangze.mmu.rssnewsreader.model.ai.TokenUsageGuard;
 public class SharedPreferencesRepository {
 
     private final SharedPreferences sharedPreferences;
-    private final SharedPreferences.Editor editor;
     private final Context context;
     private static final String KEY_TOGGLE_STATE_PREFIX = "is_translated_view_";
     private static final String KEY_TOGGLE_STATE_PREFIX2 = "is_summarized_view_";
@@ -47,7 +46,6 @@ public class SharedPreferencesRepository {
     public SharedPreferencesRepository(@ApplicationContext Context context) {
         this.context = context;
         sharedPreferences = PreferenceManager.getDefaultSharedPreferences(context);
-        editor = sharedPreferences.edit();
     }
 
     public int getJobPeriodic() {
@@ -55,13 +53,11 @@ public class SharedPreferencesRepository {
     }
 
     public void setInitialJobPeriodic() {
-        editor.putString("jobPeriodic", "360");
-        editor.apply();
+        sharedPreferences.edit().putString("jobPeriodic", "360").apply();
     }
 
     public void setJobPeriodic(String jobPeriodic) {
-        editor.putString("jobPeriodic", jobPeriodic);
-        editor.apply();
+        sharedPreferences.edit().putString("jobPeriodic", jobPeriodic).apply();
     }
 
     public boolean getNight() {
@@ -69,8 +65,7 @@ public class SharedPreferencesRepository {
     }
 
     public void setNight(boolean isNight) {
-        editor.putBoolean("night", isNight);
-        editor.apply();
+        sharedPreferences.edit().putBoolean("night", isNight).apply();
     }
 
     public boolean getHighlightText() {
@@ -78,13 +73,11 @@ public class SharedPreferencesRepository {
     }
 
     public void setHighlightText(boolean highlightText) {
-        editor.putBoolean("highlightText", highlightText);
-        editor.apply();
+        sharedPreferences.edit().putBoolean("highlightText", highlightText).apply();
     }
 
     public void setTextZoom(int textZoom) {
-        editor.putInt("textZoom", textZoom);
-        editor.apply();
+        sharedPreferences.edit().putInt("textZoom", textZoom).apply();
     }
 
     public int getTextZoom() {
@@ -92,8 +85,7 @@ public class SharedPreferencesRepository {
     }
 
     public void setSortBy(String sortBy) {
-        editor.putString("sortBy", sortBy);
-        editor.apply();
+        sharedPreferences.edit().putString("sortBy", sortBy).apply();
     }
 
     public String getSortBy() {
@@ -109,8 +101,7 @@ public class SharedPreferencesRepository {
     }
 
     public void setConfidenceThreshold(int confidenceThreshold) {
-        editor.putInt("confidenceThreshold", confidenceThreshold);
-        editor.apply();
+        sharedPreferences.edit().putInt("confidenceThreshold", confidenceThreshold).apply();
     }
 
     public boolean getBackgroundMusic() {
@@ -118,8 +109,7 @@ public class SharedPreferencesRepository {
     }
 
     public void setBackgroundMusic(boolean backgroundMusic) {
-        editor.putBoolean("backgroundMusic", backgroundMusic);
-        editor.apply();
+        sharedPreferences.edit().putBoolean("backgroundMusic", backgroundMusic).apply();
     }
 
     public String getBackgroundMusicFile() {
@@ -127,8 +117,7 @@ public class SharedPreferencesRepository {
     }
 
     public void setBackgroundMusicFile(String file) {
-        editor.putString("backgroundMusicFile", file);
-        editor.apply();
+        sharedPreferences.edit().putString("backgroundMusicFile", file).apply();
     }
 
     public int getBackgroundMusicVolume() {
@@ -136,8 +125,7 @@ public class SharedPreferencesRepository {
     }
 
     public void setBackgroundMusicVolume(int volume) {
-        editor.putInt("backgroundMusicVolume", volume);
-        editor.apply();
+        sharedPreferences.edit().putInt("backgroundMusicVolume", volume).apply();
     }
 
     public int getEntriesLimitPerFeed() {
@@ -145,8 +133,7 @@ public class SharedPreferencesRepository {
     }
 
     public void setEntriesLimitPerFeed(int limit) {
-        editor.putInt("entriesLimitPerFeed", limit);
-        editor.apply();
+        sharedPreferences.edit().putInt("entriesLimitPerFeed", limit).apply();
     }
 
     public boolean getIsPausedManually() {
@@ -154,8 +141,7 @@ public class SharedPreferencesRepository {
     }
 
     public void setIsPausedManually(boolean isPaused) {
-        editor.putBoolean("isPausedManually", isPaused);
-        editor.apply();
+        sharedPreferences.edit().putBoolean("isPausedManually", isPaused).apply();
     }
 
     public String getDefaultTranslationLanguage() {
@@ -163,18 +149,16 @@ public class SharedPreferencesRepository {
     }
 
     public void setDefaultTranslationLanguage(String language) {
-        editor.putString("defaultTranslationLanguage", language).apply();
+        sharedPreferences.edit().putString("defaultTranslationLanguage", language).apply();
     }
 
     public void setSummaryLength(int summaryLength) {
-        editor.putInt("summaryLength", summaryLength);
-        editor.apply();
+        sharedPreferences.edit().putInt("summaryLength", summaryLength).apply();
     }
 
     public void setGroqApiKey(String apiKey) {
         String oldKey = getGroqApiKey();
-        editor.putString("groq_api_key", apiKey);
-        editor.apply();
+        sharedPreferences.edit().putString("groq_api_key", apiKey).apply();
 
         // Auto-reset token usage if key changed
         if (apiKey != null && !apiKey.equals(oldKey)) {
@@ -211,7 +195,7 @@ public class SharedPreferencesRepository {
     public void setSavedApiKeys(List<ApiKey> keys) {
         Gson gson = new Gson();
         String json = gson.toJson(keys);
-        editor.putString(KEY_SAVED_API_KEYS, json).apply();
+        sharedPreferences.edit().putString(KEY_SAVED_API_KEYS, json).apply();
     }
 
     public void removeSavedApiKey(String value) {
@@ -226,23 +210,19 @@ public class SharedPreferencesRepository {
     }
 
     public void setAiModel(String aiModel) {
-        editor.putString("ai_model", aiModel);
-        editor.apply();
+        sharedPreferences.edit().putString("ai_model", aiModel).apply();
     }
 
     public void setTranslationModel(String aiModel) {
-        editor.putString("translation_model", aiModel);
-        editor.apply();
+        sharedPreferences.edit().putString("translation_model", aiModel).apply();
     }
 
     public void setSummarizationModel(String aiModel) {
-        editor.putString("summarization_model", aiModel);
-        editor.apply();
+        sharedPreferences.edit().putString("summarization_model", aiModel).apply();
     }
 
     public void setChatbotModel(String aiModel) {
-        editor.putString("chatbot_model", aiModel);
-        editor.apply();
+        sharedPreferences.edit().putString("chatbot_model", aiModel).apply();
     }
 
     public String getTranslationMethod() {
@@ -250,8 +230,7 @@ public class SharedPreferencesRepository {
     }
 
     public void setTranslationMethod(String method) {
-        editor.putString("translationMethod", method);
-        editor.apply();
+        sharedPreferences.edit().putString("translationMethod", method).apply();
     }
 
     public boolean getAutoTranslate() {
@@ -259,8 +238,7 @@ public class SharedPreferencesRepository {
     }
 
     public void setAutoTranslate(boolean autoTranslate) {
-        editor.putBoolean("autoTranslate", autoTranslate);
-        editor.apply();
+        sharedPreferences.edit().putBoolean("autoTranslate", autoTranslate).apply();
     }
 
     public boolean getAutoSummarize() {
@@ -268,8 +246,7 @@ public class SharedPreferencesRepository {
     }
 
     public void setAutoSummarize(boolean autoSummarize) {
-        editor.putBoolean("autoSummarize", autoSummarize);
-        editor.apply();
+        sharedPreferences.edit().putBoolean("autoSummarize", autoSummarize).apply();
     }
 
     public void setIsTranslatedView(long entryId, boolean isTranslatedView) {
@@ -354,7 +331,7 @@ public class SharedPreferencesRepository {
     public void setTtsSubstitutions(java.util.Map<String, String> substitutions) {
         Gson gson = new Gson();
         String json = gson.toJson(substitutions);
-        editor.putString(KEY_TTS_SUBSTITUTIONS, json).apply();
+        sharedPreferences.edit().putString(KEY_TTS_SUBSTITUTIONS, json).apply();
     }
 
     public void setCurrentReadingEntryId(long entryId) {
@@ -409,7 +386,7 @@ public class SharedPreferencesRepository {
     }
 
     public void setCustomTranslationPrompt(String prompt) {
-        editor.putString("customTranslationPrompt", prompt).apply();
+        sharedPreferences.edit().putString("customTranslationPrompt", prompt).apply();
     }
 
     public String getCustomSummarizationPrompt() {
@@ -417,7 +394,7 @@ public class SharedPreferencesRepository {
     }
 
     public void setCustomSummarizationPrompt(String prompt) {
-        editor.putString("customSummarizationPrompt", prompt).apply();
+        sharedPreferences.edit().putString("customSummarizationPrompt", prompt).apply();
     }
 
     public String getAbbreviationList() {
@@ -425,7 +402,7 @@ public class SharedPreferencesRepository {
     }
 
     public void setAbbreviationList(String list) {
-        editor.putString("abbreviation_list", list).apply();
+        sharedPreferences.edit().putString("abbreviation_list", list).apply();
     }
 
     public int getAiLimitTpm() {
@@ -433,7 +410,7 @@ public class SharedPreferencesRepository {
     }
 
     public void setAiLimitTpm(int tpm) {
-        editor.putInt(TokenUsageGuard.KEY_LIMIT_TPM, tpm).apply();
+        sharedPreferences.edit().putInt(TokenUsageGuard.KEY_LIMIT_TPM, tpm).apply();
     }
 
     public int getAiLimitRpd() {
@@ -441,7 +418,7 @@ public class SharedPreferencesRepository {
     }
 
     public void setAiLimitRpd(int rpd) {
-        editor.putInt(TokenUsageGuard.KEY_LIMIT_RPD, rpd).apply();
+        sharedPreferences.edit().putInt(TokenUsageGuard.KEY_LIMIT_RPD, rpd).apply();
     }
 
     public int getAiLimitTpd() {
@@ -449,7 +426,7 @@ public class SharedPreferencesRepository {
     }
 
     public void setAiLimitTpd(int tpd) {
-        editor.putInt(TokenUsageGuard.KEY_LIMIT_TPD, tpd).apply();
+        sharedPreferences.edit().putInt(TokenUsageGuard.KEY_LIMIT_TPD, tpd).apply();
     }
 
     public boolean getEnableChunkLimit() {
@@ -457,7 +434,7 @@ public class SharedPreferencesRepository {
     }
 
     public void setEnableChunkLimit(boolean enabled) {
-        editor.putBoolean("enable_chunk_limit", enabled).apply();
+        sharedPreferences.edit().putBoolean("enable_chunk_limit", enabled).apply();
     }
 
     public int getChunkLimit() {
@@ -472,7 +449,7 @@ public class SharedPreferencesRepository {
     }
 
     public void setChunkLimit(int limit) {
-        editor.putInt("chunk_limit", limit).apply();
+        sharedPreferences.edit().putInt("chunk_limit", limit).apply();
     }
 
     public int getMaxFiles() {
@@ -480,7 +457,7 @@ public class SharedPreferencesRepository {
     }
 
     public void setMaxFiles(int maxFiles) {
-        editor.putInt("max_files", maxFiles).apply();
+        sharedPreferences.edit().putInt("max_files", maxFiles).apply();
     }
 
     public String getDailySummaryPrompt() {
@@ -488,7 +465,7 @@ public class SharedPreferencesRepository {
     }
 
     public void setDailySummaryPrompt(String prompt) {
-        editor.putString("daily_summary_prompt", prompt).apply();
+        sharedPreferences.edit().putString("daily_summary_prompt", prompt).apply();
     }
 
     public boolean isFirstLaunch() {
@@ -496,7 +473,7 @@ public class SharedPreferencesRepository {
     }
 
     public void setFirstLaunch(boolean isFirstLaunch) {
-        editor.putBoolean(KEY_FIRST_LAUNCH, isFirstLaunch).apply();
+        sharedPreferences.edit().putBoolean(KEY_FIRST_LAUNCH, isFirstLaunch).apply();
     }
 
     public boolean isFirstArticleView() {
@@ -504,7 +481,7 @@ public class SharedPreferencesRepository {
     }
 
     public void setFirstArticleView(boolean isFirstArticleView) {
-        editor.putBoolean(KEY_FIRST_ARTICLE_VIEW, isFirstArticleView).apply();
+        sharedPreferences.edit().putBoolean(KEY_FIRST_ARTICLE_VIEW, isFirstArticleView).apply();
     }
 
     public boolean isFirstMainActivityView() {
@@ -512,7 +489,7 @@ public class SharedPreferencesRepository {
     }
 
     public void setFirstMainActivityView(boolean isFirst) {
-        editor.putBoolean(KEY_FIRST_MAIN_ACTIVITY_VIEW, isFirst).apply();
+        sharedPreferences.edit().putBoolean(KEY_FIRST_MAIN_ACTIVITY_VIEW, isFirst).apply();
     }
 
     public Context getContext() {

@@ -12,13 +12,13 @@ import java.util.Date;
 public interface PlaylistDao {
 
     @Insert
-    void insert(Playlist history);
+    void insert(Playlist playlist);
 
     @Update
-    void update(Playlist history);
+    void update(Playlist playlist);
 
     @Delete
-    void delete(Playlist history);
+    void delete(Playlist playlist);
 
     @Query("DELETE FROM playlist_table")
     void deleteAllPlaylists();
