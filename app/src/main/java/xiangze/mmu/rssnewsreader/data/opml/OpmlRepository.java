@@ -18,6 +18,7 @@ import java.nio.charset.StandardCharsets;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.List;
+import java.util.Map;
 
 import javax.inject.Inject;
 import javax.inject.Singleton;
@@ -107,6 +108,12 @@ public class OpmlRepository {
         String aiLimitTpm = parser.getAttributeValue(null, "ai_limit_tpm");
         String aiLimitRpd = parser.getAttributeValue(null, "ai_limit_rpd");
         String aiLimitTpd = parser.getAttributeValue(null, "ai_limit_tpd");
+        String enableChunkLimit = parser.getAttributeValue(null, "enable_chunk_limit");
+        String chunkLimit = parser.getAttributeValue(null, "chunk_limit");
+        String maxFiles = parser.getAttributeValue(null, "max_files");
+        String dailySummaryPrompt = parser.getAttributeValue(null, "daily_summary_prompt");
+        String ttsSubstitutions = parser.getAttributeValue(null, "tts_substitutions");
+        String savedApiKeys = parser.getAttributeValue(null, "saved_api_keys");
 
         if (jobPeriodic != null && !jobPeriodic.isEmpty()) {
             sharedPreferencesRepository.setJobPeriodic(jobPeriodic);
@@ -186,6 +193,42 @@ public class OpmlRepository {
         }
         if (aiLimitTpd != null && !aiLimitTpd.isEmpty()) {
             sharedPreferencesRepository.setAiLimitTpd(Integer.parseInt(aiLimitTpd));
+        }
+        if (enableChunkLimit != null && !enableChunkLimit.isEmpty()) {
+            sharedPreferencesRepository.setEnableChunkLimit(enableChunkLimit.equals("true"));
+        }
+        if (chunkLimit != null && !chunkLimit.isEmpty()) {
+            sharedPreferencesRepository.setChunkLimit(Integer.parseInt(chunkLimit));
+        }
+        if (maxFiles != null && !maxFiles.isEmpty()) {
+            sharedPreferencesRepository.setMaxFiles(Integer.parseInt(maxFiles));
+        }
+        if (dailySummaryPrompt != null && !dailySummaryPrompt.isEmpty()) {
+            sharedPreferencesRepository.setDailySummaryPrompt(dailySummaryPrompt);
+        }
+        if (ttsSubstitutions != null && !ttsSubstitutions.isEmpty()) {
+            try {
+                com.google.gson.Gson gson = new com.google.gson.Gson();
+                java.lang.reflect.Type type = new com.google.gson.reflect.TypeToken<Map<String, String>>() {}.getType();
+                Map<String, String> substitutions = gson.fromJson(ttsSubstitutions, type);
+                if (substitutions != null) {
+                    sharedPreferencesRepository.setTtsSubstitutions(substitutions);
+                }
+            } catch (Exception e) {
+                Log.e(TAG, "Failed to parse tts_substitutions", e);
+            }
+        }
+        if (savedApiKeys != null && !savedApiKeys.isEmpty()) {
+            try {
+                com.google.gson.Gson gson = new com.google.gson.Gson();
+                java.lang.reflect.Type type = new com.google.gson.reflect.TypeToken<java.util.List<SharedPreferencesRepository.ApiKey>>() {}.getType();
+                java.util.List<SharedPreferencesRepository.ApiKey> keys = gson.fromJson(savedApiKeys, type);
+                if (keys != null) {
+                    sharedPreferencesRepository.setSavedApiKeys(keys);
+                }
+            } catch (Exception e) {
+                Log.e(TAG, "Failed to parse saved_api_keys", e);
+            }
         }
     }
 
@@ -322,6 +365,20 @@ public class OpmlRepository {
         serializer.attribute(null, "ai_limit_tpm", Integer.toString(sharedPreferencesRepository.getAiLimitTpm()));
         serializer.attribute(null, "ai_limit_rpd", Integer.toString(sharedPreferencesRepository.getAiLimitRpd()));
         serializer.attribute(null, "ai_limit_tpd", Integer.toString(sharedPreferencesRepository.getAiLimitTpd()));
+        serializer.attribute(null, "enable_chunk_limit", sharedPreferencesRepository.getEnableChunkLimit() ? "true" : "false");
+        serializer.attribute(null, "chunk_limit", Integer.toString(sharedPreferencesRepository.getRawChunkLimit()));
+        serializer.attribute(null, "max_files", Integer.toString(sharedPreferencesRepository.getMaxFiles()));
+        serializer.attribute(null, "daily_summary_prompt", sharedPreferencesRepository.getDailySummaryPrompt());
+
+        // Serialize TTS substitutions as JSON
+        com.google.gson.Gson gson = new com.google.gson.Gson();
+        Map<String, String> ttsSubstitutions = sharedPreferencesRepository.getTtsSubstitutions();
+        serializer.attribute(null, "tts_substitutions", gson.toJson(ttsSubstitutions));
+
+        // Serialize saved API keys as JSON
+        java.util.List<SharedPreferencesRepository.ApiKey> savedApiKeys = sharedPreferencesRepository.getSavedApiKeys();
+        serializer.attribute(null, "saved_api_keys", gson.toJson(savedApiKeys));
+
         serializer.endTag(null, "setting");
     }
 

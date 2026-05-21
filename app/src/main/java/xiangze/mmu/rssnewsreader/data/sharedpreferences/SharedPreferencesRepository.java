@@ -456,10 +456,18 @@ public class SharedPreferencesRepository {
         return sharedPreferences.getBoolean("enable_chunk_limit", true);
     }
 
+    public void setEnableChunkLimit(boolean enabled) {
+        editor.putBoolean("enable_chunk_limit", enabled).apply();
+    }
+
     public int getChunkLimit() {
         if (!getEnableChunkLimit()) {
             return Integer.MAX_VALUE;
         }
+        return sharedPreferences.getInt("chunk_limit", 7500);
+    }
+
+    public int getRawChunkLimit() {
         return sharedPreferences.getInt("chunk_limit", 7500);
     }
 
