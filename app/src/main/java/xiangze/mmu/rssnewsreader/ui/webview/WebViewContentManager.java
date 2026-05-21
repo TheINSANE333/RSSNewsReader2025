@@ -115,9 +115,44 @@ public class WebViewContentManager {
                     "    window.ttsHighlightId = (window.ttsHighlightId || 0) + 1;" +
                     "    var myId = window.ttsHighlightId;" +
                     "    " +
-                    "    function clean(s) { return s.replace(/^[.,!?;:\"'\\s]+/, '').replace(/[.,!?;:\"'\\s]+$/, '').trim(); }" +
-                    "    var cleanSearchText = clean(text);" +
-                    "    if (!cleanSearchText) return;" +
+                    "    function normalizeString(str) {" +
+                    "      var normalized = '';" +
+                    "      var map = [];" +
+                    "      for (var i = 0; i < str.length; i++) {" +
+                    "        var c = str[i];" +
+                    "        var norm = c;" +
+                    "        if (/\\s/.test(c) || c === '\\u00a0') {" +
+                    "          norm = ' ';" +
+                    "        } else if (c === '“' || c === '”' || c === '″' || c === '\"') {" +
+                    "          norm = '\"';" +
+                    "        } else if (c === '‘' || c === '’' || c === '′' || c === \"'\") {" +
+                    "          norm = \"'\";" +
+                    "        } else if (c === '—' || c === '–' || c === '‐') {" +
+                    "          norm = '-';" +
+                    "        } else {" +
+                    "          norm = c.toLowerCase();" +
+                    "        }" +
+                    "        if (norm === ' ') {" +
+                    "          if (normalized.length > 0 && normalized[normalized.length - 1] === ' ') {" +
+                    "            continue;" +
+                    "          }" +
+                    "        }" +
+                    "        map.push(i);" +
+                    "        normalized += norm;" +
+                    "      }" +
+                    "      return { text: normalized, map: map };" +
+                    "    }" +
+                    "    " +
+                    "    function clean(s) {" +
+                    "      return s.replace(/^[.,!?;:\\\"'“”‘’\\s\\-\\—\\–]+/, '').replace(/[.,!?;:\\\"'“”‘’\\s\\-\\—\\–]+$/, '').trim();" +
+                    "    }" +
+                    "    " +
+                    "    var normQuery = normalizeString(text);" +
+                    "    var cleanQuery = clean(normQuery.text);" +
+                    "    if (!cleanQuery) {" +
+                    "      cleanQuery = normQuery.text;" +
+                    "    }" +
+                    "    if (!cleanQuery) return;" +
                     "    " +
                     "    function removeHighlights() {" +
                     "      var highlights = document.querySelectorAll('.tts-highlight');" +
@@ -156,29 +191,39 @@ public class WebViewContentManager {
                     "        nodes.push({ node: node, start: fullText.length, end: fullText.length + node.nodeValue.length });" +
                     "        fullText += node.nodeValue;" +
                     "      }" +
-                    "      var index = fullText.indexOf(text);" +
-                    "      var matchLen = text.length;" +
-                    "      if (index === -1) {" +
-                    "        index = fullText.indexOf(cleanSearchText);" +
-                    "        matchLen = cleanSearchText.length;" +
+                    "      " +
+                    "      var normalizedDoc = normalizeString(fullText);" +
+                    "      var indexInNormalized = normalizedDoc.text.indexOf(cleanQuery);" +
+                    "      var matchLenInNormalized = cleanQuery.length;" +
+                    "      " +
+                    "      if (indexInNormalized === -1) {" +
+                    "        var exactQuery = normQuery.text.trim();" +
+                    "        if (exactQuery && exactQuery !== cleanQuery) {" +
+                    "          indexInNormalized = normalizedDoc.text.indexOf(exactQuery);" +
+                    "          matchLenInNormalized = exactQuery.length;" +
+                    "        }" +
                     "      }" +
-                    "      if (index !== -1) {" +
-                    "        var matchEnd = index + matchLen;" +
+                    "      " +
+                    "      if (indexInNormalized !== -1) {" +
+                    "        var matchStart = normalizedDoc.map[indexInNormalized];" +
+                    "        var matchEnd = normalizedDoc.map[indexInNormalized + matchLenInNormalized - 1] + 1;" +
                     "        var firstMark = null;" +
                     "        for (var i = 0; i < nodes.length; i++) {" +
                     "          var m = nodes[i];" +
-                    "          if (m.end > index && m.start < matchEnd) {" +
-                    "            var offsetStart = Math.max(0, index - m.start);" +
+                    "          if (m.end > matchStart && m.start < matchEnd) {" +
+                    "            var offsetStart = Math.max(0, matchStart - m.start);" +
                     "            var offsetEnd = Math.min(m.node.nodeValue.length, matchEnd - m.start);" +
-                    "            var range = document.createRange();" +
-                    "            range.setStart(m.node, offsetStart);" +
-                    "            range.setEnd(m.node, offsetEnd);" +
-                    "            var mark = document.createElement('mark');" +
-                    "            mark.className = 'tts-highlight';" +
-                    "            try {" +
-                    "              range.surroundContents(mark);" +
-                    "              if (!firstMark) firstMark = mark;" +
-                    "            } catch(e) { console.warn('Highlight failed', e); }" +
+                    "            if (offsetEnd > offsetStart) {" +
+                    "              var range = document.createRange();" +
+                    "              range.setStart(m.node, offsetStart);" +
+                    "              range.setEnd(m.node, offsetEnd);" +
+                    "              var mark = document.createElement('mark');" +
+                    "              mark.className = 'tts-highlight';" +
+                    "              try {" +
+                    "                range.surroundContents(mark);" +
+                    "                if (!firstMark) firstMark = mark;" +
+                    "              } catch(e) { console.warn('Highlight failed', e); }" +
+                    "            }" +
                     "          }" +
                     "        }" +
                     "        if (firstMark) firstMark.scrollIntoView({behavior: 'smooth', block: 'center'});" +
