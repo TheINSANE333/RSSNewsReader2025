@@ -87,6 +87,7 @@ dependencies {
     implementation 'androidx.lifecycle:lifecycle-reactivestreams:2.10.0'
     androidTestImplementation 'androidx.test.ext:junit:1.3.0'
     testImplementation 'androidx.work:work-testing:2.11.2'
+    androidTestImplementation 'androidx.work:work-testing:2.11.2'
     testImplementation 'junit:junit:4.13.2'
     androidTestImplementation 'junit:junit:4.13.2'
     androidTestImplementation 'androidx.test.espresso:espresso-core:3.7.0'
