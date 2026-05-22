@@ -2,7 +2,6 @@ package xiangze.mmu.rssnewsreader.service.rss;
 
 import android.util.Log;
 
-import org.unbescape.html.HtmlEscape;
 import org.xml.sax.Attributes;
 import org.xml.sax.SAXException;
 import org.xml.sax.helpers.DefaultHandler;
@@ -79,7 +78,7 @@ public class RssHandler extends DefaultHandler {
             } else if (rssItem != null) { // Parse item-level properties
                 switch (qName) {
                     case "title":
-                        rssItem.setTitle(HtmlEscape.unescapeHtml(stringBuilder.toString().trim()));
+                        rssItem.setTitle(org.jsoup.parser.Parser.unescapeEntities(stringBuilder.toString().trim(), false));
                         break;
                     case "link":
                         rssItem.setLink(stringBuilder.toString().trim());

@@ -1,26 +1,22 @@
 package xiangze.mmu.rssnewsreader.service.ai;
 
-//import android.app.NotificationChannel;
+import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.content.Context;
-//import android.os.Build;
+import android.os.Build;
 import android.util.Log;
 
 import androidx.annotation.NonNull;
-import androidx.concurrent.futures.CallbackToFutureAdapter;
 import androidx.core.app.NotificationCompat;
 import androidx.hilt.work.HiltWorker;
-import androidx.work.ListenableWorker;
+import androidx.work.rxjava3.RxWorker;
 import androidx.work.WorkerParameters;
-
-import com.google.common.util.concurrent.ListenableFuture;
 
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 import dagger.assisted.Assisted;
 import dagger.assisted.AssistedInject;
-import io.reactivex.rxjava3.disposables.Disposable;
 import xiangze.mmu.rssnewsreader.R;
 import xiangze.mmu.rssnewsreader.data.entry.EntryRepository;
 import xiangze.mmu.rssnewsreader.data.sharedpreferences.SharedPreferencesRepository;
@@ -29,7 +25,7 @@ import xiangze.mmu.rssnewsreader.service.util.AutoSummarizer;
 import xiangze.mmu.rssnewsreader.service.util.TextUtil;
 
 @HiltWorker
-public class SummarizationWorker extends ListenableWorker {
+public class SummarizationWorker extends RxWorker {
     private static final String TAG = "SummarizationWorker";
     private static final String CHANNEL_ID = "ai_processing_channel";
     private static final int NOTIFICATION_ID = 1001;
@@ -38,7 +34,6 @@ public class SummarizationWorker extends ListenableWorker {
     private final TextUtil textUtil;
     private final SharedPreferencesRepository sharedPreferencesRepository;
     private final xiangze.mmu.rssnewsreader.service.tts.TtsExtractor ttsExtractor;
-    private Disposable currentDisposable;
 
     @AssistedInject
     public SummarizationWorker(
@@ -57,33 +52,23 @@ public class SummarizationWorker extends ListenableWorker {
 
     @NonNull
     @Override
-    public ListenableFuture<Result> startWork() {
-        return CallbackToFutureAdapter.getFuture(completer -> {
-            Log.d(TAG, "Starting batch summarization worker");
-            createNotificationChannel();
-            
-            currentDisposable = io.reactivex.rxjava3.core.Single.fromCallable(entryRepository::getAllUnsummarizedEntries)
-                    .flatMap(entries -> {
-                        if (entries == null || entries.isEmpty()) {
-                            Log.d(TAG, "No unsummarized entries found");
-                            return io.reactivex.rxjava3.core.Single.just(Result.success());
-                        }
+    public io.reactivex.rxjava3.core.Single<Result> createWork() {
+        Log.d(TAG, "Starting batch summarization worker");
+        createNotificationChannel();
 
-                        Log.d(TAG, "Found " + entries.size() + " potential entries to summarize");
-                        
-                        return processEntries(entries)
-                                .andThen(io.reactivex.rxjava3.core.Single.just(Result.success()));
-                    })
-                    .subscribeOn(io.reactivex.rxjava3.schedulers.Schedulers.io())
-                    .subscribe(
-                            completer::set,
-                            throwable -> {
-                                Log.e(TAG, "Batch summarization failed with fatal error", throwable);
-                                completer.set(Result.failure());
-                            }
-                    );
-            return "SummarizationWorker";
-        });
+        return io.reactivex.rxjava3.core.Single.fromCallable(entryRepository::getAllUnsummarizedEntries)
+                .flatMap(entries -> {
+                    if (entries == null || entries.isEmpty()) {
+                        Log.d(TAG, "No unsummarized entries found");
+                        return io.reactivex.rxjava3.core.Single.just(Result.success());
+                    }
+
+                    Log.d(TAG, "Found " + entries.size() + " potential entries to summarize");
+
+                    return processEntries(entries)
+                            .andThen(io.reactivex.rxjava3.core.Single.just(Result.success()));
+                })
+                .subscribeOn(io.reactivex.rxjava3.schedulers.Schedulers.io());
     }
 
     private void createNotificationChannel() {
@@ -104,9 +89,6 @@ public class SummarizationWorker extends ListenableWorker {
     @Override
     public void onStopped() {
         super.onStopped();
-        if (currentDisposable != null && !currentDisposable.isDisposed()) {
-            currentDisposable.dispose();
-        }
     }
 
     private io.reactivex.rxjava3.core.Completable processEntries(List<EntryInfo> entries) {

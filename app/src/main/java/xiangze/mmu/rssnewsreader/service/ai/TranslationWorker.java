@@ -7,20 +7,16 @@ import android.os.Build;
 import android.util.Log;
 
 import androidx.annotation.NonNull;
-import androidx.concurrent.futures.CallbackToFutureAdapter;
 import androidx.core.app.NotificationCompat;
 import androidx.hilt.work.HiltWorker;
-import androidx.work.ListenableWorker;
+import androidx.work.rxjava3.RxWorker;
 import androidx.work.WorkerParameters;
-
-import com.google.common.util.concurrent.ListenableFuture;
 
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 import dagger.assisted.Assisted;
 import dagger.assisted.AssistedInject;
-import io.reactivex.rxjava3.disposables.Disposable;
 import xiangze.mmu.rssnewsreader.R;
 import xiangze.mmu.rssnewsreader.data.entry.EntryRepository;
 import xiangze.mmu.rssnewsreader.data.sharedpreferences.SharedPreferencesRepository;
@@ -29,7 +25,7 @@ import xiangze.mmu.rssnewsreader.service.util.AutoTranslator;
 import xiangze.mmu.rssnewsreader.service.util.TextUtil;
 
 @HiltWorker
-public class TranslationWorker extends ListenableWorker {
+public class TranslationWorker extends RxWorker {
     private static final String TAG = "TranslationWorker";
     private static final String CHANNEL_ID = "ai_processing_channel";
     private static final int NOTIFICATION_ID = 1002;
@@ -37,7 +33,6 @@ public class TranslationWorker extends ListenableWorker {
     private final EntryRepository entryRepository;
     private final TextUtil textUtil;
     private final SharedPreferencesRepository sharedPreferencesRepository;
-    private Disposable currentDisposable;
 
     @AssistedInject
     public TranslationWorker(
@@ -54,32 +49,22 @@ public class TranslationWorker extends ListenableWorker {
 
     @NonNull
     @Override
-    public ListenableFuture<Result> startWork() {
-        return CallbackToFutureAdapter.getFuture(completer -> {
-            Log.d(TAG, "Starting batch translation worker");
-            createNotificationChannel();
-            
-            currentDisposable = io.reactivex.rxjava3.core.Single.fromCallable(entryRepository::getAllUntranslatedEntries)
-                    .flatMap(entries -> {
-                        if (entries == null || entries.isEmpty()) {
-                            Log.d(TAG, "No untranslated entries found");
-                            return io.reactivex.rxjava3.core.Single.just(Result.success());
-                        }
+    public io.reactivex.rxjava3.core.Single<Result> createWork() {
+        Log.d(TAG, "Starting batch translation worker");
+        createNotificationChannel();
+        
+        return io.reactivex.rxjava3.core.Single.fromCallable(entryRepository::getAllUntranslatedEntries)
+                .flatMap(entries -> {
+                    if (entries == null || entries.isEmpty()) {
+                        Log.d(TAG, "No untranslated entries found");
+                        return io.reactivex.rxjava3.core.Single.just(Result.success());
+                    }
 
-                        Log.d(TAG, "Found " + entries.size() + " potential entries to translate");
-                        return processEntries(entries)
-                                .andThen(io.reactivex.rxjava3.core.Single.just(Result.success()));
-                    })
-                    .subscribeOn(io.reactivex.rxjava3.schedulers.Schedulers.io())
-                    .subscribe(
-                            completer::set,
-                            throwable -> {
-                                Log.e(TAG, "Batch translation failed with fatal error", throwable);
-                                completer.set(Result.failure());
-                            }
-                    );
-            return "TranslationWorker";
-        });
+                    Log.d(TAG, "Found " + entries.size() + " potential entries to translate");
+                    return processEntries(entries)
+                            .andThen(io.reactivex.rxjava3.core.Single.just(Result.success()));
+                })
+                .subscribeOn(io.reactivex.rxjava3.schedulers.Schedulers.io());
     }
 
     private void createNotificationChannel() {
@@ -100,9 +85,6 @@ public class TranslationWorker extends ListenableWorker {
     @Override
     public void onStopped() {
         super.onStopped();
-        if (currentDisposable != null && !currentDisposable.isDisposed()) {
-            currentDisposable.dispose();
-        }
     }
 
     private io.reactivex.rxjava3.core.Completable processEntries(List<EntryInfo> entries) {

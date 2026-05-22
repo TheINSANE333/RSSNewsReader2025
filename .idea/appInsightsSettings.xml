@@ -9,10 +9,10 @@
             <InsightsFilterSettings>
               <option name="connection">
                 <ConnectionSetting>
-                  <option name="appId" value="xiangze.mmu.rssnewsreader" />
-                  <option name="mobileSdkAppId" value="1:1009985423176:android:2905a8995946ec7077957d" />
-                  <option name="projectId" value="rss-news-reader-8383c" />
-                  <option name="projectNumber" value="1009985423176" />
+                  <option name="appId" value="PLACEHOLDER" />
+                  <option name="mobileSdkAppId" value="" />
+                  <option name="projectId" value="" />
+                  <option name="projectNumber" value="" />
                 </ConnectionSetting>
               </option>
               <option name="signal" value="SIGNAL_UNSPECIFIED" />

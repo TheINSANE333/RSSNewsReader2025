@@ -8,9 +8,6 @@ import com.google.mlkit.common.model.DownloadConditions;
 import com.google.mlkit.nl.languageid.LanguageIdentification;
 import com.google.mlkit.nl.languageid.LanguageIdentificationOptions;
 import com.google.mlkit.nl.languageid.LanguageIdentifier;
-import com.google.mlkit.nl.translate.Translation;
-import com.google.mlkit.nl.translate.Translator;
-import com.google.mlkit.nl.translate.TranslatorOptions;
 
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
@@ -187,75 +184,6 @@ public class TextUtil {
 
     // Translate text element by element
     // Pro: Preserves the HTML structure of the text (e.g. <h1> remains <h1>, <h2> remains <h2>, <p> remains <p>)
-    // Con: Slower performance (e.g. translating a very long content (198 elements) can take up to 5 minutes.
-    //        In contrast, using the translateAllAtOnce method reduces this time to 2 minutes).
-    // Note: Specifying maxConcurrency in x.flatMap (tried with 10 and 100) showed no noticeable difference in performance
-    //        compared to leaving it unspecified.
-    @SuppressLint("CheckResult")
-    public Single<String> translateHtmlLineByLine(String sourceLanguage, String targetLanguage, String html, String title, long articleId, Consumer<Integer> progressCallback) {
-        Log.d(TAG, "translateHtmlLineByLine: from " + sourceLanguage + " to " + targetLanguage);
-        return Single.create(emitter -> {
-            try {
-                // First, translate the title
-                translateText(sourceLanguage, targetLanguage, title)
-                        .flatMap(translatedTitle -> {
-                            // Parse the HTML
-                            Document document = Jsoup.parse(html);
-                            // List of tags to extract text from - Added h1 and div
-                            List<String> tags = Arrays.asList("h1", "h2", "h3", "h4", "h5", "h6", "p", "td", "pre", "th", "li", "figcaption", "blockquote", "section", "div");
-                            // Get all elements with the specified tags
-                            Elements elements = document.select(String.join(",", tags));
-
-                            // Check if the translated title has already been prepended
-                            Element existingTitleElement = document.select("p.translated-title").first();
-                            if (existingTitleElement == null) {
-                                Element titleParagraph = new Element(Tag.valueOf("p"), "");
-                                titleParagraph.text(translatedTitle);
-                                titleParagraph.addClass("translated-title");
-                                titleParagraph.attr("data-article-id", String.valueOf(articleId));
-                                document.body().prependChild(titleParagraph);
-                            }
-
-                            AtomicInteger translatedElements = new AtomicInteger(0);
-                            // Create a Flowable from the elements
-                            return Flowable.fromIterable(elements)
-                                    .flatMapMaybe(element -> {
-                                        if (element.hasText()) {
-                                            return translateText(sourceLanguage, targetLanguage, element.text())
-                                                    .map(translatedText -> {
-                                                        element.text(translatedText);
-                                                        return translatedText;
-                                                    })
-                                                    .toMaybe();
-                                        }
-                                        return Maybe.empty();
-                                    })
-                                    .doOnNext(translatedText -> {
-                                        // Emit progress update
-                                        if (elements.size() > 0) {
-                                            int progress = (int) (100.0 * (translatedElements.incrementAndGet()) / elements.size());
-                                            try {
-                                                progressCallback.accept(progress);
-                                            } catch (Throwable e) {
-                                                Log.e(TAG, "Progress callback failed", e);
-                                            }
-                                        }
-                                    })
-                                    .toList()
-                                    .map(ignored -> document.outerHtml());
-                        })
-                        .subscribe(
-                                emitter::onSuccess,
-                                emitter::onError
-                        );
-            } catch (Exception e) {
-                emitter.onError(e);
-            }
-        });
-    }
-
-
-
     private String translateChunkWithRetry(AiClient aiClient, List<Message> messages, String model) {
         try {
             return aiClient.getChatResponse(messages, model);
@@ -696,35 +624,6 @@ public class TextUtil {
 
 
 
-
-    public Single<String> translateText(String sourceLanguage, String targetLanguage, String text) {
-        return Single.create(emitter -> {
-            if (text == null || text.isEmpty()) {
-                emitter.onError(new IllegalArgumentException("Invalid content for translation"));
-                return;
-            }
-
-            TranslatorOptions options = new TranslatorOptions.Builder()
-                    .setSourceLanguage(sourceLanguage)
-                    .setTargetLanguage(targetLanguage)
-                    .build();
-
-            Translator translator = Translation.getClient(options);
-            DownloadConditions conditions = new DownloadConditions.Builder().build();
-
-            translator.downloadModelIfNeeded(conditions)
-                    .addOnSuccessListener(v -> translator.translate(text)
-                            .addOnSuccessListener(emitter::onSuccess)
-                            .addOnFailureListener(error -> {
-                                Log.e(TAG, "Translation failed", error);
-                                emitter.onError(error);
-                            }))
-                    .addOnFailureListener(error -> {
-                        Log.e(TAG, "Model download failed", error);
-                        emitter.onError(error);
-                    });
-        });
-    }
 
     public Single<String> identifyLanguageRx(String sentence) {
         float confidenceThreshold = (float) sharedPreferencesRepository.getConfidenceThreshold() / 100;
