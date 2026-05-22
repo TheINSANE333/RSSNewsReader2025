@@ -34,4 +34,5 @@
     <color name="stroke">@color/surfaceVariant</color>
     <color name="unread">@color/surfaceVariant</color>
     <color name="unreadText">#727272</color>
+    <color name="colorHighlight">#409f86ff</color>
 </resources>

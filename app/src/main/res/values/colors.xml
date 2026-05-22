@@ -34,4 +34,5 @@
     <color name="stroke">@color/outlineVariant</color>
     <color name="unread">#F1F0F7</color>
     <color name="unreadText">#929292</color>
+    <color name="colorHighlight">#406442d6</color>
 </resources>

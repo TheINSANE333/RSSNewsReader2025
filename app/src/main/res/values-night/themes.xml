@@ -51,6 +51,8 @@
         <item name="floatingActionButtonStyle">@style/Widget.App.FloatingActionButton</item>
 
         <!-- This is for enabling transitions. -->
+        <item name="android:textColorHighlight">@color/colorHighlight</item>
+        <item name="android:colorControlHighlight">@color/colorHighlight</item>
         <item name="android:windowActivityTransitions">true</item>
         <item name="android:windowEnterTransition">@transition/trans_anim</item>
         <item name="android:windowExitTransition">@transition/trans_anim</item>
@@ -63,5 +65,7 @@
     <style name="Theme.App.FullScreenDialog" parent="Theme.AppCompat.DayNight.DialogWhenLarge">
         <item name="windowNoTitle">true</item>
         <item name="android:statusBarColor">@color/background</item>
+        <item name="android:textColorHighlight">@color/colorHighlight</item>
+        <item name="android:colorControlHighlight">@color/colorHighlight</item>
     </style>
 </resources>

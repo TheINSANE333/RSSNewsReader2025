@@ -49,6 +49,8 @@
         <item name="bottomSheetDialogTheme">@style/ThemeOverlay.App.BottomSheetDialog</item>
 
         <!-- This is for enabling transitions. -->
+        <item name="android:textColorHighlight">@color/colorHighlight</item>
+        <item name="android:colorControlHighlight">@color/colorHighlight</item>
         <item name="android:windowActivityTransitions">true</item>
         <item name="android:windowEnterTransition">@transition/trans_anim</item>
         <item name="android:windowExitTransition">@transition/trans_anim</item>
@@ -58,6 +60,8 @@
         <item name="windowNoTitle">true</item>
         <item name="android:statusBarColor" >@color/background</item>
         <item name="android:windowLightStatusBar" tools:targetApi="m">true</item>
+        <item name="android:textColorHighlight">@color/colorHighlight</item>
+        <item name="android:colorControlHighlight">@color/colorHighlight</item>
     </style>
 
     <style name="Theme.App.Starting" parent="Theme.SplashScreen">
