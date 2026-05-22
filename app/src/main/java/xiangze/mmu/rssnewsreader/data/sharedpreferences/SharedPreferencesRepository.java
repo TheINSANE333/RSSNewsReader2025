@@ -145,7 +145,7 @@ public class SharedPreferencesRepository {
     }
 
     public String getDefaultTranslationLanguage() {
-        return sharedPreferences.getString("defaultTranslationLanguage", "zh");
+        return sharedPreferences.getString("defaultTranslationLanguage", java.util.Locale.getDefault().getLanguage());
     }
 
     public void setDefaultTranslationLanguage(String language) {

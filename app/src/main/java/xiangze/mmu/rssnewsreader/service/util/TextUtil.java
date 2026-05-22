@@ -631,13 +631,33 @@ public class TextUtil {
     }
 
     public Single<String> identifyLanguageRx(String sentence, float confidenceThreshold) {
+        if (sentence == null || sentence.trim().isEmpty()) {
+            return Single.just("und");
+        }
+
+        // Strip HTML if it looks like HTML to improve language detection accuracy
+        String cleanText = sentence;
+        if (sentence.contains("<") && sentence.contains(">")) {
+            try {
+                // Parse and remove non-content elements that might contain English boilerplate
+                Document doc = Jsoup.parse(sentence);
+                doc.select("script, style, head, header, footer, nav").remove();
+                cleanText = doc.text();
+            } catch (Exception e) {
+                Log.w(TAG, "Failed to parse HTML for language identification, using raw text");
+            }
+        }
+
+        // If cleaning resulted in empty string, fallback to original
+        final String textToIdentify = (cleanText == null || cleanText.trim().isEmpty()) ? sentence : cleanText;
+
         LanguageIdentificationOptions options = new LanguageIdentificationOptions.Builder()
                 .setConfidenceThreshold(confidenceThreshold)
                 .build();
 
         LanguageIdentifier languageIdentifier = LanguageIdentification.getClient(options);
 
-        return Single.fromCallable(() -> languageIdentifier.identifyLanguage(sentence))
+        return Single.fromCallable(() -> languageIdentifier.identifyLanguage(textToIdentify))
                 .subscribeOn(Schedulers.io())
                 .map(languageCodeTask -> {
                     try {
