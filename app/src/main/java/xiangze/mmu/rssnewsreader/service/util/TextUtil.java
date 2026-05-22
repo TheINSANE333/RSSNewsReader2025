@@ -1,7 +1,7 @@
 package xiangze.mmu.rssnewsreader.service.util;
 
 import android.annotation.SuppressLint;
-import android.util.Log;
+import timber.log.Timber;
 
 import com.google.android.gms.tasks.Tasks;
 import com.google.mlkit.common.model.DownloadConditions;
@@ -217,7 +217,7 @@ public class TextUtil {
     public Single<String> translateHtmlAllAtOnce(String sourceLanguage, String targetLanguage, String html, String title, long articleId, Consumer<Integer> progressCallback, boolean isPriority) {
         return Single.defer(() -> {
 
-            Log.d(TAG, "Attempting to acquire Translation Lock for ID: " + articleId + " (Priority: " + isPriority + ")");
+            Timber.d("Attempting to acquire Translation Lock for ID: " + articleId + " (Priority: " + isPriority + ")");
 
             try {
                 if (isPriority) {
@@ -234,7 +234,7 @@ public class TextUtil {
                 return Single.error(e);
             }
 
-            Log.d(TAG, "Lock Acquired. Starting translation for ID: " + articleId);
+            Timber.d("Lock Acquired. Starting translation for ID: " + articleId);
 
             // 2. RUN: Your existing translation logic goes here.
             // Ensure this returns a Single<String>.
@@ -243,7 +243,7 @@ public class TextUtil {
                         // 3. RELEASE: This runs whether the translation Succeeds OR Fails.
                         // It is critical to ensure the next item in line can proceed.
                         GLOBAL_TRANSLATION_LOCK.release();
-                        Log.d(TAG, "Lock Released for ID: " + articleId);
+                        Timber.d("Lock Released for ID: " + articleId);
                     });
         });
     }
@@ -261,7 +261,7 @@ public class TextUtil {
     public Single<String> summarizeHtmlAllAtOnce(String sourceLanguage, String targetLanguage, String html, int length, long articleId, String title, Consumer<Integer> progressCallback, boolean isPriority) {
         return Single.defer(() -> {
 
-            Log.d(TAG, "Attempting to acquire Summarization Lock for ID: " + articleId + " (Priority: " + isPriority + ")");
+            Timber.d("Attempting to acquire Summarization Lock for ID: " + articleId + " (Priority: " + isPriority + ")");
 
             try {
                 if (isPriority) {
@@ -275,7 +275,7 @@ public class TextUtil {
                 return Single.error(e);
             }
 
-            Log.d(TAG, "Lock Acquired. Starting summarization for ID: " + articleId);
+            Timber.d("Lock Acquired. Starting summarization for ID: " + articleId);
 
             // 2. RUN: Your existing translation logic goes here.
             // Ensure this returns a Single<String>.
@@ -284,13 +284,13 @@ public class TextUtil {
                         // 3. RELEASE: This runs whether the translation Succeeds OR Fails.
                         // It is critical to ensure the next item in line can proceed.
                         GLOBAL_SUMMARIZATION_LOCK.release();
-                        Log.d(TAG, "Lock Released for ID: " + articleId);
+                        Timber.d("Lock Released for ID: " + articleId);
                     });
         });
     }
 
     private Single<String> performActualTranslation(String sourceLanguage, String targetLanguage, String html, String title, long articleId, Consumer<Integer> progressCallback) {
-        Log.d(TAG, "translateHtmlAllAtOnce: AI Mode - from " + sourceLanguage + " to " + targetLanguage);
+        Timber.d("translateHtmlAllAtOnce: AI Mode - from " + sourceLanguage + " to " + targetLanguage);
 
         return Single.create(emitter -> {
 
@@ -303,7 +303,7 @@ public class TextUtil {
                         try {
                             progressCallback.accept(progress.incrementAndGet());
                         } catch (Throwable callbackException) {
-                            Log.e(TAG, "Progress callback failed", callbackException);
+                            Timber.e(callbackException, "Progress callback failed");
                         }
                     }
                 } catch (InterruptedException e) {
@@ -355,7 +355,7 @@ public class TextUtil {
                 // Note: Ensure translateChunkWithRetry is accessible here
                 String translationModel = sharedPreferencesRepository.getTranslationModel();
                 String translatedHtml = translateChunkWithRetry(aiClient, messages, translationModel);
-                Log.d(TAG, "AI Translation Response: " + translatedHtml);
+                Timber.d("AI Translation Response: " + translatedHtml);
 
                 // 4. Stop Progress & Validate
                 progressThread.interrupt();
@@ -368,10 +368,10 @@ public class TextUtil {
                 try {
                     progressCallback.accept(100);
                 } catch (Throwable e) {
-                    Log.e(TAG, "Progress callback failed on completion", e);
+                    Timber.e(e, "Progress callback failed on completion");
                 }
 
-                Log.d(TAG, "Translation complete, size = " + translatedHtml.length());
+                Timber.d("Translation complete, size = " + translatedHtml.length());
                 emitter.onSuccess(translatedHtml);
 
             } catch (Exception e) {
@@ -380,16 +380,16 @@ public class TextUtil {
                 try {
                     progressCallback.accept(0);
                 } catch (Throwable callbackException) {
-                    Log.e(TAG, "Progress callback failed on error reset", callbackException);
+                    Timber.e(callbackException, "Progress callback failed on error reset");
                 }
-                Log.e(TAG, "Translation error: " + e.getMessage(), e);
+                Timber.e(e, "Translation error: " + e.getMessage());
                 emitter.onError(e);
             }
         });
     }
 
     private Single<String> performActualSummarization(String sourceLanguage, String targetLanguage, String html, int length, long articleId, String title, Consumer<Integer> progressCallback) {
-        Log.d(TAG, "summarizeHtmlAllAtOnce: AI Mode - in" + length);
+        Timber.d("summarizeHtmlAllAtOnce: AI Mode - in" + length);
 
         return Single.create(emitter -> {
 
@@ -402,7 +402,7 @@ public class TextUtil {
                         try {
                             progressCallback.accept(progress.incrementAndGet());
                         } catch (Throwable callbackException) {
-                            Log.e(TAG, "Progress callback failed", callbackException);
+                            Timber.e(callbackException, "Progress callback failed");
                         }
                     }
                 } catch (InterruptedException e) {
@@ -451,7 +451,7 @@ public class TextUtil {
                 // Fallback to basic text extraction if structured extraction yielded nothing
                 // This prevents "There is no content to summarize" AI responses for poorly structured HTML
                 if (cleanContent.trim().length() < 50) {
-                    Log.d(TAG, "Structured extraction too short (" + cleanContent.length() + "). Falling back to Jsoup text.");
+                    Timber.d("Structured extraction too short (" + cleanContent.length() + "). Falling back to Jsoup text.");
                     String basicText = Jsoup.parse(html).text();
                     if (basicText.length() > cleanContent.length()) {
                         cleanContent = basicText;
@@ -476,7 +476,7 @@ public class TextUtil {
                 // Note: Ensure summarizeChunkWithRetry is accessible here
                 String summarizationModel = sharedPreferencesRepository.getSummarizationModel();
                 String summarizedHtml = summarizeChunkWithRetry(aiClient, messages, summarizationModel);
-                Log.d(TAG, "AI Summary Response: " + summarizedHtml);
+                Timber.d("AI Summary Response: " + summarizedHtml);
 
                 // 4. Stop Progress & Validate
                 progressThread.interrupt();
@@ -489,10 +489,10 @@ public class TextUtil {
                 try {
                     progressCallback.accept(100);
                 } catch (Throwable e) {
-                    Log.e(TAG, "Progress callback failed on completion", e);
+                    Timber.e(e, "Progress callback failed on completion");
                 }
 
-                Log.d(TAG, "Summarization complete, size = " + summarizedHtml.length());
+                Timber.d("Summarization complete, size = " + summarizedHtml.length());
                 emitter.onSuccess(summarizedHtml);
 
             } catch (Exception e) {
@@ -501,9 +501,9 @@ public class TextUtil {
                 try {
                     progressCallback.accept(0);
                 } catch (Throwable callbackException) {
-                    Log.e(TAG, "Progress callback failed on error reset", callbackException);
+                    Timber.e(callbackException, "Progress callback failed on error reset");
                 }
-                Log.e(TAG, "Summarization error: " + e.getMessage(), e);
+                Timber.e(e, "Summarization error: " + e.getMessage());
                 emitter.onError(e);
             }
         });
@@ -644,7 +644,7 @@ public class TextUtil {
                 doc.select("script, style, head, header, footer, nav").remove();
                 cleanText = doc.text();
             } catch (Exception e) {
-                Log.w(TAG, "Failed to parse HTML for language identification, using raw text");
+                Timber.w("Failed to parse HTML for language identification, using raw text");
             }
         }
 
@@ -663,14 +663,14 @@ public class TextUtil {
                     try {
                         String languageCode = Tasks.await(languageCodeTask);
                         if ("und".equals(languageCode)) {
-                            Log.i(TAG, "Unable to identify language.");
+                            Timber.i("Unable to identify language.");
                             return "und";
                         } else {
-                            Log.i(TAG, "Identified language: " + languageCode);
+                            Timber.i("Identified language: " + languageCode);
                             return languageCode;
                         }
                     } catch (Exception e) {
-                        Log.e(TAG, "Error identifying language", e);
+                        Timber.e(e, "Error identifying language");
                         return "und";
                     }
                 })

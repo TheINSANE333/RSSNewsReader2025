@@ -1,6 +1,6 @@
 package xiangze.mmu.rssnewsreader.ui.webview;
 
-import android.util.Log;
+import timber.log.Timber;
 import android.webkit.WebView;
 
 import androidx.appcompat.app.AppCompatActivity;
@@ -14,7 +14,7 @@ import io.reactivex.rxjava3.disposables.Disposable;
 import io.reactivex.rxjava3.schedulers.Schedulers;
 
 public class WebViewContentManager {
-    private static final String TAG = "WebViewContentManager";
+    
     private final WebView webView;
     private final WebViewViewModel viewModel;
     private final SharedPreferencesRepository sharedPreferencesRepository;
@@ -82,7 +82,7 @@ public class WebViewContentManager {
                 }, 300);
             }
         }, throwable -> {
-            Log.e(TAG, "Fatal error processing HTML", throwable);
+            Timber.e(throwable, "Fatal error processing HTML");
             if (listener != null) {
                 listener.makeSnackbar("HTML rendering crashed: " + throwable.getClass().getSimpleName());
                 listener.hideFakeLoading();

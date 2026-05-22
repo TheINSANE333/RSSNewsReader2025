@@ -4,7 +4,7 @@ import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
-import android.util.Log;
+import timber.log.Timber;
 
 import java.net.URL;
 import java.util.ArrayList;
@@ -19,7 +19,6 @@ import java.text.SimpleDateFormat;
 
 public class WebFeedReader {
     private String url;
-    private static final String TAG = "WebFeedReader";
 
     // Minimum score a candidate needs to be included
     private static final int MIN_SCORE_THRESHOLD = 2;
@@ -86,7 +85,7 @@ public class WebFeedReader {
     }
 
     public RssFeed getFeed() throws Exception {
-        Log.d(TAG, "Attempting to scrape feed from: " + url);
+        Timber.d("Attempting to scrape feed from: " + url);
         Document doc = Jsoup.connect(url)
                 .userAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
                 .timeout(10000)
@@ -128,13 +127,13 @@ public class WebFeedReader {
                 RssItem item = candidate.toRssItem();
                 if (item.isValid()) {
                     items.add(item);
-                    Log.d(TAG, "  +" + candidate.score + " | " + candidate.title + " -> " + candidate.href);
+                    Timber.d("  +" + candidate.score + " | " + candidate.title + " -> " + candidate.href);
                 }
             }
         }
 
         feed.setRssItems(items);
-        Log.d(TAG, "Scraped " + items.size() + " items (from " + candidates.size() + " candidates).");
+        Timber.d("Scraped " + items.size() + " items (from " + candidates.size() + " candidates).");
 
         if (items.isEmpty()) {
             throw new Exception("No articles found on the page.");
@@ -149,7 +148,7 @@ public class WebFeedReader {
     private void extractFromArticleContainers(Document doc, String host,
                                                List<ArticleCandidate> candidates, Set<String> visited) {
         Elements containers = doc.select(ARTICLE_CONTAINER_SELECTOR);
-        Log.d(TAG, "Found " + containers.size() + " article containers.");
+        Timber.d("Found " + containers.size() + " article containers.");
 
         for (Element container : containers) {
             // Find the primary link in this container
@@ -206,7 +205,7 @@ public class WebFeedReader {
 
         // Look for links inside headings (h1-h4) - these are almost always article headlines
         Elements headingLinks = contentRoot.select("h1 a[href], h2 a[href], h3 a[href], h4 a[href]");
-        Log.d(TAG, "Found " + headingLinks.size() + " heading links in content area.");
+        Timber.d("Found " + headingLinks.size() + " heading links in content area.");
 
         for (Element link : headingLinks) {
             String href = link.attr("abs:href");
@@ -585,7 +584,7 @@ public class WebFeedReader {
             }
 
         } catch (Exception e) {
-            Log.w(TAG, "Error scoring URL: " + href);
+            Timber.w("Error scoring URL: " + href);
         }
 
         return score;

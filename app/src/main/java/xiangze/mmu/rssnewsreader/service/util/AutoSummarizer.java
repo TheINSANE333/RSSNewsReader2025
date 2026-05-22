@@ -1,7 +1,7 @@
 package xiangze.mmu.rssnewsreader.service.util;
 
 import android.content.Context;
-import android.util.Log;
+import timber.log.Timber;
 
 import androidx.annotation.Nullable;
 import androidx.work.OneTimeWorkRequest;
@@ -22,7 +22,6 @@ import xiangze.mmu.rssnewsreader.service.ai.SummarizationWorker;
 @Singleton
 public class AutoSummarizer {
 
-    private static final String TAG = "AutoSummarizer";
     private final EntryRepository entryRepository;
     private final TextUtil textUtil;
     private final SharedPreferencesRepository prefs;
@@ -49,12 +48,12 @@ public class AutoSummarizer {
 
     public void runAutoSummarization(@Nullable Runnable onComplete) {
         if (!prefs.getAutoSummarize()) {
-            Log.d(TAG, "Auto-summarize disabled by user.");
+            Timber.d("Auto-summarize disabled by user.");
             if (onComplete != null) onComplete.run();
             return;
         }
 
-        Log.d(TAG, "Enqueuing batch summarization work");
+        Timber.d("Enqueuing batch summarization work");
         OneTimeWorkRequest workRequest = new OneTimeWorkRequest.Builder(SummarizationWorker.class)
                 .addTag("BatchSummarization")
                 .build();

@@ -16,7 +16,7 @@ import android.support.v4.media.session.MediaControllerCompat;
 import android.support.v4.media.session.MediaSessionCompat;
 import android.support.v4.media.session.PlaybackStateCompat;
 import android.support.v4.media.session.PlaybackStateCompat.MediaKeyAction;
-import android.util.Log;
+import timber.log.Timber;
 import android.view.KeyEvent;
 
 import androidx.annotation.RestrictTo;
@@ -84,23 +84,22 @@ import java.util.List;
  * handle them in your {@link MediaSessionCompat.Callback}.
  */
 public class TtsMediaButtonReceiver extends BroadcastReceiver {
-    private static final String TAG = "MediaButtonReceiver";
 
     @Override
     public void onReceive(Context context, Intent intent) {
-        Log.d(TAG, "onReceive: intent=" + intent);
+        Timber.d("onReceive: intent=" + intent);
         if (intent == null || !Intent.ACTION_MEDIA_BUTTON.equals(intent.getAction())) {
-            Log.d(TAG, "Ignoring unsupported intent: " + intent);
+            Timber.d("Ignoring unsupported intent: " + intent);
             return;
         }
 
         KeyEvent keyEvent = IntentCompat.getParcelableExtra(intent, Intent.EXTRA_KEY_EVENT, KeyEvent.class);
         if (keyEvent == null) {
-            Log.d(TAG, "No KeyEvent found in the intent");
+            Timber.d("No KeyEvent found in the intent");
             return;
         }
 
-        Log.d(TAG, "Media Button Received: " + keyEvent.toString() + " Action=" + keyEvent.getAction() + " Code=" + keyEvent.getKeyCode());
+        Timber.d("Media Button Received: " + keyEvent.toString() + " Action=" + keyEvent.getAction() + " Code=" + keyEvent.getKeyCode());
 
         // We MUST handle the event and NOT let it leak to other apps (like Spotify)
         // especially if we are the current foreground service or active session.
@@ -110,7 +109,7 @@ public class TtsMediaButtonReceiver extends BroadcastReceiver {
         if (session != null) {
             MediaControllerCompat controller = session.getController();
             if (controller != null) {
-                Log.d(TAG, "Dispatching to existing MediaSession (active=" + session.isActive() + ")");
+                Timber.d("Dispatching to existing MediaSession (active=" + session.isActive() + ")");
                 controller.dispatchMediaButtonEvent(keyEvent);
                 // Return early so we don't start the service again redundantly
                 return;
@@ -118,7 +117,7 @@ public class TtsMediaButtonReceiver extends BroadcastReceiver {
         }
 
         // 2. Start Service (slow path / cold start or session lost)
-        Log.d(TAG, "MediaSession not found or controller missing. Starting TtsService.");
+        Timber.d("MediaSession not found or controller missing. Starting TtsService.");
         Intent serviceIntent = new Intent(context, TtsService.class);
         serviceIntent.setAction(Intent.ACTION_MEDIA_BUTTON);
         serviceIntent.putExtra(Intent.EXTRA_KEY_EVENT, keyEvent);
@@ -134,7 +133,6 @@ public class TtsMediaButtonReceiver extends BroadcastReceiver {
 //            MediaButtonReceiver.handleIntent(TtsService.getMediaSession(), intent);
 //        }
 //    }
-
 
     private static class MediaButtonConnectionCallback extends
             MediaBrowserCompat.ConnectionCallback {
@@ -227,7 +225,7 @@ public class TtsMediaButtonReceiver extends BroadcastReceiver {
                                                               @MediaKeyAction long action) {
         ComponentName mbrComponent = getMediaButtonReceiverComponent(context);
         if (mbrComponent == null) {
-            Log.w(TAG, "A unique media button receiver could not be found in the given context, so "
+            Timber.w("A unique media button receiver could not be found in the given context, so "
                     + "couldn't build a pending intent.");
             return null;
         }
@@ -259,13 +257,12 @@ public class TtsMediaButtonReceiver extends BroadcastReceiver {
     public static PendingIntent buildMediaButtonPendingIntent(Context context,
                                                               ComponentName mbrComponent, @MediaKeyAction long action) {
         if (mbrComponent == null) {
-            Log.w(TAG, "The component name of media button receiver should be provided.");
+            Timber.w("The component name of media button receiver should be provided.");
             return null;
         }
         int keyCode = PlaybackStateCompat.toKeyCode(action);
         if (keyCode == KeyEvent.KEYCODE_UNKNOWN) {
-            Log.w(TAG,
-                    "Cannot build a media button pending intent with the given action: " + action);
+            Timber.w("Cannot build a media button pending intent with the given action: " + action);
             return null;
         }
         Intent intent = new Intent(Intent.ACTION_MEDIA_BUTTON);
@@ -291,7 +288,7 @@ public class TtsMediaButtonReceiver extends BroadcastReceiver {
             return new ComponentName(resolveInfo.activityInfo.packageName,
                     resolveInfo.activityInfo.name);
         } else if (resolveInfos.size() > 1) {
-            Log.w(TAG, "More than one BroadcastReceiver that handles "
+            Timber.w("More than one BroadcastReceiver that handles "
                     + Intent.ACTION_MEDIA_BUTTON + " was found, returning null.");
         }
         return null;

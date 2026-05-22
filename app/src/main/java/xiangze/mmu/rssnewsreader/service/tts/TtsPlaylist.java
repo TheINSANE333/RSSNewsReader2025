@@ -1,5 +1,7 @@
 package xiangze.mmu.rssnewsreader.service.tts;
 
+import timber.log.Timber;
+
 import android.graphics.Bitmap;
 import android.support.v4.media.MediaBrowserCompat;
 import android.support.v4.media.MediaMetadataCompat;
@@ -75,14 +77,14 @@ public class TtsPlaylist {
             } catch (Exception e) {
                 // Catching Exception to cover Picasso's ResponseException (for 404s) and other IO issues.
                 // Log as Warning instead of Error for 404s to reduce log noise.
-                android.util.Log.w("TtsPlaylist", "Could not load feed image: " + e.getMessage());
+                Timber.w("Could not load feed image: " + e.getMessage());
             }
         });
         thread.start();
         try {
             thread.join(5000); // 5 second max wait
         } catch (InterruptedException e) {
-            android.util.Log.e("TtsPlaylist", "Metadata thread interrupted", e);
+            Timber.e(e, "Metadata thread interrupted");
         }
 
         if (localEntryInfo[0] == null) return null;

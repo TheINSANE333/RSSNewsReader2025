@@ -1,7 +1,7 @@
 package xiangze.mmu.rssnewsreader.service.rss;
 
 import android.content.Context;
-import android.util.Log;
+import timber.log.Timber;
 
 import androidx.work.Constraints;
 import androidx.work.ExistingPeriodicWorkPolicy;
@@ -24,7 +24,6 @@ import dagger.hilt.android.qualifiers.ApplicationContext;
 @Singleton
 public class RssWorkManager {
 
-    private static final String TAG = "RssWorkManager";
     public static final String refreshWorkerName = "RefreshWorker";
 
     private Context context;
@@ -49,7 +48,7 @@ public class RssWorkManager {
 
         // Using UPDATE or REPLACE ensures that if settings change, the worker is rescheduled with the new interval.
         WorkManager.getInstance(context).enqueueUniquePeriodicWork(refreshWorkerName, ExistingPeriodicWorkPolicy.UPDATE, request);
-        Log.d(TAG, "RssWorker scheduled with interval: " + interval + " minutes.");
+        Timber.d("RssWorker scheduled with interval: " + interval + " minutes.");
     }
 
     public void triggerOneTimeRssWorker() {
@@ -62,7 +61,7 @@ public class RssWorkManager {
                 .build();
 
         WorkManager.getInstance(context).enqueue(request);
-        Log.d(TAG, "One-time RssWorker triggered.");
+        Timber.d("One-time RssWorker triggered.");
     }
 
     public void triggerPreloadWorker() {
@@ -75,7 +74,7 @@ public class RssWorkManager {
                 .build();
 
         WorkManager.getInstance(context).enqueue(request);
-        Log.d(TAG, "PreloadWorker triggered.");
+        Timber.d("PreloadWorker triggered.");
     }
 
     public void dequeueRssWorker() {
@@ -95,7 +94,7 @@ public class RssWorkManager {
                 }
             }
         } catch (ExecutionException | InterruptedException e) {
-            Log.e(TAG, "Error checking work state.", e);
+            Timber.e(e, "Error checking work state.");
         }
         return false;
     }

@@ -5,7 +5,7 @@ import android.content.Context;
 import android.content.DialogInterface;
 import android.os.Bundle;
 import android.speech.tts.TextToSpeech;
-import android.util.Log;
+import timber.log.Timber;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.widget.RadioButton;
@@ -43,7 +43,7 @@ public class LanguageSelectionDialog extends AppCompatDialogFragment {
         tts = new TextToSpeech(context, new TextToSpeech.OnInitListener() {
             @Override
             public void onInit(int status) {
-                Log.d(TAG, "tts is initialized");
+                Timber.d("tts is initialized");
                 if (status == TextToSpeech.SUCCESS) {
                     listener.showDialog();
                 }

@@ -7,7 +7,7 @@ import androidx.room.migration.Migration;
 import androidx.sqlite.db.SupportSQLiteDatabase;
 
 
-import android.util.Log;
+import timber.log.Timber;
 
 import xiangze.mmu.rssnewsreader.data.entry.Entry;
 import xiangze.mmu.rssnewsreader.data.entry.EntryDao;
@@ -45,9 +45,9 @@ public abstract class AppDatabase extends RoomDatabase {
                 database.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS index_entry_table_feedId_link ON entry_table (feedId, link)");
                 database.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS index_feed_table_link ON feed_table (link)");
 
-                Log.d("DatabaseMigration", "Migration from v7 to v8 completed successfully.");
+                Timber.d("Migration from v7 to v8 completed successfully.");
             } catch (Exception e) {
-                Log.e("DatabaseMigration", "Migration v7 to v8 failed: " + e.getMessage());
+                Timber.e("Migration v7 to v8 failed: " + e.getMessage());
             }
         }
     };
@@ -70,9 +70,9 @@ public abstract class AppDatabase extends RoomDatabase {
                 database.execSQL("ALTER TABLE entry_table ADD COLUMN isCached INTEGER NOT NULL DEFAULT 0");
                 database.execSQL("ALTER TABLE feed_table ADD COLUMN isPreloaded INTEGER NOT NULL DEFAULT 0");
 
-                Log.d("DatabaseMigration", "Migration from v2 to v3 completed successfully.");
+                Timber.d("Migration from v2 to v3 completed successfully.");
             } catch (Exception e) {
-                Log.e("DatabaseMigration", "Migration failed: " + e.getMessage());
+                Timber.e("Migration failed: " + e.getMessage());
             }
         }
     };
@@ -83,9 +83,9 @@ public abstract class AppDatabase extends RoomDatabase {
         public void migrate(@NonNull SupportSQLiteDatabase database) {
             try {
                 database.execSQL("ALTER TABLE entry_table ADD COLUMN original_html TEXT");
-                Log.d("DatabaseMigration", "Migration from v3 to v4 completed successfully.");
+                Timber.d("Migration from v3 to v4 completed successfully.");
             } catch (Exception e) {
-                Log.e("DatabaseMigration", "Migration v3 to v4 failed: " + e.getMessage());
+                Timber.e("Migration v3 to v4 failed: " + e.getMessage());
             }
         }
     };
@@ -96,9 +96,9 @@ public abstract class AppDatabase extends RoomDatabase {
         public void migrate(@NonNull SupportSQLiteDatabase database) {
             try {
                 database.execSQL("ALTER TABLE entry_table ADD COLUMN translated TEXT");
-                Log.d("DatabaseMigration", "Migration from v4 to v5 completed successfully.");
+                Timber.d("Migration from v4 to v5 completed successfully.");
             } catch (Exception e) {
-                Log.e("DatabaseMigration", "Migration v4 to v5 failed: " + e.getMessage());
+                Timber.e("Migration v4 to v5 failed: " + e.getMessage());
             }
         }
     };

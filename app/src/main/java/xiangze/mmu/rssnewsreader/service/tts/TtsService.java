@@ -13,7 +13,7 @@ import android.support.v4.media.MediaBrowserCompat;
 import android.support.v4.media.MediaMetadataCompat;
 import android.support.v4.media.session.MediaSessionCompat;
 import android.support.v4.media.session.PlaybackStateCompat;
-import android.util.Log;
+import timber.log.Timber;
 import android.view.KeyEvent;
 
 import androidx.annotation.NonNull;
@@ -59,7 +59,7 @@ public class TtsService extends MediaBrowserServiceCompat {
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
-        Log.d(TAG, "onStartCommand: intent=" + intent);
+        Timber.d("onStartCommand: intent=" + intent);
         if (intent != null && Intent.ACTION_MEDIA_BUTTON.equals(intent.getAction())) {
             // Android O+ requires startForeground within 5 seconds of startForegroundService()
             if (!serviceInStartedState) {
@@ -98,7 +98,7 @@ public class TtsService extends MediaBrowserServiceCompat {
     @Override
     public void onCreate() {
         super.onCreate();
-        Log.d(TAG, "onCreate: Initializing TtsService");
+        Timber.d("onCreate: Initializing TtsService");
 
         // 1. Notification First (Prevents NPE)
         ttsNotification = new TtsNotification(this);
@@ -147,12 +147,12 @@ public class TtsService extends MediaBrowserServiceCompat {
         mediaSession.setActive(true);
         setSessionToken(mediaSession.getSessionToken());
 
-        Log.d(TAG, "onCreate: Service ready. active=" + mediaSession.isActive());
+        Timber.d("onCreate: Service ready. active=" + mediaSession.isActive());
     }
 
     @Override
     public void onDestroy() {
-        Log.d(TAG, "destroyed");
+        Timber.d("destroyed");
         ttsPlayer.stop();
         if (mediaSession != null) {
             mediaSession.setActive(false);
@@ -189,7 +189,7 @@ public class TtsService extends MediaBrowserServiceCompat {
         }
 
         private void onPrepare(final boolean ignoreViewingId) {
-            Log.d(TAG, "onPrepare called - ignoreViewingId=" + ignoreViewingId);
+            Timber.d("onPrepare called - ignoreViewingId=" + ignoreViewingId);
 
             Completable.fromAction(() -> {
                 // 1. Initialize TTS Engine and Player
@@ -207,7 +207,7 @@ public class TtsService extends MediaBrowserServiceCompat {
                 // If user is currently looking at an article, onPrepare should ideally respect that
                 // unless we are explicitly skipping (ignoreViewingId = true)
                 if (!ignoreViewingId && currentViewingId != 0 && currentViewingId != currentReadingId) {
-                    Log.d(TAG, "onPrepare: Viewing " + currentViewingId + " but reading " + currentReadingId + ". Syncing to view.");
+                    Timber.d("onPrepare: Viewing " + currentViewingId + " but reading " + currentReadingId + ". Syncing to view.");
                     currentReadingId = currentViewingId;
                     sharedPreferencesRepository.setCurrentReadingEntryId(currentReadingId);
                     ttsPlaylist.updatePlayingId(currentReadingId);
@@ -216,7 +216,7 @@ public class TtsService extends MediaBrowserServiceCompat {
                 Entry entry = entryRepository.getEntryById(currentReadingId);
 
                 if (entry == null) {
-                    Log.w(TAG, "Entry not found for ID: " + currentReadingId);
+                    Timber.w("Entry not found for ID: " + currentReadingId);
                     return;
                 }
 
@@ -245,13 +245,13 @@ public class TtsService extends MediaBrowserServiceCompat {
 
                 if (useSummarized) {
                     contentToSpeak = entry.getSummarized();
-                    Log.d(TAG, "Selection: Summarized Content");
+                    Timber.d("Selection: Summarized Content");
                 } else if (useTranslated) {
                     contentToSpeak = entry.getTranslated();
-                    Log.d(TAG, "Selection: Translated Content");
+                    Timber.d("Selection: Translated Content");
                 } else {
                     contentToSpeak = entry.getContent(); // Original content
-                    Log.d(TAG, "Selection: Original Content");
+                    Timber.d("Selection: Original Content");
                 }
 
                 // 4. WATERFALL LOGIC: Language Selection
@@ -271,7 +271,7 @@ public class TtsService extends MediaBrowserServiceCompat {
                 // 6. Setup Media Session and Metadata
                 preparedData = ttsPlaylist.getCurrentMetadata();
                 if (preparedData == null) {
-                    Log.e(TAG, "Metadata is null, cannot proceed with onPrepare");
+                    Timber.e("Metadata is null, cannot proceed with onPrepare");
                     return;
                 }
 
@@ -292,7 +292,7 @@ public class TtsService extends MediaBrowserServiceCompat {
 
                 // Safety check to ensure we aren't loading content for a different article
                 if (mediaId != currentReadingId) {
-                    Log.d(TAG, "Skipping extract() — mediaId mismatch");
+                    Timber.d("Skipping extract() — mediaId mismatch");
                     return;
                 }
 
@@ -307,22 +307,22 @@ public class TtsService extends MediaBrowserServiceCompat {
                     ttsPlayer.play();
                 }
 
-                Log.d(TAG, "TTS Extraction complete for ID: " + mediaId + " Language: " + languageToUse);
+                Timber.d("TTS Extraction complete for ID: " + mediaId + " Language: " + languageToUse);
 
             }).subscribeOn(Schedulers.io())
             .observeOn(AndroidSchedulers.mainThread())
             .subscribe(
-                    () -> Log.d(TAG, "onPrepare execution successful"),
-                    throwable -> Log.e(TAG, "Error in onPrepare: ", throwable)
+                    () -> Timber.d("onPrepare execution successful"),
+                    throwable -> Timber.e(throwable, "Error in onPrepare: ")
             );
         }
 
         @Override
         public void onPlay() {
-            Log.d(TAG, "onPlay called");
+            Timber.d("onPlay called");
             ttsPlayer.setPausedManually(false);
             if (ttsPlayer.isPreparing()) {
-                Log.d(TAG, "onPlay: Player is preparing, show feedback and wait for setupTts()");
+                Timber.d("onPlay: Player is preparing, show feedback and wait for setupTts()");
                 ContextCompat.getMainExecutor(getApplicationContext()).execute(() -> ttsPlayer.showFakeLoading());
                 return;
             }
@@ -332,7 +332,7 @@ public class TtsService extends MediaBrowserServiceCompat {
 
         @Override
         public void onPause() {
-            Log.d(TAG, "onPause called");
+            Timber.d("onPause called");
             if (ttsPlayer != null) {
                 ttsPlayer.setPausedManually(true);
                 ttsPlayer.pauseTts();
@@ -344,7 +344,7 @@ public class TtsService extends MediaBrowserServiceCompat {
 
         @Override
         public void onStop() {
-            Log.d(TAG, "onStop called");
+            Timber.d("onStop called");
 
             if (ttsPlayer != null) {
                 ttsPlayer.stop();
@@ -359,7 +359,7 @@ public class TtsService extends MediaBrowserServiceCompat {
 
         @Override
         public void onSkipToNext() {
-            Log.d(TAG, "onSkipToNext called");
+            Timber.d("onSkipToNext called");
 
             if (ttsPlayer != null) {
                 ttsPlayer.stopTtsPlayback();
@@ -387,7 +387,7 @@ public class TtsService extends MediaBrowserServiceCompat {
 
         @Override
         public void onSkipToPrevious() {
-            Log.d(TAG, "onSkipToPrevious called");
+            Timber.d("onSkipToPrevious called");
 
             if (ttsPlayer != null) {
                 ttsPlayer.stopTtsPlayback();
@@ -415,7 +415,7 @@ public class TtsService extends MediaBrowserServiceCompat {
 
         @Override
         public void onFastForward() {
-            Log.d(TAG, "onFastForward called");
+            Timber.d("onFastForward called");
 
             if (ttsPlayer != null) {
                 ttsPlayer.fastForward();
@@ -427,7 +427,7 @@ public class TtsService extends MediaBrowserServiceCompat {
 
         @Override
         public void onRewind() {
-            Log.d(TAG, "onRewind called");
+            Timber.d("onRewind called");
 
             if (ttsPlayer != null) {
                 ttsPlayer.fastRewind();
@@ -440,7 +440,7 @@ public class TtsService extends MediaBrowserServiceCompat {
         @Override
         public void onCustomAction(String action, Bundle extras) {
             super.onCustomAction(action, extras);
-            Log.d(TAG, "onCustomAction: Action = " + action);
+            Timber.d("onCustomAction: Action = " + action);
             switch (action) {
                 case "autoPlay":
                     play();
@@ -455,7 +455,7 @@ public class TtsService extends MediaBrowserServiceCompat {
                     }
                     break;
                 default:
-                    Log.w(TAG, "Unhandled custom action: " + action);
+                    Timber.w("Unhandled custom action: " + action);
             }
         }
 
@@ -470,7 +470,7 @@ public class TtsService extends MediaBrowserServiceCompat {
         }
 
         public void onPlayPause() {
-            Log.d(TAG, "onPlayPause called");
+            Timber.d("onPlayPause called");
             if (ttsPlayer.isPlaying()) {
                 onPause();
             } else {
@@ -480,7 +480,7 @@ public class TtsService extends MediaBrowserServiceCompat {
 
         @Override
         public boolean onMediaButtonEvent(Intent mediaButtonIntent) {
-            Log.d(TAG, "onMediaButtonEvent: intent=" + mediaButtonIntent);
+            Timber.d("onMediaButtonEvent: intent=" + mediaButtonIntent);
             return super.onMediaButtonEvent(mediaButtonIntent);
         }
 
@@ -508,7 +508,7 @@ public class TtsService extends MediaBrowserServiceCompat {
                     });
                 }
             }
-            Log.d("TTS", "PlaybackState updated to: " + state);
+            Timber.d("PlaybackState updated to: " + state);
         }
     };
 
@@ -549,7 +549,7 @@ public class TtsService extends MediaBrowserServiceCompat {
             private final Intent intent = new Intent(TtsService.this, TtsService.class);
 
             private void moveServiceToStartedState(PlaybackStateCompat state) {
-                Log.d(TAG, "notification to play/buffer");
+                Timber.d("notification to play/buffer");
                 Notification notification = ttsNotification.getNotification(preparedData, state, getSessionToken());
 
                 if (!serviceInStartedState) {
@@ -571,7 +571,7 @@ public class TtsService extends MediaBrowserServiceCompat {
             }
 
             private void updateNotificationForPause(PlaybackStateCompat state) {
-                Log.d(TAG, "notification to pause");
+                Timber.d("notification to pause");
                 
                 // Keep the service in foreground even when paused to prevent system from killing it during screen timeout.
                 // This is especially important for news reader apps where the user might pause for a long time.
@@ -588,7 +588,7 @@ public class TtsService extends MediaBrowserServiceCompat {
 
             private void moveServiceOutOfStartedState(PlaybackStateCompat state) {
                 if (serviceInStartedState) {
-                    Log.d(TAG, "notification destroyed");
+                    Timber.d("notification destroyed");
                     ttsNotification.getNotificationManager().cancelAll();
                     ServiceCompat.stopForeground(TtsService.this, ServiceCompat.STOP_FOREGROUND_REMOVE);
                     serviceInStartedState = false;

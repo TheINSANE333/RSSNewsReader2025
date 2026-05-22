@@ -4,7 +4,7 @@ import android.annotation.SuppressLint;
 import android.content.Context;
 import android.graphics.Color;
 import android.text.TextUtils;
-import android.util.Log;
+import timber.log.Timber;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -34,10 +34,9 @@ public class EntryItemAdapter extends ListAdapter<EntryInfo, EntryItemAdapter.En
     EntryItemClickInterface entryItemClickInterface;
     private Context context;
     private boolean isSelectionMode = false;
-    private static final String TAG = "EntryItemAdapter";
+    
     private final boolean autoTranslateEnabled;
     private final boolean autoSummarizeEnabled;
-
 
     public EntryItemAdapter(EntryItemClickInterface entryItemClickInterface, boolean autoTranslateEnabled, boolean autoSummarizeEnabled) {
         super(DIFF_CALLBACK);
@@ -95,7 +94,7 @@ public class EntryItemAdapter extends ListAdapter<EntryInfo, EntryItemAdapter.En
         EntryInfo currentEntry = getItem(position);
 
         boolean isLoading = currentEntry.isLoading();
-        Log.d(TAG, "onBindViewHolder: Position " + position + " - isLoading: " + isLoading);
+        Timber.d("onBindViewHolder: Position " + position + " - isLoading: " + isLoading);
 
         holder.bind(currentEntry);
     }

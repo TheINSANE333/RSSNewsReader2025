@@ -1,6 +1,6 @@
 package xiangze.mmu.rssnewsreader.data.entry;
 
-import android.util.Log;
+import timber.log.Timber;
 
 import androidx.lifecycle.LiveData;
 
@@ -29,7 +29,6 @@ import io.reactivex.rxjava3.schedulers.Schedulers;
 
 public class EntryRepository {
 
-    private static final String TAG = "EntryRepository";
     private final EntryDao entryDao;
     private final HistoryRepository historyRepository;
     private final SharedPreferencesRepository sharedPreferencesRepository;
@@ -205,13 +204,13 @@ public class EntryRepository {
             if (!historyRepository.checkLinkExist(feedId, normalizedLink)) {
                 entryDao.updateLink(feedId, entry.getTitle(), entry.getLink());
             }
-            Log.d(TAG, "Skipped inserting duplicate entry (by title): " + entry.getTitle());
+            Timber.d("Skipped inserting duplicate entry (by title): " + entry.getTitle());
             return -1; // Entry already exists, no new insertion
         } else if (historyRepository.checkLinkExist(feedId, normalizedLink)) {
             if (!historyRepository.checkTitleExist(feedId, entry.getTitle())) {
                 entryDao.updateTitle(feedId, entry.getTitle(), entry.getLink());
             }
-            Log.d(TAG, "Skipped inserting duplicate entry (by link): " + entry.getTitle());
+            Timber.d("Skipped inserting duplicate entry (by link): " + entry.getTitle());
             return -1; // Entry already exists, no new insertion
         } else {
             // If not in history, insert into history and database
@@ -222,15 +221,14 @@ public class EntryRepository {
                 // Update entry ID and cache it
                 entry.setId(id);
                 entryCache.put(id, entry); // Add to cache
-                Log.d(TAG, "Inserted and cached entry: " + entry.getTitle());
+                Timber.d("Inserted and cached entry: " + entry.getTitle());
                 return id; // Return the new entry ID
             } else {
-                Log.e(TAG, "Failed to insert entry: " + entry.getTitle());
+                Timber.e("Failed to insert entry: " + entry.getTitle());
                 return -1; // Indicate insertion failure
             }
         }
     }
-
 
     public void insert(EntryInfo info) {
         Entry entry = getEntryById(info.getEntryId());
@@ -252,8 +250,8 @@ public class EntryRepository {
                 .subscribeOn(Schedulers.io())
                 .observeOn(AndroidSchedulers.mainThread())
                 .subscribe(
-                    () -> Log.d(TAG, "update onComplete: called"),
-                    e -> Log.e(TAG, "update onError: ", e)
+                    () -> Timber.d("update onComplete: called"),
+                    e -> Timber.e(e, "update onError: ")
                 )
         );
     }
@@ -264,8 +262,8 @@ public class EntryRepository {
                 .subscribeOn(Schedulers.io())
                 .observeOn(AndroidSchedulers.mainThread())
                 .subscribe(
-                    () -> Log.d(TAG, "delete onComplete: called"),
-                    e -> Log.e(TAG, "delete onError: ", e)
+                    () -> Timber.d("delete onComplete: called"),
+                    e -> Timber.e(e, "delete onError: ")
                 )
         );
     }
@@ -300,25 +298,25 @@ public class EntryRepository {
                 entry.setCached(true);
                 entryDao.updatePreloadStatus(entry.getId(), true);
                 entryCache.put(entry.getId(), entry);
-                Log.d(TAG, "Preloaded and cached entry: " + entry.getTitle());
+                Timber.d("Preloaded and cached entry: " + entry.getTitle());
             } else {
-                Log.d(TAG, "Preload skipped: Entry is already cached.");
+                Timber.d("Preload skipped: Entry is already cached.");
             }
         }
     }
 
     public void preloadEntry(Entry entry) {
         if (entry == null) {
-            Log.w(TAG, "Preload skipped: Entry is null.");
+            Timber.w("Preload skipped: Entry is null.");
             return;
         }
 
         if (!entry.isCached()) {
             entry.setCached(true);
             entryDao.updatePreloadStatus(entry.getId(), true);
-            Log.d(TAG, "Preloaded entry: " + entry.getTitle());
+            Timber.d("Preloaded entry: " + entry.getTitle());
         } else {
-            Log.d(TAG, "Preload skipped: Entry is already cached.");
+            Timber.d("Preload skipped: Entry is already cached.");
         }
     }
 
@@ -341,17 +339,15 @@ public class EntryRepository {
     public void updateSentCount(int sentCount, long id) {
         compositeDisposable.add(
             Completable.fromAction(() -> {
-                Log.d(TAG, "updateSentCount: " + sentCount + " for ID: " + id);
+                Timber.d("updateSentCount: " + sentCount + " for ID: " + id);
                 entryDao.updateSentCount(sentCount, id);
             }).subscribeOn(Schedulers.io())
               .subscribe(
                   () -> {},
-                  throwable -> Log.e(TAG, "Error updating sent count", throwable)
+                  throwable -> Timber.e(throwable, "Error updating sent count")
               )
         );
     }
-
-
 
     public int getSentCount(long id) {
         return entryDao.getSentCount(id);
@@ -409,7 +405,7 @@ public class EntryRepository {
 
     public void limitEntriesByFeedId(long feedId) {
         int limit = sharedPreferencesRepository.getEntriesLimitPerFeed();
-        Log.d(TAG, "limitEntriesByFeedId: limit=" + limit);
+        Timber.d("limitEntriesByFeedId: limit=" + limit);
         entryDao.limitEntriesByFeed(feedId, limit);
     }
 
@@ -486,7 +482,7 @@ public class EntryRepository {
         if (entry != null) {
             entry.setTranslated(translatedContent);
             entryCache.put(entryId, entry);
-            Log.d(TAG, "Cache updated with translated text for entry ID: " + entryId);
+            Timber.d("Cache updated with translated text for entry ID: " + entryId);
         }
     }
 
@@ -497,7 +493,7 @@ public class EntryRepository {
         if (entry != null) {
             entry.setSummarized(summarizedContent);
             entryCache.put(entryId, entry);
-            Log.d(TAG, "Cache updated with summarized text for entry ID: " + entryId);
+            Timber.d("Cache updated with summarized text for entry ID: " + entryId);
         }
     }
 
@@ -518,7 +514,6 @@ public class EntryRepository {
     public void resetTranslated(long id) {
         entryDao.resetTranslated(id);
     }
-
 
     public void dispose() {
         compositeDisposable.clear();

@@ -1,6 +1,6 @@
 package xiangze.mmu.rssnewsreader.ui.feed;
 
-import android.util.Log;
+import timber.log.Timber;
 
 import androidx.lifecycle.LiveData;
 import androidx.lifecycle.MutableLiveData;
@@ -56,7 +56,7 @@ public class FeedViewModel extends ViewModel {
                 .subscribeOn(Schedulers.io())
                 .observeOn(AndroidSchedulers.mainThread())
                 .subscribe(feeds -> allFeeds.postValue(feeds),
-                        throwable -> Log.e("FeedViewModel", "Error fetching all feeds", throwable));
+                        throwable -> Timber.e(throwable, "Error fetching all feeds"));
 
         compositeDisposable.add(disposable);
     }
@@ -93,7 +93,7 @@ public class FeedViewModel extends ViewModel {
                     RssReader rssReader = new RssReader(link);
                     rssFeed = rssReader.getFeed();
                     rssFeed.setLink(link);
-                    Log.d("Test Url",link);
+                    Timber.d(link);
                 } else {
                     toastMessage.postValue("This feed has been added before");
                 }
@@ -117,7 +117,7 @@ public class FeedViewModel extends ViewModel {
 
                     @Override
                     public void onError(@NonNull Throwable e) {
-                        Log.e("FeedViewModel", "Error checking new feed", e);
+                        Timber.e(e, "Error checking new feed");
                         toastMessage.postValue("Failed: This feed seems to be broken or inaccessible now");
                         isLoading.postValue(false);
                     }
@@ -142,7 +142,7 @@ public class FeedViewModel extends ViewModel {
 
                     @Override
                     public void onError(@NonNull Throwable e) {
-                        Log.e("FeedViewModel", "Error adding new feed", e);
+                        Timber.e(e, "Error adding new feed");
                         toastMessage.postValue("Failed: This feed seems to be broken");
                         isLoading.postValue(false);
                     }
@@ -157,7 +157,7 @@ public class FeedViewModel extends ViewModel {
                 if (currentEntryId > 0) {
                     Entry currentEntry = entryRepository.getEntryById(currentEntryId);
                     if (currentEntry != null && currentEntry.getFeedId() == feedId) {
-                        Log.d("FeedViewModel", "Stopping TTS as current article belongs to the feed being re-extracted");
+                        Timber.d("Stopping TTS as current article belongs to the feed being re-extracted");
                         ttsPlayer.stop();
                     }
                 }
@@ -175,13 +175,13 @@ public class FeedViewModel extends ViewModel {
                     public void onComplete() {
                         toastMessage.postValue("The extracted content for this feed has been removed");
                         ttsExtractor.extractAllEntries();
-                        Log.d("FYP", "reExtractFeed completed. Now calling extractAllEntries()");
+                        Timber.d("reExtractFeed completed. Now calling extractAllEntries()");
                         isLoading.postValue(false);
                     }
 
                     @Override
                     public void onError(@NonNull Throwable e) {
-                        Log.e("FeedViewModel", "Error re-extracting feed", e);
+                        Timber.e(e, "Error re-extracting feed");
                         toastMessage.postValue("Failed on re-extracting");
                         isLoading.postValue(false);
                     }
@@ -214,7 +214,7 @@ public class FeedViewModel extends ViewModel {
 
                     @Override
                     public void onError(@NonNull Throwable e) {
-                        Log.e("FeedViewModel", "deleteFeed onError: " + e.getMessage());
+                        Timber.e("deleteFeed onError: " + e.getMessage());
                         toastMessage.postValue("Failed on deleting feed");
                         isLoading.postValue(false);
                     }

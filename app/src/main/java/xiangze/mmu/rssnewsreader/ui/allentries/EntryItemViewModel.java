@@ -1,6 +1,6 @@
 package xiangze.mmu.rssnewsreader.ui.allentries;
 
-import android.util.Log;
+import timber.log.Timber;
 
 import androidx.lifecycle.LiveData;
 import androidx.lifecycle.MutableLiveData;
@@ -74,7 +74,7 @@ public class EntryItemViewModel extends ViewModel {
 
                     @Override
                     public void onError(@NonNull Throwable e) {
-                        Log.e("EntryItemViewModel", "Error updating visited date", e);
+                        Timber.e(e, "Error updating visited date");
                         isLoading.postValue(false);
                     }
                 });
@@ -115,7 +115,7 @@ public class EntryItemViewModel extends ViewModel {
 
                     @Override
                     public void onError(@io.reactivex.rxjava3.annotations.NonNull Throwable e) {
-                        Log.e("EntryItemViewModel", "Error deleting entries by ids", e);
+                        Timber.e(e, "Error deleting entries by ids");
                         isLoading.postValue(false);
                     }
                 });
@@ -146,7 +146,7 @@ public class EntryItemViewModel extends ViewModel {
 
                     @Override
                     public void onError(@io.reactivex.rxjava3.annotations.NonNull Throwable e) {
-                        Log.e("EntryItemViewModel", "Error deleting entry", e);
+                        Timber.e(e, "Error deleting entry");
                         isLoading.postValue(false);
                     }
                 });

@@ -4,7 +4,7 @@ import android.app.Activity;
 import android.content.Context;
 import android.content.Intent;
 import android.os.Bundle;
-import android.util.Log;
+import timber.log.Timber;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -82,7 +82,7 @@ public class AddFeedFragment extends Fragment implements FeedViewModel.AddFeedCa
                     InputMethodManager imm = (InputMethodManager)getActivity().getSystemService(Context.INPUT_METHOD_SERVICE);
                     imm.hideSoftInputFromWindow(getActivity().getCurrentFocus().getWindowToken(), 0);
                 } catch (Exception e) {
-                    Log.d("test", e.getMessage());
+                    Timber.d(e.getMessage());
                 }
                 String link = binding.rssLink.getEditText().getText().toString();
                 feedViewModel.checkNewFeed(link, AddFeedFragment.this);

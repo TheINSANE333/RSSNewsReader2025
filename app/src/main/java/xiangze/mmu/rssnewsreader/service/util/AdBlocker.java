@@ -1,7 +1,7 @@
 package xiangze.mmu.rssnewsreader.service.util;
 
 import android.content.Context;
-import android.util.Log;
+import timber.log.Timber;
 import android.webkit.WebResourceResponse;
 
 import java.io.ByteArrayInputStream;
@@ -9,7 +9,7 @@ import java.util.HashSet;
 import java.util.Set;
 
 public class AdBlocker {
-    private static final String TAG = "AdBlocker";
+    
     private static final Set<String> AD_DOMAINS = new HashSet<>();
 
     static {
@@ -41,7 +41,7 @@ public class AdBlocker {
         
         for (String domain : AD_DOMAINS) {
             if (url.contains(domain)) {
-                Log.d(TAG, "Blocking ad/tracker: " + url);
+                Timber.d("Blocking ad/tracker: " + url);
                 return true;
             }
         }

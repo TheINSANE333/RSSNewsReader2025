@@ -3,7 +3,7 @@ package xiangze.mmu.rssnewsreader.data.opml;
 import android.annotation.SuppressLint;
 import android.content.Context;
 import android.net.Uri;
-import android.util.Log;
+import timber.log.Timber;
 import android.util.Xml;
 
 import org.xmlpull.v1.XmlPullParser;
@@ -33,7 +33,7 @@ import xiangze.mmu.rssnewsreader.service.rss.RssWorkManager;
 
 @Singleton
 public class OpmlRepository {
-    private static final String TAG = "OpmlRepository";
+    
     private final Context context;
     private final FeedRepository feedRepository;
     private final EntryRepository entryRepository;
@@ -76,7 +76,7 @@ public class OpmlRepository {
             if (inputStream != null) inputStream.close();
             if (listener != null) listener.onImportComplete(true, null);
         } catch (IOException | XmlPullParserException | ParseException e) {
-            Log.e(TAG, "Import failed", e);
+            Timber.e(e, "Import failed");
             if (listener != null) listener.onImportComplete(false, e.getMessage());
         }
     }
@@ -215,7 +215,7 @@ public class OpmlRepository {
                     sharedPreferencesRepository.setTtsSubstitutions(substitutions);
                 }
             } catch (Exception e) {
-                Log.e(TAG, "Failed to parse tts_substitutions", e);
+                Timber.e(e, "Failed to parse tts_substitutions");
             }
         }
         if (savedApiKeys != null && !savedApiKeys.isEmpty()) {
@@ -227,7 +227,7 @@ public class OpmlRepository {
                     sharedPreferencesRepository.setSavedApiKeys(keys);
                 }
             } catch (Exception e) {
-                Log.e(TAG, "Failed to parse saved_api_keys", e);
+                Timber.e(e, "Failed to parse saved_api_keys");
             }
         }
     }
@@ -332,7 +332,7 @@ public class OpmlRepository {
             if (os != null) os.close();
             if (listener != null) listener.onExportComplete(true, null);
         } catch (IOException e) {
-            Log.e(TAG, "Export failed", e);
+            Timber.e(e, "Export failed");
             if (listener != null) listener.onExportComplete(false, e.getMessage());
         }
     }

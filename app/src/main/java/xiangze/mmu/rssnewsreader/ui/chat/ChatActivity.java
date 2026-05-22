@@ -2,7 +2,7 @@ package xiangze.mmu.rssnewsreader.ui.chat;
 
 import android.content.Intent;
 import android.os.Bundle;
-import android.util.Log;
+import timber.log.Timber;
 import android.view.KeyEvent;
 import android.view.MenuItem;
 import android.view.View;
@@ -49,7 +49,7 @@ public class ChatActivity extends AppCompatActivity {
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
-        Log.d("ChatActivity", "RUNNING CREATE");
+        Timber.d("RUNNING CREATE");
         super.onCreate(savedInstanceState);
 
         // Ensure TtsService is started so TtsPlayer is initialized
@@ -61,7 +61,7 @@ public class ChatActivity extends AppCompatActivity {
             @Override
             public void uncaughtException(Thread thread, Throwable e) {
                 e.printStackTrace();
-                Log.e("ChatBot_Crash", "Uncaught exception: " + e.getMessage(), e);
+                Timber.e(e, "Uncaught exception: " + e.getMessage());
 
                 // Show error dialog (optional)
                 runOnUiThread(() -> {
@@ -191,10 +191,10 @@ public class ChatActivity extends AppCompatActivity {
             // Call API
             new Thread(() -> {
                 try {
-                    Log.d("ChatBot", "Starting API call...");
+                    Timber.d("Starting API call...");
                     String chatModel = sharedPreferencesRepository.getChatbotModel();
                     String response = aiClient.getChatResponse(messages, chatModel);
-                    Log.d("ChatBot", "API response received: " + response);
+                    Timber.d("API response received: " + response);
 
                     runOnUiThread(() -> {
                         try {
@@ -204,13 +204,13 @@ public class ChatActivity extends AppCompatActivity {
                             progressBar.setVisibility(View.GONE);
                             sendButton.setEnabled(true);
                         } catch (Exception e) {
-                            Log.e("ChatBot", "UI Update Error: " + e.getMessage(), e);
+                            Timber.e(e, "UI Update Error: " + e.getMessage());
                             showError("UI Error: " + e.getMessage());
                         }
                     });
 
                 } catch (Exception e) {
-                    Log.e("ChatBot", "API Call Error: " + e.getMessage(), e);
+                    Timber.e(e, "API Call Error: " + e.getMessage());
                     runOnUiThread(() -> {
                         showError("API Error: " + e.getMessage());
                         progressBar.setVisibility(View.GONE);
@@ -220,7 +220,7 @@ public class ChatActivity extends AppCompatActivity {
             }).start();
 
         } catch (Exception e) {
-            Log.e("ChatBot", "Send Message Error: " + e.getMessage(), e);
+            Timber.e(e, "Send Message Error: " + e.getMessage());
             showError("Send Message Error: " + e.getMessage());
         }
     }
@@ -245,6 +245,6 @@ public class ChatActivity extends AppCompatActivity {
 
     private void showError(String errorMessage) {
         Toast.makeText(this, errorMessage, Toast.LENGTH_LONG).show();
-        Log.e("ChatBot", errorMessage);
+        Timber.e(errorMessage);
     }
 }

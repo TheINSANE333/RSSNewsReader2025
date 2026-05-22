@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<network-security-config>
+    <base-config cleartextTrafficPermitted="false">
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+    <!-- Allow cleartext for RSS feeds that might not support HTTPS yet -->
+    <!-- You can add specific domains here if known, or keep it restrictive -->
+</network-security-config>

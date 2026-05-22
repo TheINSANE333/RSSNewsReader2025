@@ -16,7 +16,7 @@ import android.support.v4.media.session.MediaSessionCompat;
 import android.support.v4.media.session.PlaybackStateCompat;
 import android.util.JsonReader;
 import android.util.JsonToken;
-import android.util.Log;
+import timber.log.Timber;
 import android.view.KeyEvent;
 import android.view.MenuItem;
 import android.view.View;
@@ -136,7 +136,7 @@ public class WebViewActivity extends AppCompatActivity implements ReloadDialog.R
                     // 2. We were already viewing what WAS playing (sync mode)
                     // 3. The new ID matches what the playlist says is playing
                     if (newId != currentId && newId != 0) {
-                        Log.d(TAG, "onMetadataChanged: New ID = " + newId + ", currentId = " + currentId + ", playingId = " + ttsPlaylist.getPlayingId());
+                        Timber.d("onMetadataChanged: New ID = " + newId + ", currentId = " + currentId + ", playingId = " + ttsPlaylist.getPlayingId());
                         
                         boolean shouldFollow = !isReadingMode || currentId == 0 || newId == ttsPlaylist.getPlayingId();
                         
@@ -146,11 +146,11 @@ public class WebViewActivity extends AppCompatActivity implements ReloadDialog.R
                             sharedPreferencesRepository.setCurrentReadingEntryId(currentId);
                             loadEntryContent();
                         } else {
-                            Log.d(TAG, "Ignoring metadata change as user might be browsing a different article manually in Reading Mode.");
+                            Timber.d("Ignoring metadata change as user might be browsing a different article manually in Reading Mode.");
                         }
                     }
                     } catch (NumberFormatException e) {
-                        Log.e(TAG, "Invalid media ID format: " + mediaIdStr);
+                        Timber.e("Invalid media ID format: " + mediaIdStr);
                     }
                 }
             }
@@ -313,7 +313,7 @@ public class WebViewActivity extends AppCompatActivity implements ReloadDialog.R
 
         // Auto-reload if content is detected as an error message or too short
         if (!sharedPreferencesRepository.getWebViewMode(currentId) && textUtil.isErrorContent(entry.getContent())) {
-            Log.d(TAG, "Error content detected for ID: " + currentId + ". Triggering auto re-extraction.");
+            Timber.d("Error content detected for ID: " + currentId + ". Triggering auto re-extraction.");
             ttsExtractor.resetAndRetry(currentId);
             showFakeLoading();
         }
@@ -593,7 +593,7 @@ public class WebViewActivity extends AppCompatActivity implements ReloadDialog.R
 
         // Check for error content before translating
         if (textUtil.isErrorContent(entry.getContent())) {
-            Log.d(TAG, "Translation requested for error content. Triggering reload.");
+            Timber.d("Translation requested for error content. Triggering reload.");
             ttsExtractor.resetAndRetry(currentId);
             showFakeLoading();
             return;
@@ -604,7 +604,7 @@ public class WebViewActivity extends AppCompatActivity implements ReloadDialog.R
 
         // Check if the HTML source is an error page
         if (textUtil.isErrorHtml(sourceHtml)) {
-            Log.d(TAG, "Translation requested but HTML is an error page. Triggering reload.");
+            Timber.d("Translation requested but HTML is an error page. Triggering reload.");
             ttsExtractor.resetAndRetry(currentId);
             showFakeLoading();
             makeSnackbar("Article failed to load. Re-extracting...");
@@ -658,7 +658,7 @@ public class WebViewActivity extends AppCompatActivity implements ReloadDialog.R
         
         // CHECK FOR ERROR CONTENT
         if (textUtil.isErrorContent(entry.getContent())) {
-            Log.d(TAG, "Manual summarization requested for error content. Triggering reload.");
+            Timber.d("Manual summarization requested for error content. Triggering reload.");
             ttsExtractor.resetAndRetry(currentId);
             showFakeLoading();
             return; // Exit and wait for reload to finish
@@ -669,7 +669,7 @@ public class WebViewActivity extends AppCompatActivity implements ReloadDialog.R
 
         // Check if the HTML source is an error page
         if (textUtil.isErrorHtml(sourceHtml)) {
-            Log.d(TAG, "Manual summarization requested but HTML is an error page. Triggering reload.");
+            Timber.d("Manual summarization requested but HTML is an error page. Triggering reload.");
             ttsExtractor.resetAndRetry(currentId);
             showFakeLoading();
             makeSnackbar("Article failed to load. Re-extracting...");
@@ -706,7 +706,7 @@ public class WebViewActivity extends AppCompatActivity implements ReloadDialog.R
     private void toggleBookmark() {
         Entry entry = entryRepository.getEntryById(currentId);
         if (entry == null) {
-            Log.w(TAG, "toggleBookmark: entry is null for ID " + currentId);
+            Timber.w("toggleBookmark: entry is null for ID " + currentId);
             return;
         }
         String newVal = "Y".equals(entry.getBookmark()) ? "N" : "Y";
@@ -848,7 +848,7 @@ public class WebViewActivity extends AppCompatActivity implements ReloadDialog.R
 
     public void askForReload(long fid) { 
         if (fid == lastHandledReloadFeedId) {
-            Log.d(TAG, "Reload dialog already shown for feed " + fid + ", skipping.");
+            Timber.d("Reload dialog already shown for feed " + fid + ", skipping.");
             return;
         }
         lastHandledReloadFeedId = fid;
@@ -978,7 +978,7 @@ public class WebViewActivity extends AppCompatActivity implements ReloadDialog.R
                     if (h != null && h.length() >= 500) ttsExtractor.processExtraction(currentId, currentLink, currentTitle, h);
                 }
             } catch (Throwable t) { 
-                Log.e(TAG, "Fatal error during JS extraction", t);
+                Timber.e(t, "Fatal error during JS extraction");
                 makeSnackbar("JS extraction crashed: " + t.getClass().getSimpleName());
             }
         });
@@ -993,3 +993,8 @@ public class WebViewActivity extends AppCompatActivity implements ReloadDialog.R
         }
     }
 }
+
+
+
+
+

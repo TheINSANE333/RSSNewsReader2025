@@ -1,7 +1,7 @@
 package xiangze.mmu.rssnewsreader.ui.webview;
 
 import android.annotation.SuppressLint;
-import android.util.Log;
+import timber.log.Timber;
 
 import androidx.lifecycle.LiveData;
 import androidx.lifecycle.MutableLiveData;
@@ -382,7 +382,7 @@ public class WebViewViewModel extends ViewModel {
     public void updateEntrySummarizedField(long entryId, String summarizedContent) {
         Entry entry = entryRepository.getEntryById(entryId);
         if (entry != null) {
-            Log.d("SET SUMMARIZED", summarizedContent);
+            Timber.d(summarizedContent);
             entry.setSummarized(summarizedContent);
         }
     }

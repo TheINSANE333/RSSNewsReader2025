@@ -7,8 +7,7 @@ import android.support.v4.media.MediaMetadataCompat;
 import android.support.v4.media.session.MediaControllerCompat;
 import android.support.v4.media.session.MediaControllerCompat.Callback;
 import android.support.v4.media.session.PlaybackStateCompat;
-import android.util.Log;
-
+import timber.log.Timber;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -18,8 +17,6 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class MediaBrowserHelper {
-
-    private static final String TAG = MediaBrowserHelper.class.getSimpleName();
 
     private final Context mContext;
     private final Class<? extends MediaBrowserServiceCompat> mMediaBrowserServiceClass;
@@ -55,7 +52,7 @@ public class MediaBrowserHelper {
                             null);
             mMediaBrowser.connect();
         }
-        Log.d(TAG, "onStart: Creating MediaBrowser, and connecting");
+        Timber.d("onStart: Creating MediaBrowser, and connecting");
     }
 
     public void onStop() {
@@ -68,7 +65,7 @@ public class MediaBrowserHelper {
             mMediaBrowser = null;
         }
         resetState();
-        Log.d(TAG, "onStop: Releasing MediaController, Disconnecting from MediaBrowser");
+        Timber.d("onStop: Releasing MediaController, Disconnecting from MediaBrowser");
     }
 
     protected void onConnected(@NonNull MediaControllerCompat mediaController) {
@@ -96,7 +93,7 @@ public class MediaBrowserHelper {
                 callback.onPlaybackStateChanged(null);
             }
         });
-        Log.d(TAG, "resetState: ");
+        Timber.d("resetState: ");
     }
 
     public MediaControllerCompat.TransportControls getTransportControls() {

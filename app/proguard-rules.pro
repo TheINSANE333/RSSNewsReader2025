@@ -27,3 +27,29 @@
 -keep class xiangze.mmu.rssnewsreader.data.ai.** { *; }
 -keep class retrofit2.** { *; }
 -dontwarn retrofit2.**
+
+# Room
+-keep class * extends androidx.room.RoomDatabase
+-keep class androidx.room.Room
+-keep class * extends androidx.room.migration.Migration
+-dontwarn androidx.room.**
+
+# Hilt
+-keep class com.google.dagger.** { *; }
+-keep class dagger.hilt.** { *; }
+-keep @dagger.hilt.android.EntryPoint class *
+-keep @dagger.hilt.components.SingletonComponent class *
+
+# MediaPipe / Local LLM
+-keep class com.google.mediapipe.** { *; }
+-dontwarn com.google.mediapipe.**
+
+# RxJava
+-dontwarn io.reactivex.rxjava3.**
+-keep class io.reactivex.rxjava3.** { *; }
+
+# OkHttp
+-dontwarn okhttp3.**
+-dontwarn okio.**
+-dontwarn javax.annotation.**
+-keepnames class okhttp3.internal.publicsuffix.PublicSuffixDatabase

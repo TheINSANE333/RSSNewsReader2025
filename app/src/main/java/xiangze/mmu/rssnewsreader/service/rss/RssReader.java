@@ -1,6 +1,6 @@
 package xiangze.mmu.rssnewsreader.service.rss;
 
-import android.util.Log;
+import timber.log.Timber;
 
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
@@ -22,7 +22,7 @@ import javax.xml.parsers.SAXParser;
 import javax.xml.parsers.SAXParserFactory;
 
 public class RssReader {
-    private static final String TAG = "RssReader";
+    
     private String rssUrl;
     private final ExecutorService executorService = Executors.newFixedThreadPool(4);
 
@@ -44,7 +44,7 @@ public class RssReader {
             // Check response code
             int responseCode = connection.getResponseCode();
             if (responseCode != HttpURLConnection.HTTP_OK) {
-                Log.e("RssReader", "Failed to fetch RSS feed: HTTP " + responseCode);
+                Timber.e("Failed to fetch RSS feed: HTTP " + responseCode);
                 throw new Exception("Failed to fetch RSS feed: HTTP " + responseCode);
             }
 
@@ -63,14 +63,14 @@ public class RssReader {
 
             // Validate the parsed feed
             if (feed == null || feed.getRssItems().isEmpty()) {
-                Log.e("RssReader", "Parsed RSS feed is empty or invalid.");
+                Timber.e("Parsed RSS feed is empty or invalid.");
                 throw new Exception("Parsed RSS feed is empty or invalid.");
             }
 
             return feed;
 
         } catch (Exception e) {
-            Log.e("RssReader", "Error while fetching or parsing RSS feed: " + e.getMessage() + ". Trying RSS auto-discovery.");
+            Timber.e("Error while fetching or parsing RSS feed: " + e.getMessage() + ". Trying RSS auto-discovery.");
 
             // --- Tier 2: Try RSS auto-discovery from HTML <link> tags ---
             try {
@@ -79,16 +79,16 @@ public class RssReader {
                     return discoveredFeed;
                 }
             } catch (Exception discoverEx) {
-                Log.e(TAG, "RSS auto-discovery failed: " + discoverEx.getMessage());
+                Timber.e("RSS auto-discovery failed: " + discoverEx.getMessage());
             }
 
             // --- Tier 3: Fallback to Web Scraper ---
-            Log.d(TAG, "RSS auto-discovery found nothing. Trying Web Scraper fallback.");
+            Timber.d("RSS auto-discovery found nothing. Trying Web Scraper fallback.");
             try {
                 WebFeedReader webFeedReader = new WebFeedReader(rssUrl);
                 return webFeedReader.getFeed();
             } catch (Exception webEx) {
-                Log.e("RssReader", "Web Scraper also failed: " + webEx.getMessage());
+                Timber.e("Web Scraper also failed: " + webEx.getMessage());
                 // Throw the ORIGINAL exception to show why RSS failed
                 throw e;
             }
@@ -108,7 +108,7 @@ public class RssReader {
      */
     private RssFeed tryAutoDiscoverRssFeed(String pageUrl) {
         try {
-            Log.d(TAG, "Attempting RSS auto-discovery on: " + pageUrl);
+            Timber.d("Attempting RSS auto-discovery on: " + pageUrl);
 
             Document doc = Jsoup.connect(pageUrl)
                     .userAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
@@ -124,7 +124,7 @@ public class RssReader {
             );
 
             if (feedLinks.isEmpty()) {
-                Log.d(TAG, "No RSS/Atom feed links found in HTML head.");
+                Timber.d("No RSS/Atom feed links found in HTML head.");
                 return null;
             }
 
@@ -134,7 +134,7 @@ public class RssReader {
                 String href = feedLink.attr("abs:href");
                 if (href != null && !href.isEmpty()) {
                     feedUrls.add(href);
-                    Log.d(TAG, "Discovered feed: " + feedLink.attr("title") + " -> " + href);
+                    Timber.d("Discovered feed: " + feedLink.attr("title") + " -> " + href);
                 }
             }
 
@@ -145,26 +145,26 @@ public class RssReader {
             // Try each discovered feed URL until one works
             for (String feedUrl : feedUrls) {
                 try {
-                    Log.d(TAG, "Trying discovered feed URL: " + feedUrl);
+                    Timber.d("Trying discovered feed URL: " + feedUrl);
                     RssReader discoveredReader = new RssReader(feedUrl);
                     RssFeed feed = discoveredReader.parseDirectFeed(feedUrl);
                     if (feed != null && !feed.getRssItems().isEmpty()) {
-                        Log.d(TAG, "Successfully parsed auto-discovered feed: " + feedUrl + " with " + feed.getRssItems().size() + " items.");
+                        Timber.d("Successfully parsed auto-discovered feed: " + feedUrl + " with " + feed.getRssItems().size() + " items.");
                         // Use the original page URL as the feed link (not the RSS feed URL)
                         feed.setLink(pageUrl);
                         return feed;
                     }
                 } catch (Exception ex) {
-                    Log.w(TAG, "Failed to parse discovered feed URL: " + feedUrl + " - " + ex.getMessage());
+                    Timber.w("Failed to parse discovered feed URL: " + feedUrl + " - " + ex.getMessage());
                     // Continue trying the next one
                 }
             }
 
-            Log.d(TAG, "None of the " + feedUrls.size() + " discovered feed URLs could be parsed.");
+            Timber.d("None of the " + feedUrls.size() + " discovered feed URLs could be parsed.");
             return null;
 
         } catch (Exception e) {
-            Log.e(TAG, "Error during RSS auto-discovery: " + e.getMessage());
+            Timber.e("Error during RSS auto-discovery: " + e.getMessage());
             return null;
         }
     }

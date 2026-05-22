@@ -1,12 +1,12 @@
 package xiangze.mmu.rssnewsreader.model.ai;
 
 import android.content.Context;
-import android.util.Log;
+import timber.log.Timber;
 import com.google.mediapipe.tasks.genai.llminference.LlmInference;
 import java.io.File;
 
 public class LocalLlmManager {
-    private static final String TAG = "LocalLlmManager";
+    
     private static LocalLlmManager instance;
     private LlmInference llmInference;
     private String currentModelId;
@@ -71,7 +71,7 @@ public class LocalLlmManager {
                 manager.enqueue(request);
             }
         } catch (Exception e) {
-            Log.e(TAG, "Failed to start download", e);
+            Timber.e(e, "Failed to start download");
         }
     }
 
@@ -89,10 +89,10 @@ public class LocalLlmManager {
                  File internalFile = new File(appContext.getFilesDir(), filename);
                  if (internalFile.exists()) {
                      modelFile = internalFile;
-                     Log.d(TAG, "Using internal storage model: " + modelFile.getAbsolutePath());
+                     Timber.d("Using internal storage model: " + modelFile.getAbsolutePath());
                  }
             } else {
-                Log.d(TAG, "Using external storage model: " + modelFile.getAbsolutePath());
+                Timber.d("Using external storage model: " + modelFile.getAbsolutePath());
             }
             
             if (modelFile == null || !modelFile.exists()) {
@@ -100,7 +100,7 @@ public class LocalLlmManager {
                 throw new Exception("Model file not found! Download started for " + modelId + ". Please wait for the 'Download complete' notification.");
             }
 
-            Log.d(TAG, "Initializing LlmInference with model: " + modelFile.getAbsolutePath());
+            Timber.d("Initializing LlmInference with model: " + modelFile.getAbsolutePath());
             try {
                 LlmInference.LlmInferenceOptions options = LlmInference.LlmInferenceOptions.builder()     
                         .setModelPath(modelFile.getAbsolutePath())
@@ -111,7 +111,7 @@ public class LocalLlmManager {
                 llmInference = LlmInference.createFromOptions(appContext, options);
                 currentModelId = modelId;
             } catch (Exception e) {
-                Log.e(TAG, "Failed to create LlmInference from options", e);
+                Timber.e(e, "Failed to create LlmInference from options");
                 throw new Exception("Failed to initialize local LLM engine: " + e.getMessage());
             }
         }

@@ -7,7 +7,7 @@ import android.os.Handler;
 import android.os.Looper;
 import android.util.JsonReader;
 import android.util.JsonToken;
-import android.util.Log;
+import timber.log.Timber;
 import android.view.View;
 import android.webkit.ValueCallback;
 import android.webkit.WebChromeClient;
@@ -59,7 +59,6 @@ import dagger.hilt.android.qualifiers.ApplicationContext;
 @Singleton
 public class TtsExtractor {
 
-    private static final String TAG = "TtsExtractor";
     private String currentLanguage;
     private boolean isLockedByTtsPlayer = false;
     private final Context context;
@@ -132,7 +131,7 @@ public class TtsExtractor {
                     @Override
                     public void onProgressChanged(WebView view, int newProgress) {
                         super.onProgressChanged(view, newProgress);
-                        Log.d(TAG, "[Progress] " + newProgress + "% for: " + currentLink);
+                        Timber.d("[Progress] " + newProgress + "% for: " + currentLink);
                     }
                 });
                 webView.onResume();
@@ -142,13 +141,13 @@ public class TtsExtractor {
     }
 
     private void finishAndMoveToNext() {
-        Log.d(TAG, "Item complete. Moving to next...");
+        Timber.d("Item complete. Moving to next...");
 
         // Only mark as successfully processed if it wasn't just added to failedIds
         if (!failedIds.contains(currentIdInProgress)) {
             lastSuccessfullyProcessedId = currentIdInProgress;
         } else {
-             Log.d(TAG, "Item " + currentIdInProgress + " failed, not marking as successfully processed.");
+             Timber.d("Item " + currentIdInProgress + " failed, not marking as successfully processed.");
         }
 
         // Your existing cleanup logic
@@ -165,21 +164,21 @@ public class TtsExtractor {
                 if (isTranslated && entry != null && entry.getTranslated() != null && !entry.getTranslated().trim().isEmpty()) {
                     contentToRead = entry.getTranslated();
                     lang = sharedPreferencesRepository.getDefaultTranslationLanguage();
-                    Log.d(TAG, "[TtsExtractor] Using translated content for TTS");
+                    Timber.d("[TtsExtractor] Using translated content for TTS");
                 } else if (isSummarized && entry != null && entry.getSummarized() != null && !entry.getSummarized().trim().isEmpty()) {
                     contentToRead = entry.getSummarized();
                     lang = sharedPreferencesRepository.getDefaultTranslationLanguage();
-                    Log.d(TAG, "[TtsExtractor] Using summarized content for TTS");
+                    Timber.d("[TtsExtractor] Using summarized content for TTS");
                 } else {
                     contentToRead = entry != null ? entry.getContent() : "";
-                    Log.d(TAG, "[TtsExtractor] Using original content for TTS");
+                    Timber.d("[TtsExtractor] Using original content for TTS");
                 }
 
                 ttsCallback.extractToTts(contentToRead, lang);
                 ttsCallback = null; // Consume the callback so it doesn't fire again unexpectedly
             }
         } else {
-            Log.d(TAG, "Not viewing this ID. CurrentInProgress: " + currentIdInProgress + ", GlobalViewing: " + GlobalState.getCurrentViewingId());
+            Timber.d("Not viewing this ID. CurrentInProgress: " + currentIdInProgress + ", GlobalViewing: " + GlobalState.getCurrentViewingId());
         }
 
         finishedSetupLiveData.postValue(true);
@@ -194,7 +193,7 @@ public class TtsExtractor {
     public void resetAndRetry(long entryId) {
         Schedulers.single().scheduleDirect(() -> {
             synchronized (this) {
-                Log.d(TAG, "resetAndRetry called for article ID: " + entryId);
+                Timber.d("resetAndRetry called for article ID: " + entryId);
                 
                 // Remove from failed list if present
                 while (failedIds.remove(Long.valueOf(entryId))) {
@@ -222,10 +221,10 @@ public class TtsExtractor {
     public void extractAllEntries() {
         Schedulers.single().scheduleDirect(() -> {
             synchronized (this) {
-                Log.d(TAG, "extractAllEntries called | extractionInProgress = " + extractionInProgress);
+                Timber.d("extractAllEntries called | extractionInProgress = " + extractionInProgress);
 
                 if (extractionInProgress && currentIdInProgress == -1) {
-                    Log.w(TAG, "Recovery: extractionInProgress = true but currentIdInProgress == -1 → Resetting flag.");
+                    Timber.w("Recovery: extractionInProgress = true but currentIdInProgress == -1 → Resetting flag.");
                     extractionInProgress = false;
                 }
 
@@ -237,17 +236,17 @@ public class TtsExtractor {
                     if (viewingEntry != null && (viewingEntry.getContent() == null || viewingEntry.getContent().trim().isEmpty())) {
                         // If we are currently extracting SOMETHING ELSE, cancel it and prioritize this one
                         if (extractionInProgress && currentIdInProgress != viewingId) {
-                            Log.d(TAG, "Interrupting current extraction (" + currentIdInProgress + ") for prioritized viewingId: " + viewingId);
+                            Timber.d("Interrupting current extraction (" + currentIdInProgress + ") for prioritized viewingId: " + viewingId);
                             cancelExtraction();
                             // cancelExtraction() will reset flags and WebView, then we can proceed to extract viewingId
                         }
                         entry = viewingEntry;
-                        Log.d(TAG, "Prioritizing currently viewing article from GlobalState: " + viewingId);
+                        Timber.d("Prioritizing currently viewing article from GlobalState: " + viewingId);
                     }
                 }
 
                 if (extractionInProgress) {
-                    Log.d(TAG, "Extraction already in progress for ID: " + currentIdInProgress);
+                    Timber.d("Extraction already in progress for ID: " + currentIdInProgress);
                     return;
                 }
 
@@ -266,10 +265,10 @@ public class TtsExtractor {
 
             if (attempts < MAX_RETRIES) {
                 retryCountMap.put(retryId, attempts + 1);
-                Log.d(TAG, "Retrying failed article ID: " + retryId + " | Attempt " + (attempts + 1));
+                Timber.d("Retrying failed article ID: " + retryId + " | Attempt " + (attempts + 1));
                 entry = entryRepository.getEntryById(retryId);
             } else {
-                Log.w(TAG, "Max retries reached for article ID: " + retryId);
+                Timber.w("Max retries reached for article ID: " + retryId);
                 entryRepository.updateContent("Extraction Failed. Please try opening in browser.", retryId);
                 retryCountMap.remove(retryId);
                 extractAllEntries();
@@ -278,9 +277,9 @@ public class TtsExtractor {
         }
 
         if (entry != null) {
-            Log.d(TAG, "Next entry: id=" + entry.getId() + ", title=" + entry.getTitle() + ", priority=" + entry.getPriority());
+            Timber.d("Next entry: id=" + entry.getId() + ", title=" + entry.getTitle() + ", priority=" + entry.getPriority());
             if (!extractionInProgress) {
-                Log.d(TAG, "extracting...");
+                Timber.d("extracting...");
                 extractionInProgress = true;
                 currentIdInProgress = entry.getId();
                 currentLink = entry.getLink();
@@ -292,21 +291,21 @@ public class TtsExtractor {
                 int attempts = retryCountMap.getOrDefault(entry.getId(), 0);
                 delayTime = baseDelay + (attempts * 5); // Add 5 seconds per retry
 
-                Log.d(TAG, "Delay for ID " + entry.getId() + " is " + delayTime + "s (Attempt " + attempts + ")");
+                Timber.d("Delay for ID " + entry.getId() + " is " + delayTime + "s (Attempt " + attempts + ")");
 
                 final String linkToLoad = currentLink;
                 ContextCompat.getMainExecutor(context).execute(new Runnable() {
                     @Override
                     public void run() {
                         webView.loadUrl(linkToLoad);
-                        Log.d("Test url", linkToLoad);
+                        Timber.d(linkToLoad);
                     }
                 });
                 lastExtractStart = System.currentTimeMillis();
 
                 new Handler(Looper.getMainLooper()).postDelayed(() -> {
                     if (extractionInProgress && System.currentTimeMillis() - lastExtractStart > 30000) {
-                        Log.w(TAG, "[Timeout] Extraction stuck >30s, resetting manually");
+                        Timber.w("[Timeout] Extraction stuck >30s, resetting manually");
                         failedIds.add(currentIdInProgress);
                         currentIdInProgress = -1;
                         extractionInProgress = false;
@@ -315,14 +314,14 @@ public class TtsExtractor {
                 }, 30000);
             }
         } else {
-            Log.d(TAG, "No entry returned by getEmptyContentEntry()");
+            Timber.d("No entry returned by getEmptyContentEntry()");
         }
             }
         });
     }
 
     public synchronized void cancelExtraction() {
-        Log.d(TAG, "cancelExtraction called - resetting extraction state");
+        Timber.d("cancelExtraction called - resetting extraction state");
         extractionInProgress = false;
         currentIdInProgress = -1;
         ttsCallback = null;
@@ -385,7 +384,7 @@ public class TtsExtractor {
         @Override
         public void onPageStarted(WebView view, String url, Bitmap favicon) {
             super.onPageStarted(view, url, favicon);
-            Log.d(TAG, "[onPageStarted] " + url);
+            Timber.d("[onPageStarted] " + url);
             currentLoadToken = java.util.UUID.randomUUID().toString();
             hasProcessedCurrentToken = false;
             extractionInProgress = true;
@@ -398,7 +397,7 @@ public class TtsExtractor {
                 view.loadUrl(url);
                 return true;
             } else {
-                Log.w(TAG, "Blocked navigation to non-http/https URL: " + url);
+                Timber.w("Blocked navigation to non-http/https URL: " + url);
                 return true; // We handled it by ignoring it
             }
         }
@@ -406,7 +405,7 @@ public class TtsExtractor {
         @Override
         public void onPageCommitVisible(WebView view, String url) {
             super.onPageCommitVisible(view, url);
-            Log.d(TAG, "[onPageCommitVisible] triggered for: " + url);
+            Timber.d("[onPageCommitVisible] triggered for: " + url);
             // We use this as a supplementary trigger to ensure the page is actually rendering
         }
 
@@ -416,13 +415,13 @@ public class TtsExtractor {
             if (request.isForMainFrame()) {
                 // -10 is ERROR_UNKNOWN_URL_SCHEME
                 if (error.getErrorCode() == -10) {
-                     Log.w(TAG, "[onReceivedError] Ignored ERR_UNKNOWN_URL_SCHEME for: " + request.getUrl());
+                     Timber.w("[onReceivedError] Ignored ERR_UNKNOWN_URL_SCHEME for: " + request.getUrl());
                      return;
                 }
-                Log.e(TAG, "[onReceivedError] Main frame error: " + error.getDescription() + " (" + error.getErrorCode() + ") for " + request.getUrl());
+                Timber.e("[onReceivedError] Main frame error: " + error.getDescription() + " (" + error.getErrorCode() + ") for " + request.getUrl());
                 
                 if (error.getDescription() != null && error.getDescription().toString().contains("ERR_NAME_NOT_RESOLVED")) {
-                    Log.w(TAG, "Network error ERR_NAME_NOT_RESOLVED detected. Failing current extraction to trigger a retry.");
+                    Timber.w("Network error ERR_NAME_NOT_RESOLVED detected. Failing current extraction to trigger a retry.");
                     if (extractionInProgress) {
                         hasProcessedCurrentToken = true; // Prevent further processing for this load
                         handleFailure(currentIdInProgress);
@@ -433,7 +432,7 @@ public class TtsExtractor {
 
         @Override
         public void onPageFinished(WebView view, String url) {
-            Log.d(TAG, "[onPageFinished] triggered for: " + url);
+            Timber.d("[onPageFinished] triggered for: " + url);
             super.onPageFinished(view, url);
             final String executionToken = currentLoadToken;
             if (extractionInProgress) {
@@ -451,22 +450,22 @@ public class TtsExtractor {
                  
                  // Value is JSON string, e.g. "complete"
                  if (value != null && value.contains("complete")) {
-                     Log.d(TAG, "Page ready (" + value + "). Waiting 5s settle time...");
+                     Timber.d("Page ready (" + value + "). Waiting 5s settle time...");
                      handler.postDelayed(() -> extractHtml(view, executionToken), 5000);
                  } else if (value != null && value.contains("interactive")) {
                      if (attempt < 15) { 
-                         Log.d(TAG, "Page interactive. Attempt " + attempt + "/15. Waiting 2s for complete...");
+                         Timber.d("Page interactive. Attempt " + attempt + "/15. Waiting 2s for complete...");
                          handler.postDelayed(() -> checkReadyState(view, executionToken, attempt + 1), 2000);
                      } else {
-                         Log.w(TAG, "Page stuck at interactive. Proceeding with 5s settle...");
+                         Timber.w("Page stuck at interactive. Proceeding with 5s settle...");
                          handler.postDelayed(() -> extractHtml(view, executionToken), 5000);
                      }
                  } else {
                      if (attempt < 20) {
-                         Log.d(TAG, "Page loading (" + value + "). Attempt " + attempt + "/20. Waiting 2s...");
+                         Timber.d("Page loading (" + value + "). Attempt " + attempt + "/20. Waiting 2s...");
                          handler.postDelayed(() -> checkReadyState(view, executionToken, attempt + 1), 2000);
                      } else {
-                         Log.w(TAG, "Page ready check timed out. Forcing extraction with 5s settle.");
+                         Timber.w("Page ready check timed out. Forcing extraction with 5s settle.");
                          handler.postDelayed(() -> extractHtml(view, executionToken), 5000);
                      }
                  }
@@ -476,14 +475,14 @@ public class TtsExtractor {
         private void extractHtml(WebView view, String executionToken) {
              // Final guard before starting extraction
              if (!executionToken.equals(currentLoadToken) || !extractionInProgress || hasProcessedCurrentToken) {
-                 Log.d(TAG, "Aborting extraction: Token mismatch or already processed.");
+                 Timber.d("Aborting extraction: Token mismatch or already processed.");
                  return;
              }
 
              // One last scroll to ensure all lazy content is triggered
              view.evaluateJavascript("(function() { window.scrollTo(0, document.body.scrollHeight); return document.getElementsByTagName('html')[0].outerHTML; })();", value -> {
                 if (!executionToken.equals(currentLoadToken) || hasProcessedCurrentToken) {
-                    Log.d(TAG, "Ignoring JS callback. Token mismatch.");
+                    Timber.d("Ignoring JS callback. Token mismatch.");
                     return;
                 }
                 hasProcessedCurrentToken = true;
@@ -494,7 +493,7 @@ public class TtsExtractor {
 
     @SuppressLint("CheckResult")
     private void processHtmlExtraction(String value) {
-        Log.d(TAG, "Processing extracted HTML value...");
+        Timber.d("Processing extracted HTML value...");
         try (JsonReader reader = new JsonReader(new StringReader(value))) {
             reader.setLenient(true);
             if (reader.peek() == JsonToken.STRING) {
@@ -503,14 +502,14 @@ public class TtsExtractor {
                 if (html != null && html.length() >= 500) {
                     processExtraction(currentIdInProgress, currentLink, currentTitle, html);
                 } else {
-                    Log.w(TAG, "HTML too short (" + (html != null ? html.length() : 0) + " chars). Retrying...");
+                    Timber.w("HTML too short (" + (html != null ? html.length() : 0) + " chars). Retrying...");
                     handleFailure(currentIdInProgress);
                 }
             } else {
                 handleFailure(currentIdInProgress);
             }
         } catch (Throwable t) {
-            Log.e(TAG, "Fatal error during processHtmlExtraction", t);
+            Timber.e(t, "Fatal error during processHtmlExtraction");
             if (currentIdInProgress == GlobalState.getCurrentViewingId()) {
                 snackbarMessageLiveData.postValue("Extraction crashed (JS): " + t.getClass().getSimpleName());
             }
@@ -521,13 +520,13 @@ public class TtsExtractor {
     @SuppressLint("CheckResult")
     public void processExtraction(long entryId, String link, String title, String html) {
         if (html == null || html.length() < 500) {
-            Log.w(TAG, "HTML too short or null in processExtraction. Retrying...");
+            Timber.w("HTML too short or null in processExtraction. Retrying...");
             handleFailure(entryId);
             return;
         }
 
         if (textUtil.isErrorHtml(html)) {
-            Log.w(TAG, "Error page detected in HTML for ID: " + entryId + ". Retrying extraction...");
+            Timber.w("Error page detected in HTML for ID: " + entryId + ". Retrying extraction...");
             handleFailure(entryId);
             return;
         }
@@ -624,7 +623,7 @@ public class TtsExtractor {
                 if (tempContent.length() < MIN_CONTENT_LENGTH) {
                     String bodyText = doc.body().text();
                     if (bodyText.length() > tempContent.length() + 50) {
-                         Log.d(TAG, "Extraction too short (" + tempContent.length() + "). Falling back to body text (" + bodyText.length() + ")");
+                         Timber.d("Extraction too short (" + tempContent.length() + "). Falling back to body text (" + bodyText.length() + ")");
                          tempContent = bodyText;
                          content = new StringBuilder(tempContent);
                     }
@@ -655,7 +654,7 @@ public class TtsExtractor {
                 int attempts = retryCountMap.getOrDefault(entryId, 0);
 
                 if (extractedContent.length() < MIN_CONTENT_LENGTH && attempts < MAX_RETRIES) {
-                    Log.w(TAG, "Extracted content too short (" + extractedContent.length() + " chars) for ID: " + entryId + ". Attempt: " + attempts + ". Retrying...");
+                    Timber.w("Extracted content too short (" + extractedContent.length() + " chars) for ID: " + entryId + ". Attempt: " + attempts + ". Retrying...");
                     handleFailure(entryId);
                     return;
                 }
@@ -669,7 +668,7 @@ public class TtsExtractor {
                 
                 if ((existingOriginal == null || existingOriginal.trim().isEmpty()) && !isProcessed) {
                     entryRepository.updateOriginalHtml(newHtml, entryId);
-                    Log.d(TAG, "Original HTML backed up for ID: " + entryId);
+                    Timber.d("Original HTML backed up for ID: " + entryId);
                 }
 
                 // View State Logic
@@ -694,7 +693,7 @@ public class TtsExtractor {
                 final String processingTitle = title;
 
                 if (processingId == lastSuccessfullyProcessedId) {
-                    Log.e(TAG, "LOOP DETECTED on ID " + processingId + ". Skipping this entry.");
+                    Timber.e("LOOP DETECTED on ID " + processingId + ". Skipping this entry.");
                     extractionInProgress = false;
                     currentIdInProgress = -1;
                     // Try to find another entry instead of stopping
@@ -724,7 +723,7 @@ public class TtsExtractor {
                 if (currentLanguage != null && !currentLanguage.isEmpty() && !"und".equalsIgnoreCase(currentLanguage)) {
                     sourceLangSingle = Single.just(currentLanguage);
                 } else {
-                    Log.d(TAG, "Language unknown. Detecting from content...");
+                    Timber.d("Language unknown. Detecting from content...");
                     sourceLangSingle = textUtil.identifyLanguageRx(content.toString());
                 }
 
@@ -735,7 +734,7 @@ public class TtsExtractor {
                         .subscribe(detectedLang -> {
                             // Safety Check: Entry could have been deleted or database could be in a transient state
                             if (entryObj == null) {
-                                Log.e(TAG, "entryObj is null in sourceLangSingle. Skipping processing for ID: " + processingId);
+                                Timber.e("entryObj is null in sourceLangSingle. Skipping processing for ID: " + processingId);
                                 if (processingId == currentIdInProgress) {
                                     finishAndMoveToNext();
                                 }
@@ -760,7 +759,7 @@ public class TtsExtractor {
 
                             if (doTranslate && doSummarize) {
                                 if (feed == null) {
-                                    Log.e(TAG, "feed is null but translation/summarization requested. Skipping.");
+                                    Timber.e("feed is null but translation/summarization requested. Skipping.");
                                     if (processingId == currentIdInProgress) finishAndMoveToNext();
                                     return;
                                 }
@@ -872,7 +871,7 @@ public class TtsExtractor {
                                 }
                             }
                         }, error -> {
-                            Log.e(TAG, "Language detection failed", error);
+                            Timber.e(error, "Language detection failed");
                             if (processingId == currentIdInProgress) {
                                 finishAndMoveToNext();
                             }
@@ -882,7 +881,7 @@ public class TtsExtractor {
                 handleFailure(entryId);
             }
         } catch (Throwable t) {
-            Log.e(TAG, "Fatal error during extraction for ID: " + entryId, t);
+            Timber.e(t, "Fatal error during extraction for ID: " + entryId);
             if (entryId == GlobalState.getCurrentViewingId()) {
                 snackbarMessageLiveData.postValue("Extraction crashed: " + t.getClass().getSimpleName() + " - " + t.getMessage());
             }
@@ -891,7 +890,7 @@ public class TtsExtractor {
     }
 
     private void handleError(Throwable error, long id) {
-        Log.e(TAG, "Process Failed for ID: " + id, error);
+        Timber.e(error, "Process Failed for ID: " + id);
         extractionInProgress = false;
         currentIdInProgress = -1;
         snackbarMessageLiveData.postValue("Process failed.");
@@ -899,7 +898,7 @@ public class TtsExtractor {
 
         if (id == GlobalState.getCurrentViewingId()) {
             if (ttsCallback != null) {
-                Log.d(TAG, "Notifying TTS callback of failure for ID: " + id);
+                Timber.d("Notifying TTS callback of failure for ID: " + id);
                 ttsCallback.extractToTts(null, "en");
                 ttsCallback = null;
             }
@@ -907,17 +906,17 @@ public class TtsExtractor {
     }
 
     public void setCurrentLanguage(String lang, boolean lock) {
-        Log.d(TAG, "[setCurrentLanguage] REQUESTED lang = " + lang + ", lock = " + lock + " | current = " + currentLanguage + ", isLocked = " + isLockedByTtsPlayer);
+        Timber.d("[setCurrentLanguage] REQUESTED lang = " + lang + ", lock = " + lock + " | current = " + currentLanguage + ", isLocked = " + isLockedByTtsPlayer);
 
         if (!isLockedByTtsPlayer || lock) {
-            Log.d(TAG, "Language set to: " + lang + " | lock=" + lock);
+            Timber.d("Language set to: " + lang + " | lock=" + lock);
             this.currentLanguage = lang;
             isLockedByTtsPlayer = lock;
         } else {
-            Log.d(TAG, "Ignored language override to: " + lang + " due to lock");
+            Timber.d("Ignored language override to: " + lang + " due to lock");
         }
 
-        Log.d(TAG, "Language set to: " + lang + " | lock=" + lock + " | isLocked=" + isLockedByTtsPlayer);
+        Timber.d("Language set to: " + lang + " | lock=" + lock + " | isLocked=" + isLockedByTtsPlayer);
     }
 
     public List<Long> stringToLongList(String genreIds) {

@@ -3,7 +3,7 @@ package xiangze.mmu.rssnewsreader.ui.feedsetting;
 import android.app.Dialog;
 import android.content.DialogInterface;
 import android.os.Bundle;
-import android.util.Log;
+import timber.log.Timber;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.widget.Toast;
@@ -71,7 +71,7 @@ public class FeedSettingDialog extends AppCompatDialogFragment implements FeedSe
                     Locale locale = Locale.forLanguageTag(language);
                     languageDisplayName = locale.getDisplayName();
                 } catch (Exception e) {
-                    Log.d(TAG, "Failed to create Locale " + e.getMessage());
+                    Timber.d("Failed to create Locale " + e.getMessage());
                     language = null;
                     languageDisplayName = LanguageSelectionDialog.languageIdentifierTAG;
                 }

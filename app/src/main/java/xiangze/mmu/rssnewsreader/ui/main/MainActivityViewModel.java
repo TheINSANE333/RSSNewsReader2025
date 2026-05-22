@@ -1,6 +1,6 @@
 package xiangze.mmu.rssnewsreader.ui.main;
 
-import android.util.Log;
+import timber.log.Timber;
 
 import androidx.lifecycle.LiveData;
 import androidx.lifecycle.MutableLiveData;
@@ -46,7 +46,7 @@ public class MainActivityViewModel extends ViewModel {
                 .subscribeOn(Schedulers.io())
                 .observeOn(AndroidSchedulers.mainThread())
                 .subscribe(feeds -> allFeeds.postValue(feeds),
-                        throwable -> Log.e("MainActivityViewModel", "Error fetching feeds", throwable));
+                        throwable -> Timber.e(throwable, "Error fetching feeds"));
 
         compositeDisposable.add(disposable);
     }
@@ -78,9 +78,9 @@ public class MainActivityViewModel extends ViewModel {
                 .subscribeOn(Schedulers.io())
                 .observeOn(AndroidSchedulers.mainThread())
                 .subscribe(() -> {
-                    Log.d("MainActivityViewModel", "Entry added successfully");
+                    Timber.d("Entry added successfully");
                 }, throwable -> {
-                    Log.e("MainActivityViewModel", "Error adding entry", throwable);
+                    Timber.e(throwable, "Error adding entry");
                 });
     }
 

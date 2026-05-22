@@ -1,7 +1,7 @@
 package xiangze.mmu.rssnewsreader.service.rss;
 
 import android.content.Context;
-import android.util.Log;
+import timber.log.Timber;
 
 import androidx.annotation.NonNull;
 import androidx.hilt.work.HiltWorker;
@@ -19,7 +19,7 @@ import dagger.assisted.AssistedInject;
 
 @HiltWorker
 public class PreloadWorker extends Worker {
-    private static final String TAG = "PreloadWorker";
+    
     private final EntryRepository entryRepository;
     private final Context context;
 
@@ -33,23 +33,23 @@ public class PreloadWorker extends Worker {
     @NonNull
     @Override
     public Result doWork() {
-        Log.d(TAG, "Starting PreloadWorker...");
+        Timber.d("Starting PreloadWorker...");
         List<Entry> unpreloadedEntries = entryRepository.getUncachedEntries();
         
         if (unpreloadedEntries.isEmpty()) {
-            Log.d(TAG, "No entries to preload.");
+            Timber.d("No entries to preload.");
             return Result.success();
         }
 
         for (Entry entry : unpreloadedEntries) {
             String imageUrl = entry.getImageUrl();
             if (imageUrl != null && !imageUrl.isEmpty()) {
-                Log.d(TAG, "Preloading image for entry: " + entry.getTitle());
+                Timber.d("Preloading image for entry: " + entry.getTitle());
                 try {
                     // Picasso.fetch() downloads the image into the disk cache
                     Picasso.get().load(imageUrl).fetch();
                 } catch (Exception e) {
-                    Log.e(TAG, "Failed to preload image: " + imageUrl, e);
+                    Timber.e(e, "Failed to preload image: " + imageUrl);
                 }
             }
             

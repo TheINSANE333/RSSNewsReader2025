@@ -4,7 +4,7 @@ import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.content.Context;
 import android.os.Build;
-import android.util.Log;
+import timber.log.Timber;
 
 import androidx.annotation.NonNull;
 import androidx.core.app.NotificationCompat;
@@ -26,7 +26,7 @@ import xiangze.mmu.rssnewsreader.service.util.TextUtil;
 
 @HiltWorker
 public class TranslationWorker extends RxWorker {
-    private static final String TAG = "TranslationWorker";
+    
     private static final String CHANNEL_ID = "ai_processing_channel";
     private static final int NOTIFICATION_ID = 1002;
 
@@ -50,17 +50,17 @@ public class TranslationWorker extends RxWorker {
     @NonNull
     @Override
     public io.reactivex.rxjava3.core.Single<Result> createWork() {
-        Log.d(TAG, "Starting batch translation worker");
+        Timber.d("Starting batch translation worker");
         createNotificationChannel();
         
         return io.reactivex.rxjava3.core.Single.fromCallable(entryRepository::getAllUntranslatedEntries)
                 .flatMap(entries -> {
                     if (entries == null || entries.isEmpty()) {
-                        Log.d(TAG, "No untranslated entries found");
+                        Timber.d("No untranslated entries found");
                         return io.reactivex.rxjava3.core.Single.just(Result.success());
                     }
 
-                    Log.d(TAG, "Found " + entries.size() + " potential entries to translate");
+                    Timber.d("Found " + entries.size() + " potential entries to translate");
                     return processEntries(entries)
                             .andThen(io.reactivex.rxjava3.core.Single.just(Result.success()));
                 })
@@ -100,7 +100,7 @@ public class TranslationWorker extends RxWorker {
 
     private io.reactivex.rxjava3.core.Completable translateEntry(EntryInfo entryInfo) {
         if (AutoTranslator.isProcessing(entryInfo.getEntryId())) {
-            Log.d(TAG, "Skipping entry, already being processed: " + entryInfo.getEntryTitle());
+            Timber.d("Skipping entry, already being processed: " + entryInfo.getEntryTitle());
             return io.reactivex.rxjava3.core.Completable.complete();
         }
 
@@ -110,7 +110,7 @@ public class TranslationWorker extends RxWorker {
         }
 
         if (htmlSource == null || htmlSource.trim().isEmpty()) {
-            Log.w(TAG, "Skipping entry, no HTML content: " + entryInfo.getEntryTitle());
+            Timber.w("Skipping entry, no HTML content: " + entryInfo.getEntryTitle());
             return io.reactivex.rxjava3.core.Completable.complete();
         }
 
@@ -139,18 +139,18 @@ public class TranslationWorker extends RxWorker {
 
                     entryRepository.updateTranslatedPair(entryInfo.getEntryId(), processed.contentToRead, processed.html);
                     
-                    Log.d(TAG, "Translated entry: " + entryInfo.getEntryTitle());
+                    Timber.d("Translated entry: " + entryInfo.getEntryTitle());
                 }))
                 .onErrorResumeNext(e -> {
                     if (e.getMessage() != null && e.getMessage().contains("Already in target language")) {
-                        Log.d(TAG, "Skipping " + entryInfo.getEntryTitle() + ": " + e.getMessage());
+                        Timber.d("Skipping " + entryInfo.getEntryTitle() + ": " + e.getMessage());
                         return io.reactivex.rxjava3.core.Completable.complete();
                     }
                     if (e.getMessage() != null && (e.getMessage().contains("429") || e.getMessage().contains("Rate Limit Exceeded"))) {
-                        Log.e(TAG, "Rate limit hit, aborting batch translation: " + entryInfo.getEntryTitle(), e);
+                        Timber.e(e, "Rate limit hit, aborting batch translation: %s", entryInfo.getEntryTitle());
                         return io.reactivex.rxjava3.core.Completable.error(e); // Abort batch
                     }
-                    Log.e(TAG, "Failed to translate entry: " + entryInfo.getEntryTitle(), e);
+                    Timber.e(e, "Failed to translate entry: " + entryInfo.getEntryTitle());
                     return io.reactivex.rxjava3.core.Completable.complete(); // Skip this one, try next
                 });
     }

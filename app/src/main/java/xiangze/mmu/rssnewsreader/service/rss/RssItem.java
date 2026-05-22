@@ -1,6 +1,6 @@
 package xiangze.mmu.rssnewsreader.service.rss;
 
-import android.util.Log;
+import timber.log.Timber;
 
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
@@ -8,8 +8,6 @@ import java.util.Date;
 import java.util.Locale;
 
 public class RssItem {
-
-    private static final String TAG = "RssItem";
 
     private String title;
     private String description;
@@ -72,7 +70,7 @@ public class RssItem {
             SimpleDateFormat dateFormat = new SimpleDateFormat("EEE, dd MMM yyyy HH:mm:ss Z", Locale.ENGLISH);
             this.pubDate = dateFormat.parse(pubDate);
         } catch (ParseException e) {
-            Log.e(TAG, "Failed to parse date: " + pubDate + ". " + e.getMessage());
+            Timber.e("Failed to parse date: " + pubDate + ". " + e.getMessage());
             if (this.pubDate == null) {
                 this.pubDate = new Date();
             }

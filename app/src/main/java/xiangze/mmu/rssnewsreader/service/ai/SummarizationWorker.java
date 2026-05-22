@@ -4,7 +4,7 @@ import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.content.Context;
 import android.os.Build;
-import android.util.Log;
+import timber.log.Timber;
 
 import androidx.annotation.NonNull;
 import androidx.core.app.NotificationCompat;
@@ -26,7 +26,7 @@ import xiangze.mmu.rssnewsreader.service.util.TextUtil;
 
 @HiltWorker
 public class SummarizationWorker extends RxWorker {
-    private static final String TAG = "SummarizationWorker";
+    
     private static final String CHANNEL_ID = "ai_processing_channel";
     private static final int NOTIFICATION_ID = 1001;
 
@@ -53,17 +53,17 @@ public class SummarizationWorker extends RxWorker {
     @NonNull
     @Override
     public io.reactivex.rxjava3.core.Single<Result> createWork() {
-        Log.d(TAG, "Starting batch summarization worker");
+        Timber.d("Starting batch summarization worker");
         createNotificationChannel();
 
         return io.reactivex.rxjava3.core.Single.fromCallable(entryRepository::getAllUnsummarizedEntries)
                 .flatMap(entries -> {
                     if (entries == null || entries.isEmpty()) {
-                        Log.d(TAG, "No unsummarized entries found");
+                        Timber.d("No unsummarized entries found");
                         return io.reactivex.rxjava3.core.Single.just(Result.success());
                     }
 
-                    Log.d(TAG, "Found " + entries.size() + " potential entries to summarize");
+                    Timber.d("Found " + entries.size() + " potential entries to summarize");
 
                     return processEntries(entries)
                             .andThen(io.reactivex.rxjava3.core.Single.just(Result.success()));
@@ -117,7 +117,7 @@ public class SummarizationWorker extends RxWorker {
 
     private io.reactivex.rxjava3.core.Completable summarizeEntry(EntryInfo entryInfo) {
         if (AutoSummarizer.isProcessing(entryInfo.getEntryId())) {
-            Log.d(TAG, "Skipping entry, already being processed: " + entryInfo.getEntryTitle());
+            Timber.d("Skipping entry, already being processed: " + entryInfo.getEntryTitle());
             return io.reactivex.rxjava3.core.Completable.complete();
         }
 
@@ -129,19 +129,19 @@ public class SummarizationWorker extends RxWorker {
         // Check if the current plain text content is an error message
         String plainContent = entryRepository.getContentById(entryInfo.getEntryId());
         if (textUtil.isErrorContent(plainContent)) {
-            Log.w(TAG, "Error content detected for " + entryInfo.getEntryTitle() + ". Triggering re-extraction.");
+            Timber.w("Error content detected for " + entryInfo.getEntryTitle() + ". Triggering re-extraction.");
             ttsExtractor.resetAndRetry(entryInfo.getEntryId());
             return io.reactivex.rxjava3.core.Completable.complete(); // Skip for now
         }
 
         if (htmlSource == null || htmlSource.trim().isEmpty()) {
-            Log.w(TAG, "Skipping entry, no HTML content: " + entryInfo.getEntryTitle());
+            Timber.w("Skipping entry, no HTML content: " + entryInfo.getEntryTitle());
             return io.reactivex.rxjava3.core.Completable.complete();
         }
 
         // Check if the HTML source itself is an error page (e.g., browser error, 404, etc.)
         if (textUtil.isErrorHtml(htmlSource)) {
-            Log.w(TAG, "Error HTML detected for " + entryInfo.getEntryTitle() + ". Triggering re-extraction.");
+            Timber.w("Error HTML detected for " + entryInfo.getEntryTitle() + ". Triggering re-extraction.");
             ttsExtractor.resetAndRetry(entryInfo.getEntryId());
             return io.reactivex.rxjava3.core.Completable.complete(); // Skip for now
         }
@@ -165,14 +165,14 @@ public class SummarizationWorker extends RxWorker {
 
                     entryRepository.updateSummarizedPair(entryInfo.getEntryId(), processed.contentToRead, processed.html);
                     
-                    Log.d(TAG, "Summarized entry: " + entryInfo.getEntryTitle());
+                    Timber.d("Summarized entry: " + entryInfo.getEntryTitle());
                 }))
                 .onErrorResumeNext(e -> {
                     if (e.getMessage() != null && (e.getMessage().contains("429") || e.getMessage().contains("Rate Limit Exceeded"))) {
-                        Log.e(TAG, "Rate limit hit, aborting batch summarization: " + entryInfo.getEntryTitle(), e);
+                        Timber.e(e, "Rate limit hit, aborting batch summarization: %s", entryInfo.getEntryTitle());
                         return io.reactivex.rxjava3.core.Completable.error(e); // Abort batch
                     }
-                    Log.e(TAG, "Failed to summarize entry: " + entryInfo.getEntryTitle(), e);
+                    Timber.e(e, "Failed to summarize entry: " + entryInfo.getEntryTitle());
                     return io.reactivex.rxjava3.core.Completable.complete(); // Skip this one, try next
                 });
     }

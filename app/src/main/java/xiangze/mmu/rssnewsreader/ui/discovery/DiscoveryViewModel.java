@@ -1,6 +1,6 @@
 package xiangze.mmu.rssnewsreader.ui.discovery;
 
-import android.util.Log;
+import timber.log.Timber;
 import androidx.lifecycle.LiveData;
 import androidx.lifecycle.MutableLiveData;
 import androidx.lifecycle.ViewModel;
@@ -45,7 +45,7 @@ public class DiscoveryViewModel extends ViewModel {
                     searchResults.postValue(results);
                     isLoading.postValue(false);
                 }, throwable -> {
-                    Log.e("DiscoveryViewModel", "Search failed", throwable);
+                    Timber.e(throwable, "Search failed");
                     searchResults.postValue(new ArrayList<>());
                     isLoading.postValue(false);
                 })
@@ -81,7 +81,7 @@ public class DiscoveryViewModel extends ViewModel {
                     }
                     targetUrl = java.net.URLDecoder.decode(encoded, "UTF-8");
                 } catch (Exception e) {
-                    Log.w("DiscoveryViewModel", "Failed to decode URL: " + rawUrl, e);
+                    Timber.w("Failed to decode URL: " + rawUrl, e);
                 }
             } else if (rawUrl.startsWith("//")) {
                 targetUrl = "https:" + rawUrl;

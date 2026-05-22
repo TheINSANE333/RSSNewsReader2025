@@ -5,7 +5,7 @@ import androidx.lifecycle.LiveData;
 import androidx.lifecycle.MutableLiveData;
 import androidx.lifecycle.ViewModel;
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
-import android.util.Log;
+import timber.log.Timber;
 
 import xiangze.mmu.rssnewsreader.data.entry.EntryRepository;
 import xiangze.mmu.rssnewsreader.data.feed.FeedRepository;
@@ -105,7 +105,7 @@ public class AllEntriesViewModel extends ViewModel {
                     dailySummaryPrompt.postValue(prompts);
                     isSummarizing.postValue(false);
                 }, throwable -> {
-                    Log.e("AllEntriesViewModel", "Error generating daily summary prompt", throwable);
+                    Timber.e(throwable, "Error generating daily summary prompt");
                     toastMessage.postValue("Failed to generate summary prompt: " + throwable.getMessage());
                     isSummarizing.postValue(false);
                 });
@@ -151,13 +151,13 @@ public class AllEntriesViewModel extends ViewModel {
                 .subscribeOn(Schedulers.io())
                 .observeOn(AndroidSchedulers.mainThread())
                 .subscribe(entriesList -> allEntries.postValue(entriesList),
-                        throwable -> Log.e("AllEntriesViewModel", "Error fetching entries", throwable));
+                        throwable -> Timber.e(throwable, "Error fetching entries"));
 
         disposableCount = entryRepository.getUnreadCount(id, filter)
                 .subscribeOn(Schedulers.io())
                 .observeOn(AndroidSchedulers.mainThread())
                 .subscribe(integer -> unreadCount.postValue(integer),
-                        throwable -> Log.e("AllEntriesViewModel", "Error fetching unread count", throwable));
+                        throwable -> Timber.e(throwable, "Error fetching unread count"));
     }
 
     private void copyToListItem(EntryInfo info, EntryListItem item) {
@@ -209,11 +209,11 @@ public class AllEntriesViewModel extends ViewModel {
                     public void onSubscribe(@NonNull Disposable d) {}
                     @Override
                     public void onComplete() {
-                        Log.d("AllEntriesViewModel", "Playlist inserted successfully");
+                        Timber.d("Playlist inserted successfully");
                     }
                     @Override
                     public void onError(@NonNull Throwable e) {
-                        Log.e("AllEntriesViewModel", "Error inserting playlist", e);
+                        Timber.e(e, "Error inserting playlist");
                     }
                 });
     }
@@ -229,11 +229,11 @@ public class AllEntriesViewModel extends ViewModel {
                     public void onSubscribe(@NonNull Disposable d) {}
                     @Override
                     public void onComplete() {
-                        Log.d("AllEntriesViewModel", "Visited date updated successfully");
+                        Timber.d("Visited date updated successfully");
                     }
                     @Override
                     public void onError(@NonNull Throwable e) {
-                        Log.e("AllEntriesViewModel", "Error updating visited date", e);
+                        Timber.e(e, "Error updating visited date");
                     }
                 });
     }
@@ -285,7 +285,7 @@ public class AllEntriesViewModel extends ViewModel {
                     }
                     @Override
                     public void onError(@NonNull Throwable e) {
-                        Log.e("AllEntriesViewModel", "Error deleting visited entries", e);
+                        Timber.e(e, "Error deleting visited entries");
                     }
                 });
     }
@@ -304,7 +304,7 @@ public class AllEntriesViewModel extends ViewModel {
                     }
                     @Override
                     public void onError(@NonNull Throwable e) {
-                        Log.e("AllEntriesViewModel", "Failed to restore entry", e);
+                        Timber.e(e, "Failed to restore entry");
                     }
                 });
     }
@@ -333,7 +333,7 @@ public class AllEntriesViewModel extends ViewModel {
 
                     @Override
                     public void onError(@io.reactivex.rxjava3.annotations.NonNull Throwable e) {
-                        Log.e("AllEntriesViewModel", "Error deleting entry", e);
+                        Timber.e(e, "Error deleting entry");
                     }
                 });
     }
@@ -360,7 +360,7 @@ public class AllEntriesViewModel extends ViewModel {
 
                     @Override
                     public void onError(@NonNull Throwable e) {
-                        Log.e("AllEntriesViewModel", "Error refreshing entries", e);
+                        Timber.e(e, "Error refreshing entries");
                     }
                 });
     }
@@ -390,7 +390,7 @@ public class AllEntriesViewModel extends ViewModel {
 
                     @Override
                     public void onError(@NonNull Throwable e) {
-                        Log.e("AllEntriesViewModel", "Error updating bookmark", e);
+                        Timber.e(e, "Error updating bookmark");
                     }
                 });
     }

@@ -5,7 +5,7 @@ import android.content.Intent;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
-import android.util.Log;
+import timber.log.Timber;
 import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuInflater;
@@ -284,7 +284,7 @@ public class AllEntriesFragment extends Fragment implements EntryItemAdapter.Ent
                         startActivity(Intent.createChooser(sendIntent, "Share to AI"));
                     }
                 } catch (java.io.IOException e) {
-                    Log.e(TAG, "Error creating summary files", e);
+                    Timber.e(e, "Error creating summary files");
                     Toast.makeText(requireContext(), "Error creating summary files", Toast.LENGTH_SHORT).show();
                 }
 
@@ -452,7 +452,7 @@ public class AllEntriesFragment extends Fragment implements EntryItemAdapter.Ent
 
                 autoTranslator.runAutoTranslation(() -> {
                     adapter.submitList(new ArrayList<>(this.entries));
-                    Log.d("AutoTranslator", "Auto translation finished");
+                    Timber.d("Auto translation finished");
                 });
             }
 
@@ -461,7 +461,7 @@ public class AllEntriesFragment extends Fragment implements EntryItemAdapter.Ent
 
                 autoSummarizer.runAutoSummarization(() -> {
                     adapter.submitList(new ArrayList<>(this.entries));
-                    Log.d("AutoSummarizer", "Auto summarization finished");
+                    Timber.d("Auto summarization finished");
                 });
             }
         });
@@ -536,7 +536,7 @@ public class AllEntriesFragment extends Fragment implements EntryItemAdapter.Ent
     private void observeLoadingState() {
         webViewViewModel.getLoadingState().observe(getViewLifecycleOwner(), isLoading -> {
 
-            Log.d(TAG, "Loading state observed in AllEntriesFragment: " + isLoading);
+            Timber.d("Loading state observed in AllEntriesFragment: " + isLoading);
 
             if (entries != null) {
                 for (EntryInfo entry : entries) {
@@ -544,7 +544,7 @@ public class AllEntriesFragment extends Fragment implements EntryItemAdapter.Ent
                 }
                 adapter.notifyDataSetChanged();
             } else {
-                Log.d(TAG, "Entries list is null in AllEntriesFragment.");
+                Timber.d("Entries list is null in AllEntriesFragment.");
             }
         });
     }
@@ -579,7 +579,7 @@ public class AllEntriesFragment extends Fragment implements EntryItemAdapter.Ent
             String contentToSpeak = (updatedEntry != null) ? updatedEntry.getTranslated() : null;
 
             if (contentToSpeak != null && !contentToSpeak.trim().isEmpty()) {
-                Log.d("AllEntriesFragment", "Triggering TTS with translated content");
+                Timber.d("Triggering TTS with translated content");
 
                 boolean isInWebView = sharedPreferencesRepository.getCurrentReadingEntryId() == entryInfo.getEntryId();
                 boolean isTranslatedView = sharedPreferencesRepository.getIsTranslatedView(entryInfo.getEntryId());
@@ -587,10 +587,10 @@ public class AllEntriesFragment extends Fragment implements EntryItemAdapter.Ent
                 if (isInWebView && isTranslatedView) {
                     ttsPlayer.extract(entryInfo.getEntryId(), entryInfo.getFeedId(), contentToSpeak, targetLanguage);
                 } else {
-                    Log.d("AllEntriesFragment", "TTS extract skipped (not current or not translated view)");
+                    Timber.d("TTS extract skipped (not current or not translated view)");
                 }
             } else {
-                Log.w("AllEntriesFragment", "Translated content is empty or missing");
+                Timber.w("Translated content is empty or missing");
             }
         }, 500);
     }
@@ -617,7 +617,7 @@ public class AllEntriesFragment extends Fragment implements EntryItemAdapter.Ent
         
         if (html == null || html.trim().isEmpty()) return;
         final String sourceHtml = html; // Make it effectively final for lambdas
-        Log.d(TAG, "translating title: " + entryInfo.getEntryTitle());
+        Timber.d("translating title: " + entryInfo.getEntryTitle());
         
         String targetLanguage = sharedPreferencesRepository.getDefaultTranslationLanguage();
 
@@ -639,7 +639,7 @@ public class AllEntriesFragment extends Fragment implements EntryItemAdapter.Ent
                     doWhenTranslationFinish(entryInfo, translatedResult, targetLanguage);
                     Toast.makeText(requireContext(), "Translation completed successfully", Toast.LENGTH_SHORT).show();
                 }, error -> {
-                    Log.e(TAG, "Translation failed", error);
+                    Timber.e(error, "Translation failed");
                     Toast.makeText(requireContext(), "Translation failed: " + error.getMessage(), Toast.LENGTH_SHORT).show();
                 });
         
@@ -834,7 +834,7 @@ public class AllEntriesFragment extends Fragment implements EntryItemAdapter.Ent
                             .setNegativeButton("Cancel", null)
                             .show();
                 }, throwable -> {
-                    Log.e(TAG, "Error fetching feeds with unread articles", throwable);
+                    Timber.e(throwable, "Error fetching feeds with unread articles");
                     Snackbar.make(binding.getRoot(), "Error loading feeds.", Snackbar.LENGTH_SHORT).show();
                 })
         );

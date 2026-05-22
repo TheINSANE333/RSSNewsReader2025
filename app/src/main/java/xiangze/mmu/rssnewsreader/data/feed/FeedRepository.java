@@ -1,6 +1,6 @@
 package xiangze.mmu.rssnewsreader.data.feed;
 
-import android.util.Log;
+import timber.log.Timber;
 
 import androidx.lifecycle.MutableLiveData;
 
@@ -40,7 +40,6 @@ import io.reactivex.rxjava3.schedulers.Schedulers;
 
 public class FeedRepository {
 
-    private static final String TAG = "FeedRepository";
     private final FeedDao feedDao;
     private final EntryRepository entryRepository;
     private final HistoryRepository historyRepository;
@@ -92,9 +91,9 @@ public class FeedRepository {
                 .subscribeOn(Schedulers.io())
                 .observeOn(AndroidSchedulers.mainThread())
                 .subscribe(() -> {
-                    Log.d(TAG, "update onComplete: called");
+                    Timber.d("update onComplete: called");
                     isLoading.postValue(false);
-                }, e -> Log.e(TAG, "update onError: ", e))
+                }, e -> Timber.e(e, "update onError: "))
         );
     }
 
@@ -109,7 +108,7 @@ public class FeedRepository {
                     isLoading.postValue(false);
                 })
                 .doOnError(e -> {
-                    Log.e(TAG, "delete error: " + e.getMessage());
+                    Timber.e("delete error: " + e.getMessage());
                     isLoading.postValue(false);
                 });
     }
@@ -124,9 +123,9 @@ public class FeedRepository {
                 .subscribeOn(Schedulers.io())
                 .observeOn(AndroidSchedulers.mainThread())
                 .subscribe(() -> {
-                    Log.d(TAG, "deleteAllFeeds onComplete: called");
+                    Timber.d("deleteAllFeeds onComplete: called");
                     isLoading.postValue(false);
-                }, e -> Log.e(TAG, "deleteAllFeeds onError: ", e))
+                }, e -> Timber.e(e, "deleteAllFeeds onError: "))
         );
     }
 
@@ -151,7 +150,7 @@ public class FeedRepository {
             languageSingle = textUtil.identifyLanguageRx(textToIdentify, 0.05f)
                     .map(detected -> {
                         if (detected != null && !detected.equals("und")) {
-                            Log.d(TAG, "Detected language for feed: " + detected);
+                            Timber.d("Detected language for feed: " + detected);
                             return detected;
                         }
                         return "Use Language Identifier";
@@ -193,7 +192,7 @@ public class FeedRepository {
             if (entryRepository.hasEmptyContentEntries()) {
                 ttsExtractorProvider.get().extractAllEntries();
             } else {
-                Log.d(TAG, "No entries to extract.");
+                Timber.d("No entries to extract.");
             }
 
             if (!rssWorkManager.isWorkScheduled()) {
@@ -218,14 +217,13 @@ public class FeedRepository {
                 feedDao.update(feed)
                     .subscribeOn(Schedulers.io())
                     .observeOn(AndroidSchedulers.mainThread())
-                    .subscribe(() -> Log.d(TAG, "markFeedAsPreloaded: Complete"),
-                            e -> Log.e(TAG, "markFeedAsPreloaded: Error " + e.getMessage()))
+                    .subscribe(() -> Timber.d("markFeedAsPreloaded: Complete"),
+                            e -> Timber.e("markFeedAsPreloaded: Error " + e.getMessage()))
             );
         } else {
-            Log.w(TAG, "markFeedAsPreloaded: Feed not found for ID " + feedId);
+            Timber.w("markFeedAsPreloaded: Feed not found for ID " + feedId);
         }
     }
-
 
     public String refreshEntries() {
         List<Feed> feeds = getAllStaticFeeds();
@@ -235,7 +233,7 @@ public class FeedRepository {
         for (Feed feed : feeds) {
             executorService.submit(() -> {
                 try {
-                    Log.d(TAG, "Fetching feed: " + feed.getLink());
+                    Timber.d("Fetching feed: " + feed.getLink());
                     RssReader rssReader = new RssReader(feed.getLink());
                     RssFeed rssFeed = rssReader.getFeed();
 
@@ -256,9 +254,9 @@ public class FeedRepository {
                     if (!histories.isEmpty()) {
                         historyRepository.updateHistoriesByFeedId(feed.getId(), histories);
                     }
-                    Log.d(TAG, "Successfully fetched and processed feed: " + feed.getTitle());
+                    Timber.d("Successfully fetched and processed feed: " + feed.getTitle());
                 } catch (Exception e) {
-                    Log.e(TAG, "Error fetching or processing feed: " + feed.getTitle(), e);
+                    Timber.e(e, "Error fetching or processing feed: " + feed.getTitle());
                 }
             });
         }
@@ -267,13 +265,12 @@ public class FeedRepository {
         try {
             executorService.awaitTermination(10, TimeUnit.MINUTES); // Wait for all threads to finish
         } catch (InterruptedException e) {
-            Log.e(TAG, "Error awaiting termination of executor service.", e);
+            Timber.e(e, "Error awaiting termination of executor service.");
         }
 
         entryRepository.requeueMissingEntries();
         return "New entries: " + counter.get(); // Use AtomicInteger's get method
     }
-
 
     public int getDelayTimeById(long id) {
         return feedDao.getDelayTimeById(id);
@@ -317,10 +314,10 @@ public class FeedRepository {
                         String detected = textUtil.identifyLanguageRx(textToIdentify, 0.05f).blockingGet();
                         if (detected != null && !detected.equals("und")) {
                             finalLanguage = detected;
-                            Log.d(TAG, "Detected language for feed update: " + finalLanguage);
+                            Timber.d("Detected language for feed update: " + finalLanguage);
                         }
                     } catch (Exception e) {
-                        Log.e(TAG, "Failed to identify feed language on update", e);
+                        Timber.e(e, "Failed to identify feed language on update");
                     }
                 }
             }
@@ -332,11 +329,11 @@ public class FeedRepository {
                 boolean translatedToggledOn = autoTranslate && !existingFeed.isAutoTranslate();
 
                 if (summarizedToggledOn) {
-                    Log.d(TAG, "Auto-summarize enabled for feed " + feedId + ". Triggering batch processing.");
+                    Timber.d("Auto-summarize enabled for feed " + feedId + ". Triggering batch processing.");
                     this.autoSummarizer.runAutoSummarization();
                 }
                 if (translatedToggledOn) {
-                    Log.d(TAG, "Auto-translate enabled for feed " + feedId + ". Triggering batch processing.");
+                    Timber.d("Auto-translate enabled for feed " + feedId + ". Triggering batch processing.");
                     this.autoTranslator.runAutoTranslation();
                 }
             }
@@ -344,7 +341,7 @@ public class FeedRepository {
         .subscribeOn(Schedulers.io())
         .subscribe(
             () -> {},
-            e -> Log.e(TAG, "Error updating feed settings", e)
+            e -> Timber.e(e, "Error updating feed settings")
         )
         );
     }

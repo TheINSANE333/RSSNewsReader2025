@@ -1,7 +1,7 @@
 package xiangze.mmu.rssnewsreader.service.util;
 
 import android.content.Context;
-import android.util.Log;
+import timber.log.Timber;
 
 import androidx.annotation.Nullable;
 import androidx.work.OneTimeWorkRequest;
@@ -22,7 +22,6 @@ import xiangze.mmu.rssnewsreader.service.ai.TranslationWorker;
 @Singleton
 public class AutoTranslator {
 
-    private static final String TAG = "AutoTranslator";
     private final EntryRepository entryRepository;
     private final TextUtil textUtil;
     private final SharedPreferencesRepository prefs;
@@ -49,12 +48,12 @@ public class AutoTranslator {
 
     public void runAutoTranslation(@Nullable Runnable onComplete) {
         if (!prefs.getAutoTranslate()) {
-            Log.d(TAG, "Auto-translate disabled by user.");
+            Timber.d("Auto-translate disabled by user.");
             if (onComplete != null) onComplete.run();
             return;
         }
 
-        Log.d(TAG, "Enqueuing batch translation work");
+        Timber.d("Enqueuing batch translation work");
         OneTimeWorkRequest workRequest = new OneTimeWorkRequest.Builder(TranslationWorker.class)
                 .addTag("BatchTranslation")
                 .build();

@@ -6,7 +6,7 @@ import android.content.Intent;
 import android.graphics.Bitmap;
 import android.os.Build;
 import android.os.Bundle;
-import android.util.Log;
+import timber.log.Timber;
 import android.view.View;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
@@ -107,7 +107,7 @@ public class LoginWebViewActivity extends AppCompatActivity {
 
         webView.loadUrl(link);
 
-        Log.d("Test url",link);
+        Timber.d(link);
         setContentView(binding.getRoot());
     }
 

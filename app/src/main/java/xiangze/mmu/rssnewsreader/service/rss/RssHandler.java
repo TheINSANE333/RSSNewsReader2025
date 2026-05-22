@@ -1,6 +1,6 @@
 package xiangze.mmu.rssnewsreader.service.rss;
 
-import android.util.Log;
+import timber.log.Timber;
 
 import org.xml.sax.Attributes;
 import org.xml.sax.SAXException;
@@ -51,9 +51,9 @@ public class RssHandler extends DefaultHandler {
                 // End of an item, add the current item to the feed's list of items
                 if (rssItem != null) {
                     rssFeed.addRssItem(rssItem);
-                    Log.d("RssHandler", "Added RSS item: " + rssItem.getTitle());
+                    Timber.d("Added RSS item: " + rssItem.getTitle());
                 } else {
-                    Log.w("RssHandler", "RSS item is null; skipping addition.");
+                    Timber.w("RSS item is null; skipping addition.");
                 }
                 rssItem = null; // Reset for the next item
             }
@@ -73,7 +73,7 @@ public class RssHandler extends DefaultHandler {
                         rssFeed.setLanguage(stringBuilder.toString().trim());
                         break;
                     default:
-                        Log.d("RssHandler", "Unhandled feed tag: " + qName);
+                        Timber.d("Unhandled feed tag: " + qName);
                 }
             } else if (rssItem != null) { // Parse item-level properties
                 switch (qName) {
@@ -99,13 +99,13 @@ public class RssHandler extends DefaultHandler {
                         rssItem.setCategory(stringBuilder.toString().trim());
                         break;
                     default:
-                        Log.d("RssHandler", "Unhandled item tag: " + qName);
+                        Timber.d("Unhandled item tag: " + qName);
                 }
             } else {
-                Log.w("RssHandler", "Unhandled element: " + qName + " with no context.");
+                Timber.w("Unhandled element: " + qName + " with no context.");
             }
         } catch (Exception e) {
-            Log.e("RssHandler", "Error processing end element " + qName + ": " + e.getMessage(), e);
+            Timber.e(e, "Error processing end element " + qName + ": " + e.getMessage());
         }
     }
 
@@ -115,7 +115,7 @@ public class RssHandler extends DefaultHandler {
         try {
             stringBuilder.append(ch, start, length);
         } catch (Exception e) {
-            Log.e("RssHandler", "Error while parsing characters: " + e.getMessage());
+            Timber.e("Error while parsing characters: " + e.getMessage());
         }
     }
 }
