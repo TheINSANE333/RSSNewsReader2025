@@ -26,6 +26,7 @@ import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.widget.LinearLayout;
 
+import java.util.ArrayList;
 import androidx.activity.OnBackPressedCallback;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AlertDialog;
@@ -178,20 +179,43 @@ public class WebViewActivity extends AppCompatActivity implements ReloadDialog.R
 
     private void showFirstViewTooltips() {
         binding.getRoot().postDelayed(() -> {
-            new TapTargetSequence(this)
-                .targets(
-                    TapTarget.forToolbarMenuItem(toolbar, R.id.translate, "Translate Article", "Tap here to instantly translate this article into your preferred language using AI.")
+            if (isFinishing() || isDestroyed()) return;
+            
+            ArrayList<TapTarget> targets = new ArrayList<>();
+            
+            // Safe helper for building common style
+            // Note: TapTarget.forToolbarMenuItem can crash if it cannot find the view internally
+            
+            try {
+                targets.add(TapTarget.forToolbarMenuItem(toolbar, R.id.translate, "Translate Article", "Tap here to instantly translate this article into your preferred language using AI.")
                         .cancelable(false).tintTarget(true).outerCircleColor(R.color.primary).targetCircleColor(R.color.onPrimary)
-                        .titleTextSize(20).titleTextColor(R.color.onPrimary).descriptionTextSize(16).descriptionTextColor(R.color.onPrimary).textTypeface(Typeface.SANS_SERIF),
-                    TapTarget.forToolbarMenuItem(toolbar, R.id.summarize, "Summarize Article", "Too long? Tap here to generate a concise summary.")
+                        .titleTextSize(20).titleTextColor(R.color.onPrimary).descriptionTextSize(16).descriptionTextColor(R.color.onPrimary).textTypeface(Typeface.SANS_SERIF));
+            } catch (Exception e) {
+                Timber.w("Walkthrough: Translate target skipped: %s", e.getMessage());
+            }
+
+            try {
+                targets.add(TapTarget.forToolbarMenuItem(toolbar, R.id.summarize, "Summarize Article", "Too long? Tap here to generate a concise summary.")
                         .cancelable(false).tintTarget(true).outerCircleColor(R.color.primary).targetCircleColor(R.color.onPrimary)
-                        .titleTextSize(20).titleTextColor(R.color.onPrimary).descriptionTextSize(16).descriptionTextColor(R.color.onPrimary).textTypeface(Typeface.SANS_SERIF),
-                    TapTarget.forToolbarOverflow(toolbar, "More Options", "Switch to Play Mode to listen to this article, toggle reading modes, and more.")
+                        .titleTextSize(20).titleTextColor(R.color.onPrimary).descriptionTextSize(16).descriptionTextColor(R.color.onPrimary).textTypeface(Typeface.SANS_SERIF));
+            } catch (Exception e) {
+                Timber.w("Walkthrough: Summarize target skipped: %s", e.getMessage());
+            }
+
+            try {
+                targets.add(TapTarget.forToolbarOverflow(toolbar, "More Options", "Switch to Play Mode to listen to this article, toggle reading modes, and more.")
                         .cancelable(false).tintTarget(true).outerCircleColor(R.color.primary).targetCircleColor(R.color.onPrimary)
-                        .titleTextSize(20).titleTextColor(R.color.onPrimary).descriptionTextSize(16).descriptionTextColor(R.color.onPrimary).textTypeface(Typeface.SANS_SERIF)
-                )
-                .start();
-        }, 500); // Give time for menu to inflate
+                        .titleTextSize(20).titleTextColor(R.color.onPrimary).descriptionTextSize(16).descriptionTextColor(R.color.onPrimary).textTypeface(Typeface.SANS_SERIF));
+            } catch (Exception e) {
+                Timber.w("Walkthrough: Overflow target skipped: %s", e.getMessage());
+            }
+
+            if (!targets.isEmpty()) {
+                new TapTargetSequence(this)
+                    .targets(targets)
+                    .start();
+            }
+        }, 1000); // Increased delay for stability
     }
 
     private void initializeFields() {
