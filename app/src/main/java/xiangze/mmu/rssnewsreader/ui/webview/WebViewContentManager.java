@@ -28,7 +28,7 @@ public class WebViewContentManager {
         this.listener = listener;
     }
 
-    public void loadHtml(String html, long currentId, boolean isSpeaking) {
+    public void loadHtml(String html, long articleId, boolean isSpeaking) {
         if (html == null || html.trim().isEmpty()) return;
 
         if (currentHtmlTask != null && !currentHtmlTask.isDisposed()) {
@@ -44,7 +44,7 @@ public class WebViewContentManager {
             org.jsoup.nodes.Document doc = org.jsoup.Jsoup.parse(processedHtml);
             doc.head().append(viewModel.getStyle(sharedPreferencesRepository.getNight()));
 
-            EntryInfo entryInfo = viewModel.getEntryInfoById(currentId);
+            EntryInfo entryInfo = viewModel.getEntryInfoById(articleId);
             if (entryInfo != null && doc.selectFirst(".entry-header") == null) {
                 org.jsoup.nodes.Element body = doc.selectFirst("body");
                 if (body != null) {
@@ -76,8 +76,8 @@ public class WebViewContentManager {
             // If speaking, the highlight logic will handle scrolling to the right place.
             if (!isSpeaking) {
                 webView.postDelayed(() -> {
-                    int scrollX = sharedPreferencesRepository.getScrollX(currentId);
-                    int scrollY = sharedPreferencesRepository.getScrollY(currentId);
+                    int scrollX = sharedPreferencesRepository.getScrollX(articleId);
+                    int scrollY = sharedPreferencesRepository.getScrollY(articleId);
                     webView.scrollTo(scrollX, scrollY);
                 }, 300);
             }

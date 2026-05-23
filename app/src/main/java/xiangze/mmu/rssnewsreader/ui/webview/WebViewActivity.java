@@ -105,6 +105,8 @@ public class WebViewActivity extends AppCompatActivity implements ReloadDialog.R
     private String currentLoadToken = "";
     private boolean hasProcessedCurrentToken = false;
     private boolean userManuallySwitchedToOriginal = false;
+    private boolean isInitializing = true;
+    private boolean ignoreMetadataUntilMatch = false;
 
     @Inject TtsPlayer ttsPlayer;
     @Inject TtsPlaylist ttsPlaylist;
@@ -116,7 +118,7 @@ public class WebViewActivity extends AppCompatActivity implements ReloadDialog.R
     private final MediaControllerCompat.Callback mediaControllerCallback = new MediaControllerCompat.Callback() {
         @Override
         public void onPlaybackStateChanged(@NonNull PlaybackStateCompat state) {
-            isPlaying = state.getState() == PlaybackStateCompat.STATE_PLAYING;
+            isPlaying = (state != null) && (state.getState() == PlaybackStateCompat.STATE_PLAYING);
             updatePlayPauseButtonIcon(isPlaying);
             
             if (isPlaying) {
@@ -133,24 +135,40 @@ public class WebViewActivity extends AppCompatActivity implements ReloadDialog.R
                 if (mediaIdStr != null) {
                     try {
                         long newId = Long.parseLong(mediaIdStr);
-                    // Follow the TTS skip if:
-                    // 1. We are in "Play Mode" (isReadingMode = false)
-                    // 2. We were already viewing what WAS playing (sync mode)
-                    // 3. The new ID matches what the playlist says is playing
-                    if (newId != currentId && newId != 0) {
-                        Timber.d("onMetadataChanged: New ID = " + newId + ", currentId = " + currentId + ", playingId = " + ttsPlaylist.getPlayingId());
                         
-                        boolean shouldFollow = !isReadingMode || currentId == 0 || newId == ttsPlaylist.getPlayingId();
-                        
-                        if (shouldFollow) {
-                            currentId = newId;
-                            webViewViewModel.setCurrentId(currentId);
-                            sharedPreferencesRepository.setCurrentReadingEntryId(currentId);
-                            loadEntryContent();
-                        } else {
-                            Timber.d("Ignoring metadata change as user might be browsing a different article manually in Reading Mode.");
+                        // Once we receive a metadata match for our currentId, we can stop ignoring mismatches.
+                        if (newId != 0 && newId == currentId) {
+                            ignoreMetadataUntilMatch = false;
                         }
-                    }
+                        
+                        // Follow the TTS skip if:
+                        // 1. We are NOT initializing (prevents flicker on startup)
+                        // 2. We aren't waiting for a sync match (prevents revert to stale metadata)
+                        // 3. We are in "Play Mode" (isReadingMode = false)
+                        // 4. We are in Reading Mode but current article is empty or we are in sync with what's playing
+                        if (newId != 0 && newId != currentId) {
+                            Timber.d("onMetadataChanged: New ID = " + newId + ", currentId = " + currentId + ", playingId = " + ttsPlaylist.getPlayingId());
+                            
+                            boolean shouldFollow;
+                            if (isInitializing || ignoreMetadataUntilMatch) {
+                                Timber.d("Ignoring metadata mismatch during initialization or sync: " + newId + " (Target: " + currentId + ")");
+                                shouldFollow = false;
+                            } else if (!isReadingMode) {
+                                shouldFollow = true; // Always follow in Play Mode
+                            } else {
+                                // In Reading Mode, only follow if we are in sync with the playlist
+                                shouldFollow = (currentId == 0 || newId == ttsPlaylist.getPlayingId());
+                            }
+                            
+                            if (shouldFollow) {
+                                currentId = newId;
+                                webViewViewModel.setCurrentId(currentId);
+                                sharedPreferencesRepository.setCurrentReadingEntryId(currentId);
+                                loadEntryContent();
+                            } else {
+                                Timber.d("Not following metadata change.");
+                            }
+                        }
                     } catch (NumberFormatException e) {
                         Timber.e("Invalid media ID format: " + mediaIdStr);
                     }
@@ -167,9 +185,11 @@ public class WebViewActivity extends AppCompatActivity implements ReloadDialog.R
         setContentView(binding.getRoot());
 
         initializeFields();
+        loadInitialState(savedInstanceState);
         setupObservers();
         setupBackNavigation();
-        loadInitialState(savedInstanceState);
+        
+        isInitializing = false;
         
         if (sharedPreferencesRepository.isFirstArticleView()) {
             showFirstViewTooltips();
@@ -304,6 +324,7 @@ public class WebViewActivity extends AppCompatActivity implements ReloadDialog.R
 
         webViewViewModel.setCurrentId(currentId);
         if (currentId != 0) {
+            ignoreMetadataUntilMatch = true;
             ttsPlaylist.updatePlayingId(currentId);
             sharedPreferencesRepository.setCurrentReadingEntryId(currentId);
             entryRepository.updateDate(new Date(), currentId);
@@ -834,12 +855,14 @@ public class WebViewActivity extends AppCompatActivity implements ReloadDialog.R
         binding.nextArticleButton.setOnClickListener(v -> {
             if (ttsPlaylist.skipNext()) {
                 currentId = ttsPlaylist.getPlayingId();
+                ignoreMetadataUntilMatch = true;
                 loadEntryContent();
             }
         });
         binding.previousArticleButton.setOnClickListener(v -> {
             if (ttsPlaylist.skipPrevious()) {
                 currentId = ttsPlaylist.getPlayingId();
+                ignoreMetadataUntilMatch = true;
                 loadEntryContent();
             }
         });

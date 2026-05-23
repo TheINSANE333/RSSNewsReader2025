@@ -70,6 +70,9 @@ public class WebViewViewModel extends ViewModel {
     public LiveData<String> getSnackbarMessageLiveData() { return snackbarMessageLiveData; }
 
     public void setCurrentId(long id) {
+        if (this.currentId != id) {
+            clearViewData();
+        }
         this.currentId = id;
         setLiveDataValue(currentIdLiveData, id);
         triggerEntryRefresh(id);
