@@ -705,8 +705,10 @@ public class TextUtil {
 
         // Standardized TTS content generation: Title + DELIMITER + split content sentences
         // This avoids including feed title and publish date in the TTS content
-        String splitRes = splitIntoSentences(aiRes.content, xiangze.mmu.rssnewsreader.service.tts.TtsExtractor.DELIMITER);
-        String contentToRead = aiRes.title + xiangze.mmu.rssnewsreader.service.tts.TtsExtractor.DELIMITER + splitRes;
+        String cleanContent = Jsoup.parse(aiRes.content).text();
+        String cleanTitle = Jsoup.parse(aiRes.title).text();
+        String splitRes = splitIntoSentences(cleanContent, xiangze.mmu.rssnewsreader.service.tts.TtsExtractor.DELIMITER);
+        String contentToRead = cleanTitle + xiangze.mmu.rssnewsreader.service.tts.TtsExtractor.DELIMITER + splitRes;
 
         return new ProcessedAiResponse(finalHtml, contentToRead, aiRes.title, aiRes.content);
     }
