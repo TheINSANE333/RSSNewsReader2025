@@ -50,6 +50,7 @@ import javax.inject.Inject;
 
 import dagger.hilt.android.AndroidEntryPoint;
 import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers;
+import io.reactivex.rxjava3.core.Single;
 import io.reactivex.rxjava3.disposables.CompositeDisposable;
 import io.reactivex.rxjava3.schedulers.Schedulers;
 import xiangze.mmu.rssnewsreader.R;
@@ -308,54 +309,58 @@ public class WebViewActivity extends AppCompatActivity implements ReloadDialog.R
 
         webViewViewModel.prioritizeEntry(currentId);
 
-        Entry entry = entryRepository.getEntryById(currentId);
-        if (entry == null) return;
+        compositeDisposable.add(Single.fromCallable(() -> entryRepository.getEntryById(currentId))
+                .subscribeOn(Schedulers.io())
+                .observeOn(AndroidSchedulers.mainThread())
+                .subscribe(entry -> {
+                    if (entry == null) return;
 
-        // Auto-reload if content is detected as an error message or too short
-        if (!sharedPreferencesRepository.getWebViewMode(currentId) && textUtil.isErrorContent(entry.getContent())) {
-            Timber.d("Error content detected for ID: " + currentId + ". Triggering auto re-extraction.");
-            ttsExtractor.resetAndRetry(currentId);
-            showFakeLoading();
-        }
+                    // Auto-reload if content is detected as an error message or too short
+                    if (!sharedPreferencesRepository.getWebViewMode(currentId) && textUtil.isErrorContent(entry.getContent())) {
+                        Timber.d("Error content detected for ID: " + currentId + ". Triggering auto re-extraction.");
+                        ttsExtractor.resetAndRetry(currentId);
+                        showFakeLoading();
+                    }
 
-        if (sharedPreferencesRepository.getWebViewMode(currentId)) {
-            webView.loadUrl(currentLink);
-            refreshButtonVisibility();
-            return;
-        }
+                    if (sharedPreferencesRepository.getWebViewMode(currentId)) {
+                        webView.loadUrl(currentLink);
+                        refreshButtonVisibility(entry);
+                        return;
+                    }
 
-        boolean hasSummary = entry.getSummarizedHtml() != null && !entry.getSummarizedHtml().trim().isEmpty();
-        boolean hasTranslation = entry.getTranslatedHtml() != null && !entry.getTranslatedHtml().trim().isEmpty();
+                    boolean hasSummary = entry.getSummarizedHtml() != null && !entry.getSummarizedHtml().trim().isEmpty();
+                    boolean hasTranslation = entry.getTranslatedHtml() != null && !entry.getTranslatedHtml().trim().isEmpty();
 
-        // Only auto-summarize if the user hasn't explicitly said they want the original content for this article
-        if (!userManuallySwitchedToOriginal) {
-            // For new articles, always set the correct state based on available content.
-            // For same-article refreshes, only promote to summarized/translated, never demote.
-            if (hasSummary) {
-                webViewViewModel.setIsSummarizedView(true);
-            } else if (isNewArticle) {
-                webViewViewModel.setIsSummarizedView(false);
-            }
-            
-            if (hasTranslation && !hasSummary) {
-                webViewViewModel.setIsTranslatedView(true);
-            } else if (isNewArticle) {
-                webViewViewModel.setIsTranslatedView(false);
-            }
-        }
-        
-        loadCurrentViewState();
-        syncLoadingWithTts();
+                    // Only auto-summarize if the user hasn't explicitly said they want the original content for this article
+                    if (!userManuallySwitchedToOriginal) {
+                        // For new articles, always set the correct state based on available content.
+                        // For same-article refreshes, only promote to summarized/translated, never demote.
+                        if (hasSummary) {
+                            webViewViewModel.setIsSummarizedView(true);
+                        } else if (isNewArticle) {
+                            webViewViewModel.setIsSummarizedView(false);
+                        }
+
+                        if (hasTranslation && !hasSummary) {
+                            webViewViewModel.setIsTranslatedView(true);
+                        } else if (isNewArticle) {
+                            webViewViewModel.setIsTranslatedView(false);
+                        }
+                    }
+
+                    loadCurrentViewState(entry);
+                    syncLoadingWithTts();
+                }, throwable -> Timber.e(throwable, "Error loading entry content")));
     }
 
     private void loadCurrentViewState() {
-        loadCurrentViewState(null);
+        compositeDisposable.add(Single.fromCallable(() -> entryRepository.getEntryById(currentId))
+                .subscribeOn(Schedulers.io())
+                .observeOn(AndroidSchedulers.mainThread())
+                .subscribe(this::loadCurrentViewState, throwable -> Timber.e(throwable, "Error loading view state")));
     }
 
     private void loadCurrentViewState(Entry entry) {
-        if (entry == null) {
-            entry = entryRepository.getEntryById(currentId);
-        }
         if (entry == null || entry.getId() != currentId) return;
 
         String htmlToLoad;
@@ -402,7 +407,7 @@ public class WebViewActivity extends AppCompatActivity implements ReloadDialog.R
                 ttsPlayer.extract(currentId, feedId, null, "en", "original");
             }
         }
-        refreshButtonVisibility();
+        refreshButtonVisibility(entry);
     }
 
     private void observeLiveEntry() {
@@ -444,13 +449,27 @@ public class WebViewActivity extends AppCompatActivity implements ReloadDialog.R
             if (currentContentInDb != null && !currentContentInDb.equals(lastLoadedHtml)) {
                 loadCurrentViewState(entry);
             }
-            refreshButtonVisibility();
+            refreshButtonVisibility(entry);
         });
     }
 
     private void refreshButtonVisibility() {
-        Entry entry = entryRepository.getEntryById(currentId);
-        if (entry == null) return;
+        refreshButtonVisibility(null);
+    }
+
+    private void refreshButtonVisibility(Entry entry) {
+        if (entry == null) {
+            compositeDisposable.add(Single.fromCallable(() -> entryRepository.getEntryById(currentId))
+                    .subscribeOn(Schedulers.io())
+                    .observeOn(AndroidSchedulers.mainThread())
+                    .subscribe(this::updateUiWithEntry, throwable -> Timber.e(throwable, "Error fetching entry for UI update")));
+        } else {
+            updateUiWithEntry(entry);
+        }
+    }
+
+    private void updateUiWithEntry(Entry entry) {
+        if (entry == null || entry.getId() != currentId) return;
 
         boolean hasOriginal = entry.getOriginalHtml() != null || entry.getHtml() != null;
         boolean hasTranslated = entry.getTranslatedHtml() != null;
@@ -490,11 +509,17 @@ public class WebViewActivity extends AppCompatActivity implements ReloadDialog.R
             sumToggle.setTitle(isSummarized ? "Show Original" : "Show Summary");
             sumToggle.setIcon(isSummarized ? R.drawable.ic_check : R.drawable.ic_summary);
         }
-        
+
         boolean isWebViewMode = sharedPreferencesRepository.getWebViewMode(currentId);
-        toolbar.getMenu().findItem(R.id.openInBrowser).setVisible(!isWebViewMode);
-        toolbar.getMenu().findItem(R.id.exitBrowser).setVisible(isWebViewMode);
-        toolbar.getMenu().findItem(R.id.reload).setVisible(true);
+        if (toolbar.getMenu().findItem(R.id.openInBrowser) != null) {
+            toolbar.getMenu().findItem(R.id.openInBrowser).setVisible(!isWebViewMode);
+        }
+        if (toolbar.getMenu().findItem(R.id.exitBrowser) != null) {
+            toolbar.getMenu().findItem(R.id.exitBrowser).setVisible(isWebViewMode);
+        }
+        if (toolbar.getMenu().findItem(R.id.reload) != null) {
+            toolbar.getMenu().findItem(R.id.reload).setVisible(true);
+        }
     }
 
     @Override public void onTranslate() { translate(); }

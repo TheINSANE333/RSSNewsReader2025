@@ -70,8 +70,8 @@ public class TtsExtractor {
     private WebView webView;
     private String currentLink;
     private String currentTitle;
-    private long currentIdInProgress;
-    private boolean extractionInProgress;
+    private volatile long currentIdInProgress;
+    private volatile boolean extractionInProgress;
     private int delayTime;
     private TtsPlayerListener ttsCallback;
 
@@ -83,13 +83,13 @@ public class TtsExtractor {
 
     private Date playlistDate;
     public static final String DELIMITER = "--####--";
-    private final List<Long> failedIds = new ArrayList<>();
-    private final HashMap<Long, Integer> retryCountMap = new HashMap<>();
+    private final List<Long> failedIds = java.util.Collections.synchronizedList(new ArrayList<>());
+    private final java.util.concurrent.ConcurrentHashMap<Long, Integer> retryCountMap = new java.util.concurrent.ConcurrentHashMap<>();
     private final int MAX_RETRIES = 5;
     private static final int MIN_CONTENT_LENGTH = 100;
     private long lastExtractStart = 0;
 
-    private long lastSuccessfullyProcessedId = -1;
+    private volatile long lastSuccessfullyProcessedId = -1;
 
     @SuppressLint("SetJavaScriptEnabled")
     @Inject
@@ -150,44 +150,46 @@ public class TtsExtractor {
              Timber.d("Item " + currentIdInProgress + " failed, not marking as successfully processed.");
         }
 
-        // Your existing cleanup logic
-        if (currentIdInProgress == GlobalState.getCurrentViewingId()) {
-            if (ttsCallback != null) {
-                String lang = currentLanguage != null ? currentLanguage : "en";
-                Entry entry = entryRepository.getEntryById(currentIdInProgress);
-                String contentToRead;
+        Schedulers.io().scheduleDirect(() -> {
+            // Your existing cleanup logic
+            if (currentIdInProgress == GlobalState.getCurrentViewingId()) {
+                if (ttsCallback != null) {
+                    String lang = currentLanguage != null ? currentLanguage : "en";
+                    Entry entry = entryRepository.getEntryById(currentIdInProgress);
+                    String contentToRead;
 
-                // We fetch the preference again to ensure we use the latest user setting
-                boolean isTranslated = sharedPreferencesRepository.getIsTranslatedView(currentIdInProgress);
-                boolean isSummarized = sharedPreferencesRepository.getIsSummarizedView(currentIdInProgress);
+                    // We fetch the preference again to ensure we use the latest user setting
+                    boolean isTranslated = sharedPreferencesRepository.getIsTranslatedView(currentIdInProgress);
+                    boolean isSummarized = sharedPreferencesRepository.getIsSummarizedView(currentIdInProgress);
 
-                if (isTranslated && entry != null && entry.getTranslated() != null && !entry.getTranslated().trim().isEmpty()) {
-                    contentToRead = entry.getTranslated();
-                    lang = sharedPreferencesRepository.getDefaultTranslationLanguage();
-                    Timber.d("[TtsExtractor] Using translated content for TTS");
-                } else if (isSummarized && entry != null && entry.getSummarized() != null && !entry.getSummarized().trim().isEmpty()) {
-                    contentToRead = entry.getSummarized();
-                    lang = sharedPreferencesRepository.getDefaultTranslationLanguage();
-                    Timber.d("[TtsExtractor] Using summarized content for TTS");
-                } else {
-                    contentToRead = entry != null ? entry.getContent() : "";
-                    Timber.d("[TtsExtractor] Using original content for TTS");
+                    if (isTranslated && entry != null && entry.getTranslated() != null && !entry.getTranslated().trim().isEmpty()) {
+                        contentToRead = entry.getTranslated();
+                        lang = sharedPreferencesRepository.getDefaultTranslationLanguage();
+                        Timber.d("[TtsExtractor] Using translated content for TTS");
+                    } else if (isSummarized && entry != null && entry.getSummarized() != null && !entry.getSummarized().trim().isEmpty()) {
+                        contentToRead = entry.getSummarized();
+                        lang = sharedPreferencesRepository.getDefaultTranslationLanguage();
+                        Timber.d("[TtsExtractor] Using summarized content for TTS");
+                    } else {
+                        contentToRead = entry != null ? entry.getContent() : "";
+                        Timber.d("[TtsExtractor] Using original content for TTS");
+                    }
+
+                    ttsCallback.extractToTts(contentToRead, lang);
+                    ttsCallback = null; // Consume the callback so it doesn't fire again unexpectedly
                 }
-
-                ttsCallback.extractToTts(contentToRead, lang);
-                ttsCallback = null; // Consume the callback so it doesn't fire again unexpectedly
+            } else {
+                Timber.d("Not viewing this ID. CurrentInProgress: " + currentIdInProgress + ", GlobalViewing: " + GlobalState.getCurrentViewingId());
             }
-        } else {
-            Timber.d("Not viewing this ID. CurrentInProgress: " + currentIdInProgress + ", GlobalViewing: " + GlobalState.getCurrentViewingId());
-        }
 
-        finishedSetupLiveData.postValue(true);
+            finishedSetupLiveData.postValue(true);
 
-        currentIdInProgress = -1;
-        extractionInProgress = false;
+            currentIdInProgress = -1;
+            extractionInProgress = false;
 
-        // LOAD THE NEXT URL
-        extractAllEntries();
+            // LOAD THE NEXT URL
+            extractAllEntries();
+        });
     }
 
     public void resetAndRetry(long entryId) {
@@ -531,363 +533,365 @@ public class TtsExtractor {
             return;
         }
 
-        Handler handler = new Handler(Looper.getMainLooper());
-        try {
-            // 1. Parse with Readability4J
-            Readability4JExtended readability4J = new Readability4JExtended(link, html);
-            Article article = readability4J.parse();
-            StringBuilder content = new StringBuilder();
+        // Move to background thread to avoid ANR during heavy parsing
+        Schedulers.io().scheduleDirect(() -> {
+            Handler handler = new Handler(Looper.getMainLooper());
+            try {
+                // 1. Parse with Readability4J
+                Readability4JExtended readability4J = new Readability4JExtended(link, html);
+                Article article = readability4J.parse();
+                StringBuilder content = new StringBuilder();
 
-            String articleContent = article.getContentWithUtf8Encoding();
-            if (articleContent != null) {
-                // 2. Clean with Jsoup
-                Document doc = Jsoup.parse(articleContent);
+                String articleContent = article.getContentWithUtf8Encoding();
+                if (articleContent != null) {
+                    // 2. Clean with Jsoup
+                    Document doc = Jsoup.parse(articleContent);
 
-                // Clean images and layout
-                doc.select("img").removeAttr("width");
-                doc.select("img").removeAttr("height");
-                doc.select("img").removeAttr("sizes");
-                doc.select("img").removeAttr("srcset");
-                doc.select("h1").remove();
-                doc.select("img").attr("style", "border-radius: 5px; width: 100%; margin-left:0");
-                doc.select("figure").attr("style", "width: 100%; margin-left:0");
-                doc.select("iframe").attr("style", "width: 100%; margin-left:0");
+                    // Clean images and layout
+                    doc.select("img").removeAttr("width");
+                    doc.select("img").removeAttr("height");
+                    doc.select("img").removeAttr("sizes");
+                    doc.select("img").removeAttr("srcset");
+                    doc.select("h1").remove();
+                    doc.select("img").attr("style", "border-radius: 5px; width: 100%; margin-left:0");
+                    doc.select("figure").attr("style", "width: 100%; margin-left:0");
+                    doc.select("iframe").attr("style", "width: 100%; margin-left:0");
 
-                List<String> tags = Arrays.asList("h1", "h2", "h3", "h4", "h5", "h6", "p", "td", "pre", "th", "li", "figcaption", "blockquote", "section", "div");
+                    List<String> tags = Arrays.asList("h1", "h2", "h3", "h4", "h5", "h6", "p", "td", "pre", "th", "li", "figcaption", "blockquote", "section", "div");
 
-                // Initialize the Sentence Iterator with Locale.ROOT for universal language support
-                BreakIterator sentenceIterator = BreakIterator.getSentenceInstance(Locale.ROOT);
+                    // Initialize the Sentence Iterator with Locale.ROOT for universal language support
+                    BreakIterator sentenceIterator = BreakIterator.getSentenceInstance(Locale.ROOT);
 
-                // Extract text by sentences
-                Elements allElements = doc.getAllElements();
-                for (Element element : allElements) {
-                    if (tags.contains(element.tagName())) {
-                        // Check if any ancestor is also in the selected elements to avoid double counting
-                        // We only process the highest-level container in our tag list
-                        boolean hasSelectedAncestor = false;
-                        Element parent = element.parent();
-                        while (parent != null) {
-                            if (tags.contains(parent.tagName())) {
-                                hasSelectedAncestor = true;
-                                break;
-                            }
-                            parent = parent.parent();
-                        }
-
-                        if (!hasSelectedAncestor) {
-                            String elementText = element.text().trim();
-                            if (!elementText.isEmpty() && elementText.length() > 1) {
-
-                                // --- START SENTENCE SPLITTING LOGIC ---
-                                sentenceIterator.setText(elementText);
-                                int start = sentenceIterator.first();
-                                int end = sentenceIterator.next();
-
-                                while (end != BreakIterator.DONE) {
-                                    String candidate = elementText.substring(start, end);
-                                    String sentence = candidate.trim();
-
-                                    // Check if the sentence ends with a common abbreviation
-                                    if (textUtil.endsWithAbbreviation(sentence)) {
-                                        int nextEnd = sentenceIterator.next();
-                                        if (nextEnd != BreakIterator.DONE) {
-                                            end = nextEnd;
-                                            continue;
-                                        }
-                                    }
-
-                                    if (!sentence.isEmpty()) {
-                                        if (content.length() > 0) {
-                                            // Always add DELIMITER BEFORE adding a new sentence
-                                            content.append(DELIMITER).append(sentence);
-                                        } else {
-                                            content.append(sentence);
-                                        }
-                                    }
-                                    start = end;
-                                    end = sentenceIterator.next();
+                    // Extract text by sentences
+                    Elements allElements = doc.getAllElements();
+                    for (Element element : allElements) {
+                        if (tags.contains(element.tagName())) {
+                            // Check if any ancestor is also in the selected elements to avoid double counting
+                            // We only process the highest-level container in our tag list
+                            boolean hasSelectedAncestor = false;
+                            Element parent = element.parent();
+                            while (parent != null) {
+                                if (tags.contains(parent.tagName())) {
+                                    hasSelectedAncestor = true;
+                                    break;
                                 }
-                                // --- END SENTENCE SPLITTING LOGIC ---
+                                parent = parent.parent();
+                            }
 
-                            } else if (elementText.length() <= 1) {
-                                element.remove();
+                            if (!hasSelectedAncestor) {
+                                String elementText = element.text().trim();
+                                if (!elementText.isEmpty() && elementText.length() > 1) {
+
+                                    // --- START SENTENCE SPLITTING LOGIC ---
+                                    sentenceIterator.setText(elementText);
+                                    int start = sentenceIterator.first();
+                                    int end = sentenceIterator.next();
+
+                                    while (end != BreakIterator.DONE) {
+                                        String candidate = elementText.substring(start, end);
+                                        String sentence = candidate.trim();
+
+                                        // Check if the sentence ends with a common abbreviation
+                                        if (textUtil.endsWithAbbreviation(sentence)) {
+                                            int nextEnd = sentenceIterator.next();
+                                            if (nextEnd != BreakIterator.DONE) {
+                                                end = nextEnd;
+                                                continue;
+                                            }
+                                        }
+
+                                        if (!sentence.isEmpty()) {
+                                            if (content.length() > 0) {
+                                                // Always add DELIMITER BEFORE adding a new sentence
+                                                content.append(DELIMITER).append(sentence);
+                                            } else {
+                                                content.append(sentence);
+                                            }
+                                        }
+                                        start = end;
+                                        end = sentenceIterator.next();
+                                    }
+                                    // --- END SENTENCE SPLITTING LOGIC ---
+
+                                } else if (elementText.length() <= 1) {
+                                    element.remove();
+                                }
                             }
                         }
                     }
-                }
 
-                // Only prepend title if it's not already at the start of the content
-                String tempContent = content.toString().trim();
-                
-                // Fallback to basic text if extraction yielded very little but body has content
-                if (tempContent.length() < MIN_CONTENT_LENGTH) {
-                    String bodyText = doc.body().text();
-                    if (bodyText.length() > tempContent.length() + 50) {
-                         Timber.d("Extraction too short (" + tempContent.length() + "). Falling back to body text (" + bodyText.length() + ")");
-                         tempContent = bodyText;
-                         content = new StringBuilder(tempContent);
+                    // Only prepend title if it's not already at the start of the content
+                    String tempContent = content.toString().trim();
+
+                    // Fallback to basic text if extraction yielded very little but body has content
+                    if (tempContent.length() < MIN_CONTENT_LENGTH) {
+                        String bodyText = doc.body().text();
+                        if (bodyText.length() > tempContent.length() + 50) {
+                            Timber.d("Extraction too short (" + tempContent.length() + "). Falling back to body text (" + bodyText.length() + ")");
+                            tempContent = bodyText;
+                            content = new StringBuilder(tempContent);
+                        }
                     }
-                }
 
-                if (title != null && !title.trim().isEmpty()) {
-                    String cleanTitle = title.trim();
-                    boolean isRedundant = false;
-                    
-                    // Case-insensitive check for redundant title at the start
-                    if (tempContent.toLowerCase().startsWith(cleanTitle.toLowerCase())) {
-                        isRedundant = true;
-                    } else {
-                        // Check if the first sentence/line is basically the title
-                        String firstLine = tempContent.split(DELIMITER)[0].trim();
-                        if (firstLine.equalsIgnoreCase(cleanTitle) || 
-                            (firstLine.length() < 100 && cleanTitle.toLowerCase().contains(firstLine.toLowerCase()))) {
+                    if (title != null && !title.trim().isEmpty()) {
+                        String cleanTitle = title.trim();
+                        boolean isRedundant = false;
+
+                        // Case-insensitive check for redundant title at the start
+                        if (tempContent.toLowerCase().startsWith(cleanTitle.toLowerCase())) {
                             isRedundant = true;
+                        } else {
+                            // Check if the first sentence/line is basically the title
+                            String firstLine = tempContent.split(DELIMITER)[0].trim();
+                            if (firstLine.equalsIgnoreCase(cleanTitle) ||
+                                    (firstLine.length() < 100 && cleanTitle.toLowerCase().contains(firstLine.toLowerCase()))) {
+                                isRedundant = true;
+                            }
+                        }
+
+                        if (!isRedundant) {
+                            content.insert(0, cleanTitle + DELIMITER);
                         }
                     }
 
-                    if (!isRedundant) {
-                        content.insert(0, cleanTitle + DELIMITER);
+                    String extractedContent = content.toString();
+                    int attempts = retryCountMap.getOrDefault(entryId, 0);
+
+                    if (extractedContent.length() < MIN_CONTENT_LENGTH && attempts < MAX_RETRIES) {
+                        Timber.w("Extracted content too short (" + extractedContent.length() + " chars) for ID: " + entryId + ". Attempt: " + attempts + ". Retrying...");
+                        handleFailure(entryId);
+                        return;
                     }
-                }
 
-                String extractedContent = content.toString();
-                int attempts = retryCountMap.getOrDefault(entryId, 0);
+                    // Save Content & Backup HTML
+                    entryRepository.updateContent(extractedContent, entryId);
 
-                if (extractedContent.length() < MIN_CONTENT_LENGTH && attempts < MAX_RETRIES) {
-                    Timber.w("Extracted content too short (" + extractedContent.length() + " chars) for ID: " + entryId + ". Attempt: " + attempts + ". Retrying...");
-                    handleFailure(entryId);
-                    return;
-                }
+                    String existingOriginal = entryRepository.getOriginalHtmlById(entryId);
+                    String newHtml = doc.html();
+                    boolean isProcessed = newHtml.contains("summarized-title") || newHtml.contains("translated-title");
 
-                // Save Content & Backup HTML
-                entryRepository.updateContent(extractedContent, entryId);
-                
-                String existingOriginal = entryRepository.getOriginalHtmlById(entryId);
-                String newHtml = doc.html();
-                boolean isProcessed = newHtml.contains("summarized-title") || newHtml.contains("translated-title");
-                
-                if ((existingOriginal == null || existingOriginal.trim().isEmpty()) && !isProcessed) {
-                    entryRepository.updateOriginalHtml(newHtml, entryId);
-                    Timber.d("Original HTML backed up for ID: " + entryId);
-                }
+                    if ((existingOriginal == null || existingOriginal.trim().isEmpty()) && !isProcessed) {
+                        entryRepository.updateOriginalHtml(newHtml, entryId);
+                        Timber.d("Original HTML backed up for ID: " + entryId);
+                    }
 
-                // View State Logic
-                boolean isSummarizedView = sharedPreferencesRepository.getIsSummarizedView(entryId);
-                String existingSummarized = entryRepository.getSummarizedTextById(entryId);
-                boolean hasSummarization = existingSummarized != null && !existingSummarized.trim().isEmpty();
+                    // View State Logic
+                    boolean isSummarizedView = sharedPreferencesRepository.getIsSummarizedView(entryId);
+                    String existingSummarized = entryRepository.getSummarizedTextById(entryId);
+                    boolean hasSummarization = existingSummarized != null && !existingSummarized.trim().isEmpty();
 
-                if (!isSummarizedView || !hasSummarization) {
-                    entryRepository.updateHtml(doc.html(), entryId);
-                }
+                    if (!isSummarizedView || !hasSummarization) {
+                        entryRepository.updateHtml(doc.html(), entryId);
+                    }
 
-                boolean isTranslatedView = sharedPreferencesRepository.getIsTranslatedView(entryId);
-                String existingTranslated = entryRepository.getTranslatedTextById(entryId);
-                boolean hasTranslation = existingTranslated != null && !existingTranslated.trim().isEmpty();
+                    boolean isTranslatedView = sharedPreferencesRepository.getIsTranslatedView(entryId);
+                    String existingTranslated = entryRepository.getTranslatedTextById(entryId);
+                    boolean hasTranslation = existingTranslated != null && !existingTranslated.trim().isEmpty();
 
-                if (!isTranslatedView || !hasTranslation) {
-                    entryRepository.updateHtml(doc.html(), entryId);
-                }
+                    if (!isTranslatedView || !hasTranslation) {
+                        entryRepository.updateHtml(doc.html(), entryId);
+                    }
 
-                // 3. Loop Guard
-                final long processingId = entryId;
-                final String processingTitle = title;
+                    // 3. Loop Guard
+                    final long processingId = entryId;
+                    final String processingTitle = title;
 
-                if (processingId == lastSuccessfullyProcessedId) {
-                    Timber.e("LOOP DETECTED on ID " + processingId + ". Skipping this entry.");
-                    extractionInProgress = false;
-                    currentIdInProgress = -1;
-                    // Try to find another entry instead of stopping
-                    handler.postDelayed(this::extractAllEntries, 1000);
-                    return;
-                }
+                    if (processingId == lastSuccessfullyProcessedId) {
+                        Timber.e("LOOP DETECTED on ID " + processingId + ". Skipping this entry.");
+                        extractionInProgress = false;
+                        currentIdInProgress = -1;
+                        // Try to find another entry instead of stopping
+                        handler.postDelayed(this::extractAllEntries, 1000);
+                        return;
+                    }
 
-                boolean shouldTranslateGlobal = sharedPreferencesRepository.getAutoTranslate();
-                boolean shouldSummarizeGlobal = sharedPreferencesRepository.getAutoSummarize();
-                
-                final Entry entryObj = entryRepository.getEntryById(processingId);
-                final Feed feed = (entryObj != null) ? feedRepository.getFeedById(entryObj.getFeedId()) : null;
-                
-                boolean shouldTranslateFeed = false;
-                boolean shouldSummarizeFeed = false;
-                if (feed != null) {
-                    shouldTranslateFeed = feed.isAutoTranslate();
-                    shouldSummarizeFeed = feed.isAutoSummarize();
-                }
-                
-                boolean shouldTranslate = shouldTranslateGlobal && shouldTranslateFeed;
-                boolean shouldSummarize = shouldSummarizeGlobal && shouldSummarizeFeed;
-                int length = sharedPreferencesRepository.getSummaryLength();
+                    boolean shouldTranslateGlobal = sharedPreferencesRepository.getAutoTranslate();
+                    boolean shouldSummarizeGlobal = sharedPreferencesRepository.getAutoSummarize();
 
-                // 4. Determine Source Language
-                Single<String> sourceLangSingle;
-                if (currentLanguage != null && !currentLanguage.isEmpty() && !"und".equalsIgnoreCase(currentLanguage)) {
-                    sourceLangSingle = Single.just(currentLanguage);
-                } else {
-                    Timber.d("Language unknown. Detecting from content...");
-                    sourceLangSingle = textUtil.identifyLanguageRx(content.toString());
-                }
+                    final Entry entryObj = entryRepository.getEntryById(processingId);
+                    final Feed feed = (entryObj != null) ? feedRepository.getFeedById(entryObj.getFeedId()) : null;
 
-                // 5. Chain: Identify -> Translate/Summarize
-                sourceLangSingle
-                        .subscribeOn(Schedulers.io())
-                        .observeOn(AndroidSchedulers.mainThread())
-                        .subscribe(detectedLang -> {
-                            // Safety Check: Entry could have been deleted or database could be in a transient state
-                            if (entryObj == null) {
-                                Timber.e("entryObj is null in sourceLangSingle. Skipping processing for ID: " + processingId);
-                                if (processingId == currentIdInProgress) {
-                                    finishAndMoveToNext();
-                                }
-                                return;
-                            }
+                    boolean shouldTranslateFeed = false;
+                    boolean shouldSummarizeFeed = false;
+                    if (feed != null) {
+                        shouldTranslateFeed = feed.isAutoTranslate();
+                        shouldSummarizeFeed = feed.isAutoSummarize();
+                    }
 
-                            // Localize the language for this specific processing chain
-                            final String localizedLang = detectedLang; 
-                            setCurrentLanguage(detectedLang, false); // Sync back for legacy compatibility, respecting lock
-                            
-                            String targetLang = sharedPreferencesRepository.getDefaultTranslationLanguage();
-                            boolean isSameLanguage = localizedLang.equalsIgnoreCase(targetLang);
+                    boolean shouldTranslate = shouldTranslateGlobal && shouldTranslateFeed;
+                    boolean shouldSummarize = shouldSummarizeGlobal && shouldSummarizeFeed;
+                    int length = sharedPreferencesRepository.getSummaryLength();
 
-                            boolean isAlreadyTranslated = entryObj.getTranslated() != null && !entryObj.getTranslated().trim().isEmpty();
-                            boolean isAlreadySummarized = entryObj.getSummarized() != null && !entryObj.getSummarized().trim().isEmpty();
+                    // 4. Determine Source Language
+                    Single<String> sourceLangSingle;
+                    if (currentLanguage != null && !currentLanguage.isEmpty() && !"und".equalsIgnoreCase(currentLanguage)) {
+                        sourceLangSingle = Single.just(currentLanguage);
+                    } else {
+                        Timber.d("Language unknown. Detecting from content...");
+                        sourceLangSingle = textUtil.identifyLanguageRx(content.toString());
+                    }
 
-                            boolean isTranslating = xiangze.mmu.rssnewsreader.service.util.AutoTranslator.isProcessing(processingId);
-                            boolean isSummarizing = xiangze.mmu.rssnewsreader.service.util.AutoSummarizer.isProcessing(processingId);
-
-                            boolean doTranslate = shouldTranslate && !isSameLanguage && !isAlreadyTranslated && !isTranslating;
-                            boolean doSummarize = shouldSummarize && !isAlreadySummarized && !isSummarizing;
-
-                            if (doTranslate && doSummarize) {
-                                if (feed == null) {
-                                    Timber.e("feed is null but translation/summarization requested. Skipping.");
-                                    if (processingId == currentIdInProgress) finishAndMoveToNext();
-                                    return;
-                                }
-                                xiangze.mmu.rssnewsreader.service.util.AutoTranslator.processingIds.add(processingId);
-                                xiangze.mmu.rssnewsreader.service.util.AutoSummarizer.processingIds.add(processingId);
-
-                                Single.zip(
-                                        textUtil.translateHtmlAllAtOnce(localizedLang, targetLang, doc.html(), processingTitle, processingId, progress -> {}, false).subscribeOn(Schedulers.io()),
-                                        textUtil.summarizeHtmlAllAtOnce(localizedLang, targetLang, doc.html(), length, processingId, processingTitle, progress -> {}, false).subscribeOn(Schedulers.io()),
-                                        (translatedHtml, summarizedHtml) -> new String[]{translatedHtml, summarizedHtml}
-                                )
-                                .observeOn(AndroidSchedulers.mainThread())
-                                .doFinally(() -> {
-                                    xiangze.mmu.rssnewsreader.service.util.AutoTranslator.processingIds.remove(processingId);
-                                    xiangze.mmu.rssnewsreader.service.util.AutoSummarizer.processingIds.remove(processingId);
-                                })
-                                .subscribe(results -> {
-                                    String translatedHtmlRaw = results[0];
-                                    String summarizedHtmlRaw = results[1];
-
-                                    TextUtil.ProcessedAiResponse translatedProcessed = textUtil.processAiResponse(
-                                            translatedHtmlRaw,
-                                            processingTitle,
-                                            feed.getTitle(),
-                                            entryObj.getPublishedDate(),
-                                            feed.getImageUrl(),
-                                            sharedPreferencesRepository.getNight(),
-                                            "translated-title"
-                                    );
-
-                                    TextUtil.ProcessedAiResponse summarizedProcessed = textUtil.processAiResponse(
-                                            summarizedHtmlRaw,
-                                            processingTitle,
-                                            feed.getTitle(),
-                                            entryObj.getPublishedDate(),
-                                            feed.getImageUrl(),
-                                            sharedPreferencesRepository.getNight(),
-                                            "summarized-title"
-                                    );
-
-                                    entryRepository.updateTranslatedPair(processingId, translatedProcessed.contentToRead, translatedProcessed.html);
-                                    entryRepository.updateSummarizedPair(processingId, summarizedProcessed.contentToRead, summarizedProcessed.html);
-
+                    // 5. Chain: Identify -> Translate/Summarize
+                    sourceLangSingle
+                            .subscribeOn(Schedulers.io())
+                            .observeOn(AndroidSchedulers.mainThread())
+                            .subscribe(detectedLang -> {
+                                // Safety Check: Entry could have been deleted or database could be in a transient state
+                                if (entryObj == null) {
+                                    Timber.e("entryObj is null in sourceLangSingle. Skipping processing for ID: " + processingId);
                                     if (processingId == currentIdInProgress) {
-                                        handler.postDelayed(this::finishAndMoveToNext, Math.max(WebClient.TRANSLATION_COOLDOWN_MS, WebClient.SUMMARIZATION_COOLDOWN_MS));
+                                        finishAndMoveToNext();
                                     }
-                                }, error -> handleError(error, processingId));
-
-                            } else if (doTranslate) {
-                                if (feed == null) {
-                                    if (processingId == currentIdInProgress) finishAndMoveToNext();
                                     return;
                                 }
-                                xiangze.mmu.rssnewsreader.service.util.AutoTranslator.processingIds.add(processingId);
 
-                                textUtil.translateHtmlAllAtOnce(localizedLang, targetLang, doc.html(), processingTitle, processingId, progress -> {}, false)
-                                        .subscribeOn(Schedulers.io())
-                                        .observeOn(AndroidSchedulers.mainThread())
-                                        .doFinally(() -> xiangze.mmu.rssnewsreader.service.util.AutoTranslator.processingIds.remove(processingId))
-                                        .subscribe(translatedHtmlRaw -> {
-                                            TextUtil.ProcessedAiResponse translatedProcessed = textUtil.processAiResponse(
-                                                    translatedHtmlRaw,
-                                                    processingTitle,
-                                                    feed.getTitle(),
-                                                    entryObj.getPublishedDate(),
-                                                    feed.getImageUrl(),
-                                                    sharedPreferencesRepository.getNight(),
-                                                    "translated-title"
-                                            );
+                                // Localize the language for this specific processing chain
+                                final String localizedLang = detectedLang;
+                                setCurrentLanguage(detectedLang, false); // Sync back for legacy compatibility, respecting lock
 
-                                            entryRepository.updateTranslatedPair(processingId, translatedProcessed.contentToRead, translatedProcessed.html);
+                                String targetLang = sharedPreferencesRepository.getDefaultTranslationLanguage();
+                                boolean isSameLanguage = localizedLang.equalsIgnoreCase(targetLang);
 
-                                            if (processingId == currentIdInProgress) {
-                                                handler.postDelayed(this::finishAndMoveToNext, WebClient.TRANSLATION_COOLDOWN_MS);
-                                            }
-                                        }, error -> handleError(error, processingId));
+                                boolean isAlreadyTranslated = entryObj.getTranslated() != null && !entryObj.getTranslated().trim().isEmpty();
+                                boolean isAlreadySummarized = entryObj.getSummarized() != null && !entryObj.getSummarized().trim().isEmpty();
 
-                            } else if (doSummarize) {
-                                if (feed == null) {
-                                    if (processingId == currentIdInProgress) finishAndMoveToNext();
-                                    return;
+                                boolean isTranslating = xiangze.mmu.rssnewsreader.service.util.AutoTranslator.isProcessing(processingId);
+                                boolean isSummarizing = xiangze.mmu.rssnewsreader.service.util.AutoSummarizer.isProcessing(processingId);
+
+                                boolean doTranslate = shouldTranslate && !isSameLanguage && !isAlreadyTranslated && !isTranslating;
+                                boolean doSummarize = shouldSummarize && !isAlreadySummarized && !isSummarizing;
+
+                                if (doTranslate && doSummarize) {
+                                    if (feed == null) {
+                                        Timber.e("feed is null but translation/summarization requested. Skipping.");
+                                        if (processingId == currentIdInProgress) finishAndMoveToNext();
+                                        return;
+                                    }
+                                    xiangze.mmu.rssnewsreader.service.util.AutoTranslator.processingIds.add(processingId);
+                                    xiangze.mmu.rssnewsreader.service.util.AutoSummarizer.processingIds.add(processingId);
+
+                                    Single.zip(
+                                            textUtil.translateHtmlAllAtOnce(localizedLang, targetLang, doc.html(), processingTitle, processingId, progress -> {}, false).subscribeOn(Schedulers.io()),
+                                            textUtil.summarizeHtmlAllAtOnce(localizedLang, targetLang, doc.html(), length, processingId, processingTitle, progress -> {}, false).subscribeOn(Schedulers.io()),
+                                            (translatedHtml, summarizedHtml) -> new String[]{translatedHtml, summarizedHtml}
+                                    )
+                                            .observeOn(AndroidSchedulers.mainThread())
+                                            .doFinally(() -> {
+                                                xiangze.mmu.rssnewsreader.service.util.AutoTranslator.processingIds.remove(processingId);
+                                                xiangze.mmu.rssnewsreader.service.util.AutoSummarizer.processingIds.remove(processingId);
+                                            })
+                                            .subscribe(results -> {
+                                                String translatedHtmlRaw = results[0];
+                                                String summarizedHtmlRaw = results[1];
+
+                                                TextUtil.ProcessedAiResponse translatedProcessed = textUtil.processAiResponse(
+                                                        translatedHtmlRaw,
+                                                        processingTitle,
+                                                        feed.getTitle(),
+                                                        entryObj.getPublishedDate(),
+                                                        feed.getImageUrl(),
+                                                        sharedPreferencesRepository.getNight(),
+                                                        "translated-title"
+                                                );
+
+                                                TextUtil.ProcessedAiResponse summarizedProcessed = textUtil.processAiResponse(
+                                                        summarizedHtmlRaw,
+                                                        processingTitle,
+                                                        feed.getTitle(),
+                                                        entryObj.getPublishedDate(),
+                                                        feed.getImageUrl(),
+                                                        sharedPreferencesRepository.getNight(),
+                                                        "summarized-title"
+                                                );
+
+                                                entryRepository.updateTranslatedPair(processingId, translatedProcessed.contentToRead, translatedProcessed.html);
+                                                entryRepository.updateSummarizedPair(processingId, summarizedProcessed.contentToRead, summarizedProcessed.html);
+
+                                                if (processingId == currentIdInProgress) {
+                                                    handler.postDelayed(this::finishAndMoveToNext, Math.max(WebClient.TRANSLATION_COOLDOWN_MS, WebClient.SUMMARIZATION_COOLDOWN_MS));
+                                                }
+                                            }, error -> handleError(error, processingId));
+
+                                } else if (doTranslate) {
+                                    if (feed == null) {
+                                        if (processingId == currentIdInProgress) finishAndMoveToNext();
+                                        return;
+                                    }
+                                    xiangze.mmu.rssnewsreader.service.util.AutoTranslator.processingIds.add(processingId);
+
+                                    textUtil.translateHtmlAllAtOnce(localizedLang, targetLang, doc.html(), processingTitle, processingId, progress -> {}, false)
+                                            .subscribeOn(Schedulers.io())
+                                            .observeOn(AndroidSchedulers.mainThread())
+                                            .doFinally(() -> xiangze.mmu.rssnewsreader.service.util.AutoTranslator.processingIds.remove(processingId))
+                                            .subscribe(translatedHtmlRaw -> {
+                                                TextUtil.ProcessedAiResponse translatedProcessed = textUtil.processAiResponse(
+                                                        translatedHtmlRaw,
+                                                        processingTitle,
+                                                        feed.getTitle(),
+                                                        entryObj.getPublishedDate(),
+                                                        feed.getImageUrl(),
+                                                        sharedPreferencesRepository.getNight(),
+                                                        "translated-title"
+                                                );
+
+                                                entryRepository.updateTranslatedPair(processingId, translatedProcessed.contentToRead, translatedProcessed.html);
+
+                                                if (processingId == currentIdInProgress) {
+                                                    handler.postDelayed(this::finishAndMoveToNext, WebClient.TRANSLATION_COOLDOWN_MS);
+                                                }
+                                            }, error -> handleError(error, processingId));
+
+                                } else if (doSummarize) {
+                                    if (feed == null) {
+                                        if (processingId == currentIdInProgress) finishAndMoveToNext();
+                                        return;
+                                    }
+                                    xiangze.mmu.rssnewsreader.service.util.AutoSummarizer.processingIds.add(processingId);
+
+                                    textUtil.summarizeHtmlAllAtOnce(localizedLang, targetLang, doc.html(), length, processingId, processingTitle, progress -> {}, false)
+                                            .subscribeOn(Schedulers.io())
+                                            .observeOn(AndroidSchedulers.mainThread())
+                                            .doFinally(() -> xiangze.mmu.rssnewsreader.service.util.AutoSummarizer.processingIds.remove(processingId))
+                                            .subscribe(summarizedHtmlRaw -> {
+                                                TextUtil.ProcessedAiResponse summarizedProcessed = textUtil.processAiResponse(
+                                                        summarizedHtmlRaw,
+                                                        processingTitle,
+                                                        feed.getTitle(),
+                                                        entryObj.getPublishedDate(),
+                                                        feed.getImageUrl(),
+                                                        sharedPreferencesRepository.getNight(),
+                                                        "summarized-title"
+                                                );
+
+                                                entryRepository.updateSummarizedPair(processingId, summarizedProcessed.contentToRead, summarizedProcessed.html);
+
+                                                if (processingId == currentIdInProgress) {
+                                                    handler.postDelayed(this::finishAndMoveToNext, WebClient.SUMMARIZATION_COOLDOWN_MS);
+                                                }
+                                            }, error -> handleError(error, processingId));
+                                } else {
+                                    if (processingId == currentIdInProgress) {
+                                        finishAndMoveToNext();
+                                    }
                                 }
-                                xiangze.mmu.rssnewsreader.service.util.AutoSummarizer.processingIds.add(processingId);
-
-                                textUtil.summarizeHtmlAllAtOnce(localizedLang, targetLang, doc.html(), length, processingId, processingTitle, progress -> {}, false)
-                                        .subscribeOn(Schedulers.io())
-                                        .observeOn(AndroidSchedulers.mainThread())
-                                        .doFinally(() -> xiangze.mmu.rssnewsreader.service.util.AutoSummarizer.processingIds.remove(processingId))
-                                        .subscribe(summarizedHtmlRaw -> {
-                                            TextUtil.ProcessedAiResponse summarizedProcessed = textUtil.processAiResponse(
-                                                    summarizedHtmlRaw,
-                                                    processingTitle,
-                                                    feed.getTitle(),
-                                                    entryObj.getPublishedDate(),
-                                                    feed.getImageUrl(),
-                                                    sharedPreferencesRepository.getNight(),
-                                                    "summarized-title"
-                                            );
-
-                                            entryRepository.updateSummarizedPair(processingId, summarizedProcessed.contentToRead, summarizedProcessed.html);
-
-                                            if (processingId == currentIdInProgress) {
-                                                handler.postDelayed(this::finishAndMoveToNext, WebClient.SUMMARIZATION_COOLDOWN_MS);
-                                            }
-                                        }, error -> handleError(error, processingId));
-                            } else {
+                            }, error -> {
+                                Timber.e(error, "Language detection failed");
                                 if (processingId == currentIdInProgress) {
                                     finishAndMoveToNext();
                                 }
-                            }
-                        }, error -> {
-                            Timber.e(error, "Language detection failed");
-                            if (processingId == currentIdInProgress) {
-                                finishAndMoveToNext();
-                            }
-                        });
+                            });
 
-            } else {
+                } else {
+                    handleFailure(entryId);
+                }
+            } catch (Throwable t) {
+                Timber.e(t, "Fatal error during extraction for ID: " + entryId);
+                if (entryId == GlobalState.getCurrentViewingId()) {
+                    snackbarMessageLiveData.postValue("Extraction crashed: " + t.getClass().getSimpleName() + " - " + t.getMessage());
+                }
                 handleFailure(entryId);
             }
-        } catch (Throwable t) {
-            Timber.e(t, "Fatal error during extraction for ID: " + entryId);
-            if (entryId == GlobalState.getCurrentViewingId()) {
-                snackbarMessageLiveData.postValue("Extraction crashed: " + t.getClass().getSimpleName() + " - " + t.getMessage());
-            }
-            handleFailure(entryId);
-        }
-    }
+        });    }
 
     private void handleError(Throwable error, long id) {
         Timber.e(error, "Process Failed for ID: " + id);

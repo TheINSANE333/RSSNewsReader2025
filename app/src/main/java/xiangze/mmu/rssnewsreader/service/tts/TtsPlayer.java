@@ -464,19 +464,21 @@ public class TtsPlayer extends PlayerAdapter implements TtsPlayerListener {
             new Thread(() -> extractToTts(content, language, extractionId)).start();
         } else {
             // Content is null - check if we already have it in DB before triggering background extraction
-            xiangze.mmu.rssnewsreader.data.entry.Entry dbEntry = entryRepository.getEntryById(currentId);
-            if (dbEntry != null && dbEntry.getContent() != null && !dbEntry.getContent().trim().isEmpty()) {
-                 Timber.d("Content found in DB, using that instead of background extraction.");
-                 String dbContent = dbEntry.getContent();
-                 lastContent = dbContent;
-                 pendingExtractorId = -1;
-                 new Thread(() -> extractToTts(dbContent, language, extractionId)).start();
-            } else {
-                 Timber.d("No content in DB, triggering background extraction.");
-                 pendingExtractorId = extractionId; // Mark this extractionId as waiting for the extractor
-                 ttsExtractor.setCallback(this);
-                 ttsExtractor.prioritize();
-            }
+            new Thread(() -> {
+                xiangze.mmu.rssnewsreader.data.entry.Entry dbEntry = entryRepository.getEntryById(this.currentId);
+                if (dbEntry != null && dbEntry.getContent() != null && !dbEntry.getContent().trim().isEmpty()) {
+                    Timber.d("Content found in DB, using that instead of background extraction.");
+                    String dbContent = dbEntry.getContent();
+                    lastContent = dbContent;
+                    pendingExtractorId = -1;
+                    extractToTts(dbContent, language, extractionId);
+                } else {
+                    Timber.d("No content in DB, triggering background extraction.");
+                    pendingExtractorId = extractionId; // Mark this extractionId as waiting for the extractor
+                    ttsExtractor.setCallback(this);
+                    ttsExtractor.prioritize();
+                }
+            }).start();
         }
     }
 
