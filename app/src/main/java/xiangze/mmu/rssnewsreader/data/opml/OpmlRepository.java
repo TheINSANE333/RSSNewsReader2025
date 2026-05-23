@@ -54,7 +54,7 @@ public class OpmlRepository {
     }
 
     public void importOpml(Uri uri, OnImportCompleteListener listener) {
-        try {
+        io.reactivex.rxjava3.core.Completable.fromAction(() -> {
             InputStream inputStream = context.getContentResolver().openInputStream(uri);
             XmlPullParserFactory factory = XmlPullParserFactory.newInstance();
             XmlPullParser parser = factory.newPullParser();
@@ -74,11 +74,14 @@ public class OpmlRepository {
                 eventType = parser.next();
             }
             if (inputStream != null) inputStream.close();
-            if (listener != null) listener.onImportComplete(true, null);
-        } catch (IOException | XmlPullParserException | ParseException e) {
-            Timber.e(e, "Import failed");
-            if (listener != null) listener.onImportComplete(false, e.getMessage());
-        }
+        }).subscribeOn(io.reactivex.rxjava3.schedulers.Schedulers.io())
+          .observeOn(io.reactivex.rxjava3.android.schedulers.AndroidSchedulers.mainThread())
+          .subscribe(() -> {
+              if (listener != null) listener.onImportComplete(true, null);
+          }, throwable -> {
+              Timber.e(throwable, "Import failed");
+              if (listener != null) listener.onImportComplete(false, throwable.getMessage());
+          });
     }
 
     private void importSettings(XmlPullParser parser) {
@@ -114,6 +117,20 @@ public class OpmlRepository {
         String dailySummaryPrompt = parser.getAttributeValue(null, "daily_summary_prompt");
         String ttsSubstitutions = parser.getAttributeValue(null, "tts_substitutions");
         String savedApiKeys = parser.getAttributeValue(null, "saved_api_keys");
+
+        // FIRST: Restore the full list of saved keys so synchronization logic works
+        if (savedApiKeys != null && !savedApiKeys.isEmpty()) {
+            try {
+                com.google.gson.Gson gson = new com.google.gson.Gson();
+                java.lang.reflect.Type type = new com.google.gson.reflect.TypeToken<java.util.List<SharedPreferencesRepository.ApiKey>>() {}.getType();
+                java.util.List<SharedPreferencesRepository.ApiKey> keys = gson.fromJson(savedApiKeys, type);
+                if (keys != null) {
+                    sharedPreferencesRepository.setSavedApiKeys(keys);
+                }
+            } catch (Exception e) {
+                Timber.e(e, "Failed to parse saved_api_keys");
+            }
+        }
 
         if (jobPeriodic != null && !jobPeriodic.isEmpty()) {
             sharedPreferencesRepository.setJobPeriodic(jobPeriodic);
@@ -218,18 +235,6 @@ public class OpmlRepository {
                 Timber.e(e, "Failed to parse tts_substitutions");
             }
         }
-        if (savedApiKeys != null && !savedApiKeys.isEmpty()) {
-            try {
-                com.google.gson.Gson gson = new com.google.gson.Gson();
-                java.lang.reflect.Type type = new com.google.gson.reflect.TypeToken<java.util.List<SharedPreferencesRepository.ApiKey>>() {}.getType();
-                java.util.List<SharedPreferencesRepository.ApiKey> keys = gson.fromJson(savedApiKeys, type);
-                if (keys != null) {
-                    sharedPreferencesRepository.setSavedApiKeys(keys);
-                }
-            } catch (Exception e) {
-                Timber.e(e, "Failed to parse saved_api_keys");
-            }
-        }
     }
 
     private long importFeed(XmlPullParser parser) {
@@ -249,9 +254,17 @@ public class OpmlRepository {
             ttsSpeechRate = Float.parseFloat(ttsSpeechRateString);
         }
 
+        String autoSummarizeString = parser.getAttributeValue(null, "autoSummarize");
+        boolean autoSummarize = autoSummarizeString == null || autoSummarizeString.equals("true");
+
+        String autoTranslateString = parser.getAttributeValue(null, "autoTranslate");
+        boolean autoTranslate = autoTranslateString == null || autoTranslateString.equals("true");
+
         if (link != null && !link.isEmpty()) {
-            Feed feed = new Feed(title, link, description, imageUrl, (language == null || language.isEmpty()) ? null : language, delayTime, ttsSpeechRate);
-            if (!feedRepository.checkFeedExist(feed.getLink())) {
+            if (feedRepository.checkFeedExist(link)) {
+                feedRepository.updateFeedSettings(title, description, (language == null || language.isEmpty()) ? null : language, autoSummarize, autoTranslate, delayTime, ttsSpeechRate, link);
+            } else {
+                Feed feed = new Feed(title, link, description, imageUrl, (language == null || language.isEmpty()) ? null : language, delayTime, ttsSpeechRate, autoSummarize, autoTranslate);
                 feedRepository.insert(feed);
             }
             return feedRepository.getFeedIdByLink(link);
@@ -263,6 +276,11 @@ public class OpmlRepository {
         String entryTitle = parser.getAttributeValue(null, "entryTitle");
         String bookmark = parser.getAttributeValue(null, "bookmark");
         String visitedDate = parser.getAttributeValue(null, "visitedDate");
+        String priorityString = parser.getAttributeValue(null, "priority");
+        int priority = 0;
+        if (priorityString != null) {
+            priority = Integer.parseInt(priorityString);
+        }
         String link = parser.getAttributeValue(null, "link");
         String description = parser.getAttributeValue(null, "description");
         String publishedDate = parser.getAttributeValue(null, "publishedDate");
@@ -281,12 +299,13 @@ public class OpmlRepository {
             if (visitedDate != null && !visitedDate.isEmpty()) {
                 entry.setVisitedDate(formatter.parse(visitedDate));
             }
+            entry.setPriority(priority);
             entryRepository.insert(feedId, entry);
         }
     }
 
     public void exportOpml(Uri uri, OnExportCompleteListener listener) {
-        try {
+        io.reactivex.rxjava3.core.Completable.fromAction(() -> {
             XmlSerializer serializer = Xml.newSerializer();
             OutputStream os = context.getContentResolver().openOutputStream(uri);
             serializer.setOutput(os, StandardCharsets.UTF_8.name());
@@ -308,6 +327,8 @@ public class OpmlRepository {
                 serializer.attribute(null, "xmlUrl", feed.getLink() != null ? feed.getLink() : "");
                 serializer.attribute(null, "delayTime", Integer.toString(feed.getDelayTime()));
                 serializer.attribute(null, "ttsSpeechRate", Float.toString(feed.getTtsSpeechRate()));
+                serializer.attribute(null, "autoSummarize", feed.isAutoSummarize() ? "true" : "false");
+                serializer.attribute(null, "autoTranslate", feed.isAutoTranslate() ? "true" : "false");
                 serializer.attribute(null, "type", "rss");
 
                 List<Entry> entries = entryRepository.getStaticEntries(feed.getId());
@@ -316,6 +337,7 @@ public class OpmlRepository {
                     serializer.attribute(null, "entryTitle", entry.getTitle() != null ? entry.getTitle() : "");
                     serializer.attribute(null, "bookmark", entry.getBookmark() != null ? entry.getBookmark() : "");
                     serializer.attribute(null, "visitedDate", entry.getVisitedDate() != null ? formatter.format(entry.getVisitedDate()) : "");
+                    serializer.attribute(null, "priority", Integer.toString(entry.getPriority()));
                     serializer.attribute(null, "link", entry.getLink() != null ? entry.getLink() : "");
                     serializer.attribute(null, "description", entry.getDescription() != null ? entry.getDescription() : "");
                     serializer.attribute(null, "publishedDate", entry.getPublishedDate() != null ? formatter.format(entry.getPublishedDate()) : "");
@@ -330,11 +352,14 @@ public class OpmlRepository {
             serializer.endTag(null, "opml");
             serializer.endDocument();
             if (os != null) os.close();
-            if (listener != null) listener.onExportComplete(true, null);
-        } catch (IOException e) {
-            Timber.e(e, "Export failed");
-            if (listener != null) listener.onExportComplete(false, e.getMessage());
-        }
+        }).subscribeOn(io.reactivex.rxjava3.schedulers.Schedulers.io())
+          .observeOn(io.reactivex.rxjava3.android.schedulers.AndroidSchedulers.mainThread())
+          .subscribe(() -> {
+              if (listener != null) listener.onExportComplete(true, null);
+          }, throwable -> {
+              Timber.e(throwable, "Export failed");
+              if (listener != null) listener.onExportComplete(false, throwable.getMessage());
+          });
     }
 
     private void exportSettings(XmlSerializer serializer) throws IOException {

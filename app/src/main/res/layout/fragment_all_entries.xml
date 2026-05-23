@@ -61,6 +61,16 @@
         tools:context=".ui.allentries.AllEntriesFragment"
         app:layout_behavior="@string/appbar_scrolling_view_behavior">
 
+        <com.google.android.material.progressindicator.LinearProgressIndicator
+            android:id="@+id/loadingIndicator"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:indeterminate="true"
+            android:visibility="gone"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent" />
+
         <androidx.swiperefreshlayout.widget.SwipeRefreshLayout
             android:id="@+id/swipeRefreshLayout"
             android:layout_width="match_parent"

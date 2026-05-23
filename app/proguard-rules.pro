@@ -25,6 +25,7 @@
 -keepattributes Signature
 -keepattributes *Annotation*
 -keep class xiangze.mmu.rssnewsreader.data.ai.** { *; }
+-keep class xiangze.mmu.rssnewsreader.data.sharedpreferences.SharedPreferencesRepository$ApiKey { *; }
 -keep class retrofit2.** { *; }
 -dontwarn retrofit2.**
 

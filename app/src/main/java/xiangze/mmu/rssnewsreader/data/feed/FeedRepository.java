@@ -280,7 +280,7 @@ public class FeedRepository {
         feedDao.updateDelayTimeById(id, delayTime);
     }
 
-    public void updateFeedSettings(String title, String desc, String language, boolean autoSummarize, boolean autoTranslate, String link) {
+    public void updateFeedSettings(String title, String desc, String language, boolean autoSummarize, boolean autoTranslate, int delayTime, float ttsSpeechRate, String link) {
         compositeDisposable.add(
             Completable.fromAction(() -> {
             long feedId = feedDao.getIdByLink(link);
@@ -321,7 +321,7 @@ public class FeedRepository {
                     }
                 }
             }
-            feedDao.updateFeedSettings(title, desc, finalLanguage, autoSummarize, autoTranslate, link);
+            feedDao.updateFeedSettings(title, desc, finalLanguage, autoSummarize, autoTranslate, delayTime, ttsSpeechRate, link);
 
             // Check if settings were toggled ON and trigger processing
             if (existingFeed != null) {

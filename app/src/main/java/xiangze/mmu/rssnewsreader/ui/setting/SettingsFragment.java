@@ -248,15 +248,26 @@ public class SettingsFragment extends PreferenceFragmentCompat {
         listLayout.removeAllViews();
         java.util.List<SharedPreferencesRepository.ApiKey> keys = sharedPreferencesRepository.getSavedApiKeys();
         String activeKey = sharedPreferencesRepository.getGroqApiKey();
+        if (activeKey == null) activeKey = "";
+
+        if (keys == null || keys.isEmpty()) {
+            android.widget.TextView emptyText = new android.widget.TextView(requireContext());
+            emptyText.setText("No API keys saved yet.");
+            emptyText.setPadding(0, 0, 0, (int) (8 * getResources().getDisplayMetrics().density));
+            listLayout.addView(emptyText);
+            return;
+        }
 
         for (SharedPreferencesRepository.ApiKey key : keys) {
+            if (key == null || key.value == null) continue;
+            
             android.view.View itemView = android.view.LayoutInflater.from(requireContext()).inflate(R.layout.item_api_key, listLayout, false);
             android.widget.TextView nameText = itemView.findViewById(R.id.key_name);
             android.widget.TextView valueText = itemView.findViewById(R.id.key_value);
             android.widget.RadioButton radioButton = itemView.findViewById(R.id.radio_button);
             android.widget.ImageButton deleteBtn = itemView.findViewById(R.id.delete_button);
 
-            nameText.setText(key.name);
+            nameText.setText(key.name != null ? key.name : "Unnamed Key");
             // Show only first and last few chars of key
             String maskedKey = key.value.length() > 8 ? 
                 key.value.substring(0, 4) + "..." + key.value.substring(key.value.length() - 4) : 

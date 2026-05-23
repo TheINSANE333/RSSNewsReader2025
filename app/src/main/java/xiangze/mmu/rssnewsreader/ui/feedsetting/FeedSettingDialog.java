@@ -33,6 +33,7 @@ public class FeedSettingDialog extends AppCompatDialogFragment implements FeedSe
     private FeedSettingViewModel feedSettingViewModel;
 
     private long feedId;
+    private int delayTime;
     private String title;
     private String description;
     private String link;
@@ -59,6 +60,7 @@ public class FeedSettingDialog extends AppCompatDialogFragment implements FeedSe
 
         if (getArguments() != null) {
             feedId = getArguments().getLong("feedId");
+            delayTime = getArguments().getInt("delayTime");
             title = getArguments().getString("title");
             link = getArguments().getString("link");
             description = getArguments().getString("description");
@@ -143,7 +145,7 @@ public class FeedSettingDialog extends AppCompatDialogFragment implements FeedSe
                         String updatedDesc = Objects.requireNonNull(descriptionEditText.getText()).toString();
                         boolean updatedAutoSummarize = autoSummarizeSwitch.isChecked();
                         boolean updatedAutoTranslate = autoTranslateSwitch.isChecked();
-                        feedSettingViewModel.updateFeedSettings(updatedTitle, updatedDesc, language, updatedAutoSummarize, updatedAutoTranslate, link);
+                        feedSettingViewModel.updateFeedSettings(updatedTitle, updatedDesc, language, updatedAutoSummarize, updatedAutoTranslate, delayTime, speechRateDisplay, link);
                         Toast.makeText(requireContext(), "Update on speech rate will be reflected in the next article", Toast.LENGTH_SHORT).show();
                     }
                 });

@@ -74,9 +74,11 @@ public class MainActivity extends AppCompatActivity {
             new ActivityResultContracts.OpenMultipleDocuments(),
             uris -> {
                 if (uris != null && !uris.isEmpty()) {
+                    mainActivityViewModel.setIsLoading(true);
                     for (Uri uri : uris) {
                         if (uri != null) {
                             opmlRepository.importOpml(uri, (success, error) -> {
+                                mainActivityViewModel.setIsLoading(false);
                                 if (success) {
                                     updateThemeSwitch();
                                     Toast.makeText(getApplicationContext(), "Feeds imported successfully", Toast.LENGTH_SHORT).show();
@@ -94,7 +96,9 @@ public class MainActivity extends AppCompatActivity {
             new ActivityResultContracts.StartActivityForResult(),
             result -> {
                 if (result.getResultCode() == RESULT_OK && result.getData() != null) {
+                    mainActivityViewModel.setIsLoading(true);
                     opmlRepository.exportOpml(result.getData().getData(), (success, error) -> {
+                        mainActivityViewModel.setIsLoading(false);
                         if (success) {
                             Toast.makeText(getApplicationContext(), "Feeds exported successfully", Toast.LENGTH_SHORT).show();
                         } else {
@@ -139,6 +143,12 @@ public class MainActivity extends AppCompatActivity {
         binding = ActivityMainBinding.inflate(getLayoutInflater());
 
         mainActivityViewModel = new ViewModelProvider(this).get(MainActivityViewModel.class);
+
+        mainActivityViewModel.getIsLoading().observe(this, isLoading -> {
+            if (isLoading != null) {
+                binding.globalLoadingIndicator.setVisibility(isLoading ? android.view.View.VISIBLE : android.view.View.GONE);
+            }
+        });
 
         themeSwitch = binding.themeSwitch;
 

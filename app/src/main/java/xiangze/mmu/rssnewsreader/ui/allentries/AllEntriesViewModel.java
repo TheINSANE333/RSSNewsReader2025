@@ -15,7 +15,6 @@ import xiangze.mmu.rssnewsreader.data.sharedpreferences.SharedPreferencesReposit
 import xiangze.mmu.rssnewsreader.service.tts.TtsExtractor;
 import xiangze.mmu.rssnewsreader.service.tts.TtsPlayer;
 import xiangze.mmu.rssnewsreader.model.EntryInfo;
-import xiangze.mmu.rssnewsreader.model.EntryListItem;
 import xiangze.mmu.rssnewsreader.service.util.TextUtil;
 
 import java.util.Date;
@@ -47,12 +46,12 @@ public class AllEntriesViewModel extends ViewModel {
     private final TtsExtractor ttsExtractor;
     private final TtsPlayer ttsPlayer;
     private final TextUtil textUtil;
-    private final MutableLiveData<List<EntryListItem>> allEntries = new MutableLiveData<>();
+    private final MutableLiveData<List<EntryInfo>> allEntries = new MutableLiveData<>();
     private final MutableLiveData<String> toastMessage = new MutableLiveData<>();
     private final MutableLiveData<Integer> unreadCount = new MutableLiveData<>();
     private final MutableLiveData<List<String>> dailySummaryPrompt = new MutableLiveData<>();
     private final MutableLiveData<Boolean> isSummarizing = new MutableLiveData<>();
-    private final LiveData<List<EntryListItem>> liveEntries;
+    private final MutableLiveData<Boolean> isLoading = new MutableLiveData<>();
 
     private long id;
 
@@ -66,13 +65,11 @@ public class AllEntriesViewModel extends ViewModel {
         this.ttsPlayer = ttsPlayer;
         this.textUtil = textUtil;
 
-        liveEntries = entryRepository.getAllEntriesListLive();
-
         getEntriesByFeed(0, "all");
     }
 
-    public LiveData<List<EntryListItem>> getLiveEntries() {
-        return liveEntries;
+    public LiveData<List<EntryInfo>> getAllEntries() {
+        return allEntries;
     }
 
     public LiveData<List<String>> getDailySummaryPromptResult() {
@@ -132,56 +129,28 @@ public class AllEntriesViewModel extends ViewModel {
         }
 
         this.id = id;
+        isLoading.postValue(true);
 
-        // Note: For simplicity, keeping repository.getEntries as EntryInfo for now if it is used elsewhere, 
-        // but converting here or changing it there. Let's see EntryRepository again.
-        // Actually, let's update AllEntriesViewModel to use EntryListItem consistently.
-        
         disposableEntries = entryRepository.getEntries(id, filter)
-                .map(entriesInfo -> {
-                    List<EntryListItem> list = new java.util.ArrayList<>();
-                    for (EntryInfo info : entriesInfo) {
-                        EntryListItem item = new EntryListItem();
-                        // Copy fields - this is a bit slow but safer for now than changing all Flowables
-                        copyToListItem(info, item);
-                        list.add(item);
-                    }
-                    return list;
-                })
                 .subscribeOn(Schedulers.io())
                 .observeOn(AndroidSchedulers.mainThread())
-                .subscribe(entriesList -> allEntries.postValue(entriesList),
-                        throwable -> Timber.e(throwable, "Error fetching entries"));
+                .subscribe(entries -> {
+                    allEntries.postValue(entries);
+                    isLoading.postValue(false);
+                }, throwable -> {
+                    Timber.e(throwable, "Error fetching entries");
+                    isLoading.postValue(false);
+                });
 
         disposableCount = entryRepository.getUnreadCount(id, filter)
                 .subscribeOn(Schedulers.io())
                 .observeOn(AndroidSchedulers.mainThread())
-                .subscribe(integer -> unreadCount.postValue(integer),
+                .subscribe(unreadCount::postValue,
                         throwable -> Timber.e(throwable, "Error fetching unread count"));
     }
 
-    private void copyToListItem(EntryInfo info, EntryListItem item) {
-        item.setEntryId(info.getEntryId());
-        item.setEntryTitle(info.getEntryTitle());
-        item.setEntryLink(info.getEntryLink());
-        item.setEntryDescription(info.getEntryDescription());
-        item.setEntryImageUrl(info.getEntryImageUrl());
-        item.setEntryPublishedDate(info.getEntryPublishedDate());
-        item.setVisitedDate(info.getVisitedDate());
-        item.setBookmark(info.getBookmark());
-        item.setPriority(info.getPriority());
-        item.setHasContent(info.isHasContent());
-        item.setHasOriginalHtml(info.isHasOriginalHtml());
-        item.setHasTranslated(info.isHasTranslated());
-        item.setHasSummarized(info.isHasSummarized());
-        item.setFeedId(info.getFeedId());
-        item.setFeedTitle(info.getFeedTitle());
-        item.setFeedImageUrl(info.getFeedImageUrl());
-        item.setSummarizedSnippet(info.getSummarizedSnippet());
-    }
-
-    public LiveData<List<EntryListItem>> getAllEntries() {
-        return allEntries;
+    public LiveData<Boolean> getIsLoading() {
+        return isLoading;
     }
 
     public LiveData<String> getToastMessage() {

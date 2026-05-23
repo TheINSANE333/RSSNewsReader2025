@@ -34,8 +34,13 @@ public class SharedPreferencesRepository {
     private static final String KEY_FIRST_MAIN_ACTIVITY_VIEW = "is_first_main_activity_view_v2";
 
     public static class ApiKey {
+        @com.google.gson.annotations.SerializedName("name")
         public String name;
+        @com.google.gson.annotations.SerializedName("value")
         public String value;
+
+        public ApiKey() {}
+
         public ApiKey(String name, String value) {
             this.name = name;
             this.value = value;
@@ -170,7 +175,7 @@ public class SharedPreferencesRepository {
             List<ApiKey> savedKeys = getSavedApiKeys();
             boolean exists = false;
             for (ApiKey key : savedKeys) {
-                if (key.value.equals(apiKey)) {
+                if (key != null && key.value != null && key.value.equals(apiKey)) {
                     exists = true;
                     break;
                 }
@@ -184,12 +189,17 @@ public class SharedPreferencesRepository {
 
     public List<ApiKey> getSavedApiKeys() {
         String json = sharedPreferences.getString(KEY_SAVED_API_KEYS, "");
-        if (json.isEmpty()) {
+        if (json == null || json.isEmpty() || json.equals("null")) {
             return new ArrayList<>();
         }
-        Gson gson = new Gson();
-        Type type = new TypeToken<List<ApiKey>>() {}.getType();
-        return gson.fromJson(json, type);
+        try {
+            Gson gson = new Gson();
+            Type type = new TypeToken<List<ApiKey>>() {}.getType();
+            List<ApiKey> keys = gson.fromJson(json, type);
+            return keys != null ? keys : new ArrayList<>();
+        } catch (Exception e) {
+            return new ArrayList<>();
+        }
     }
 
     public void setSavedApiKeys(List<ApiKey> keys) {
@@ -200,7 +210,7 @@ public class SharedPreferencesRepository {
 
     public void removeSavedApiKey(String value) {
         List<ApiKey> keys = getSavedApiKeys();
-        keys.removeIf(k -> k.value.equals(value));
+        keys.removeIf(k -> k != null && k.value != null && k.value.equals(value));
         setSavedApiKeys(keys);
 
         // If we removed the active key, clear it
@@ -348,6 +358,9 @@ public class SharedPreferencesRepository {
 
     public boolean switchToNextKey() {
         List<ApiKey> keys = getSavedApiKeys();
+        // Remove any null or invalid keys first
+        keys.removeIf(k -> k == null || k.value == null || k.value.isEmpty());
+        
         if (keys.size() <= 1) {
             return false;
         }

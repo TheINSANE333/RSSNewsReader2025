@@ -46,9 +46,7 @@ import xiangze.mmu.rssnewsreader.data.sharedpreferences.SharedPreferencesReposit
 import xiangze.mmu.rssnewsreader.service.tts.TtsPlayer;
 import xiangze.mmu.rssnewsreader.service.tts.TtsPlaylist;
 import xiangze.mmu.rssnewsreader.databinding.FragmentAllEntriesBinding;
-
 import xiangze.mmu.rssnewsreader.model.EntryInfo;
-import xiangze.mmu.rssnewsreader.model.EntryListItem;
 import xiangze.mmu.rssnewsreader.service.util.AutoSummarizer;
 import xiangze.mmu.rssnewsreader.service.util.AutoTranslator;
 import xiangze.mmu.rssnewsreader.service.util.TextUtil;
@@ -312,9 +310,15 @@ public class AllEntriesFragment extends Fragment implements EntryItemAdapter.Ent
             }
         });
 
-        allEntriesViewModel.getAllEntries().observe(getViewLifecycleOwner(), new Observer<List<EntryListItem>>() {
+        allEntriesViewModel.getIsLoading().observe(getViewLifecycleOwner(), isLoading -> {
+            if (isLoading != null) {
+                binding.loadingIndicator.setVisibility(isLoading ? View.VISIBLE : View.GONE);
+            }
+        });
+
+        allEntriesViewModel.getAllEntries().observe(getViewLifecycleOwner(), new Observer<List<EntryInfo>>() {
             @Override
-            public void onChanged(List<EntryListItem> entryInfos) {
+            public void onChanged(List<EntryInfo> entryInfos) {
                 entries = entryInfos;
 
                 if (entries.size() == 0) {
@@ -502,12 +506,12 @@ public class AllEntriesFragment extends Fragment implements EntryItemAdapter.Ent
                         @Override
                         public boolean onQueryTextChange(String newText) {
                             final String query = newText.toLowerCase(Locale.ROOT);
-                            final List<EntryListItem> filteredEntries = new ArrayList<>();
+                            final List<EntryInfo> filteredEntries = new ArrayList<>();
 
                             if (entries != null) {
                                 for (EntryInfo entryInfo : entries) {
                                     if (entryInfo.getEntryTitle().toLowerCase(Locale.ROOT).contains(query)) {
-                                        filteredEntries.add((EntryListItem) entryInfo);
+                                        filteredEntries.add(entryInfo);
                                     }
                                 }
                             }

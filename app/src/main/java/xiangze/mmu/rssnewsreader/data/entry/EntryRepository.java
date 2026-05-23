@@ -8,7 +8,6 @@ import xiangze.mmu.rssnewsreader.data.history.History;
 import xiangze.mmu.rssnewsreader.data.history.HistoryRepository;
 import xiangze.mmu.rssnewsreader.data.sharedpreferences.SharedPreferencesRepository;
 import xiangze.mmu.rssnewsreader.model.EntryInfo;
-import xiangze.mmu.rssnewsreader.model.EntryListItem;
 import xiangze.mmu.rssnewsreader.service.util.TextUtil;
 
 import java.util.Date;
@@ -409,7 +408,7 @@ public class EntryRepository {
         entryDao.limitEntriesByFeed(feedId, limit);
     }
 
-    public LiveData<List<EntryListItem>> getAllEntriesListLive() {
+    public LiveData<List<EntryInfo>> getAllEntriesListLive() {
         return entryDao.getAllEntriesListLive();
     }
 

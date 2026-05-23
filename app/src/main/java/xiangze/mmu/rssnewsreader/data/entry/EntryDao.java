@@ -11,7 +11,6 @@ import androidx.room.RoomWarnings;
 import androidx.room.Update;
 
 import xiangze.mmu.rssnewsreader.model.EntryInfo;
-import xiangze.mmu.rssnewsreader.model.EntryListItem;
 
 import java.util.Date;
 import java.util.List;
@@ -51,7 +50,8 @@ public interface EntryDao {
             "(e.summarized_html IS NOT NULL AND e.summarized_html != '') as hasSummarized, " +
             "f.id as feedId, f.ttsSpeechRate as ttsSpeechRate, f.language as feedLanguage, f.title as feedTitle, f.imageUrl as feedImageUrl " +
             "FROM entry_table e " +
-            "LEFT JOIN feed_table f ON e.feedId = f.id")
+            "LEFT JOIN feed_table f ON e.feedId = f.id " +
+            "ORDER BY e.publishedDate DESC LIMIT 500")
     Flowable<List<EntryInfo>> getAllEntriesInfo();
 
     @RewriteQueriesToDropUnusedColumns
@@ -63,7 +63,7 @@ public interface EntryDao {
             "f.id as feedId, f.ttsSpeechRate as ttsSpeechRate, f.language as feedLanguage, f.title as feedTitle, f.imageUrl as feedImageUrl " +
             "FROM entry_table e " +
             "LEFT JOIN feed_table f ON e.feedId = f.id " +
-            "WHERE bookmark = 'Y'")
+            "WHERE bookmark = 'Y' ORDER BY e.publishedDate DESC LIMIT 500")
     Flowable<List<EntryInfo>> getEntriesByBookmark();
 
     @RewriteQueriesToDropUnusedColumns
@@ -75,7 +75,7 @@ public interface EntryDao {
             "f.id as feedId, f.ttsSpeechRate as ttsSpeechRate, f.language as feedLanguage, f.title as feedTitle, f.imageUrl as feedImageUrl " +
             "FROM entry_table e " +
             "LEFT JOIN feed_table f ON e.feedId = f.id " +
-            "WHERE visitedDate is null")
+            "WHERE visitedDate is null ORDER BY e.publishedDate DESC LIMIT 500")
     Flowable<List<EntryInfo>> getEntriesByUnread();
 
     @RewriteQueriesToDropUnusedColumns
@@ -87,7 +87,7 @@ public interface EntryDao {
             "f.id as feedId, f.ttsSpeechRate as ttsSpeechRate, f.language as feedLanguage, f.title as feedTitle, f.imageUrl as feedImageUrl " +
             "FROM entry_table e " +
             "LEFT JOIN feed_table f ON e.feedId = f.id " +
-            "WHERE visitedDate is not null")
+            "WHERE visitedDate is not null ORDER BY e.publishedDate DESC LIMIT 500")
     Flowable<List<EntryInfo>> getEntriesByRead();
 
     @RewriteQueriesToDropUnusedColumns
@@ -99,7 +99,7 @@ public interface EntryDao {
             "f.id as feedId, f.ttsSpeechRate as ttsSpeechRate, f.language as feedLanguage, f.title as feedTitle, f.imageUrl as feedImageUrl " +
             "FROM entry_table e " +
             "LEFT JOIN feed_table f ON e.feedId = f.id " +
-            "WHERE bookmark = 'Y' AND e.feedId = :id")
+            "WHERE bookmark = 'Y' AND e.feedId = :id ORDER BY e.publishedDate DESC LIMIT 500")
     Flowable<List<EntryInfo>> getEntriesByBookmark(long id);
 
     @RewriteQueriesToDropUnusedColumns
@@ -111,7 +111,7 @@ public interface EntryDao {
             "f.id as feedId, f.ttsSpeechRate as ttsSpeechRate, f.language as feedLanguage, f.title as feedTitle, f.imageUrl as feedImageUrl " +
             "FROM entry_table e " +
             "LEFT JOIN feed_table f ON e.feedId = f.id " +
-            "WHERE visitedDate is null AND e.feedId = :id")
+            "WHERE visitedDate is null AND e.feedId = :id ORDER BY e.publishedDate DESC LIMIT 500")
     Flowable<List<EntryInfo>> getEntriesByUnread(long id);
 
     @RewriteQueriesToDropUnusedColumns
@@ -123,7 +123,7 @@ public interface EntryDao {
             "f.id as feedId, f.ttsSpeechRate as ttsSpeechRate, f.language as feedLanguage, f.title as feedTitle, f.imageUrl as feedImageUrl " +
             "FROM entry_table e " +
             "LEFT JOIN feed_table f ON e.feedId = f.id " +
-            "WHERE visitedDate is not null AND e.feedId = :id")
+            "WHERE visitedDate is not null AND e.feedId = :id ORDER BY e.publishedDate DESC LIMIT 500")
     Flowable<List<EntryInfo>> getEntriesByRead(long id);
 
     @RewriteQueriesToDropUnusedColumns
@@ -135,7 +135,7 @@ public interface EntryDao {
             "f.id as feedId, f.ttsSpeechRate as ttsSpeechRate, f.language as feedLanguage, f.title as feedTitle, f.imageUrl as feedImageUrl " +
             "FROM entry_table e " +
             "LEFT JOIN feed_table f ON e.feedId = f.id " +
-            "WHERE e.feedId = :id")
+            "WHERE e.feedId = :id ORDER BY e.publishedDate DESC LIMIT 500")
     Flowable<List<EntryInfo>> getEntriesByFeed(long id);
 
     @RewriteQueriesToDropUnusedColumns
@@ -149,8 +149,8 @@ public interface EntryDao {
             "f.id as feedId, f.title as feedTitle, f.imageUrl as feedImageUrl, f.ttsSpeechRate as ttsSpeechRate " +
             "FROM entry_table e " +
             "LEFT JOIN feed_table f ON e.feedId = f.id " +
-            "ORDER BY e.publishedDate DESC")
-    LiveData<List<EntryListItem>> getAllEntriesListLive();
+            "ORDER BY e.publishedDate DESC LIMIT 500")
+    LiveData<List<EntryInfo>> getAllEntriesListLive();
 
     @Query("SELECT id, feedId, priority, title, link, description, content, html, imageUrl, category, publishedDate, visitedDate, bookmark, sentCountStopAt, isCached " +
             "FROM entry_table " +

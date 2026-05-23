@@ -89,6 +89,7 @@ public class ManageFeedFragment extends Fragment implements FeedItemAdapter.Feed
         args.putString("language", feed.getLanguage());
         args.putString("link", feed.getLink());
         args.putFloat("ttsSpeechRate", feed.getTtsSpeechRate());
+        args.putInt("delayTime", feed.getDelayTime());
         args.putBoolean("autoSummarize", feed.isAutoSummarize());
         args.putBoolean("autoTranslate", feed.isAutoTranslate());
         FeedSettingDialog dialog = new FeedSettingDialog();

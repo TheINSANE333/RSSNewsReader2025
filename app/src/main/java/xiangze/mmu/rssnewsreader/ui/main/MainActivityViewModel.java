@@ -35,6 +35,7 @@ public class MainActivityViewModel extends ViewModel {
     private final SharedPreferencesRepository sharedPreferencesRepository;
 
     private final MutableLiveData<List<Feed>> allFeeds = new MutableLiveData<>();
+    private final MutableLiveData<Boolean> isLoading = new MutableLiveData<>();
 
     @Inject
     public MainActivityViewModel(FeedRepository feedRepository, EntryRepository entryRepository, SharedPreferencesRepository sharedPreferencesRepository) {
@@ -53,6 +54,14 @@ public class MainActivityViewModel extends ViewModel {
 
     public LiveData<List<Feed>> getAllFeeds() {
         return allFeeds;
+    }
+
+    public LiveData<Boolean> getIsLoading() {
+        return isLoading;
+    }
+
+    public void setIsLoading(boolean loading) {
+        isLoading.postValue(loading);
     }
 
     public List<Feed> getAllStaticFeeds() {
