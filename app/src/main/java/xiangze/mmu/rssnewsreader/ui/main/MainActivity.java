@@ -147,6 +147,15 @@ public class MainActivity extends AppCompatActivity {
         mainActivityViewModel.getIsLoading().observe(this, isLoading -> {
             if (isLoading != null) {
                 binding.globalLoadingIndicator.setVisibility(isLoading ? android.view.View.VISIBLE : android.view.View.GONE);
+                binding.loadingOverlay.setVisibility(isLoading ? android.view.View.VISIBLE : android.view.View.GONE);
+                if (isLoading) {
+                    if (drawerLayout.isDrawerOpen(GravityCompat.START)) {
+                        drawerLayout.closeDrawer(GravityCompat.START);
+                    }
+                    drawerLayout.setDrawerLockMode(DrawerLayout.LOCK_MODE_LOCKED_CLOSED);
+                } else {
+                    drawerLayout.setDrawerLockMode(DrawerLayout.LOCK_MODE_UNLOCKED);
+                }
             }
         });
 
@@ -186,6 +195,10 @@ public class MainActivity extends AppCompatActivity {
         getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
             @Override
             public void handleOnBackPressed() {
+                if (mainActivityViewModel.getIsLoading().getValue() != null && mainActivityViewModel.getIsLoading().getValue()) {
+                    // Do nothing or maybe show a toast: "Please wait until loading is complete"
+                    return;
+                }
                 if (drawerLayout.isDrawerOpen(GravityCompat.START)) {
                     drawerLayout.closeDrawer(GravityCompat.START);
                 } else {

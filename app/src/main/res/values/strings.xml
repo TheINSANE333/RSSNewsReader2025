@@ -239,4 +239,7 @@
     <string name="add_delay">Add delay (sec)</string>
     <string name="translate">Translate</string>
 
+    <string name="loading_app_state">Loading app state...</string>
+    <string name="do_not_quit">Please do not quit the app</string>
+
 </resources>
