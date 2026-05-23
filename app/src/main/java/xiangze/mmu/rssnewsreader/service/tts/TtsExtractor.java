@@ -5,6 +5,7 @@ import android.content.Context;
 import android.graphics.Bitmap;
 import android.os.Handler;
 import android.os.Looper;
+import android.os.PowerManager;
 import android.util.JsonReader;
 import android.util.JsonToken;
 import timber.log.Timber;
@@ -67,11 +68,28 @@ public class TtsExtractor {
     private final PlaylistRepository playlistRepository;
     private final TextUtil textUtil;
     private final SharedPreferencesRepository sharedPreferencesRepository;
+    private final PowerManager.WakeLock wakeLock;
     private WebView webView;
     private String currentLink;
     private String currentTitle;
     private volatile long currentIdInProgress;
     private volatile boolean extractionInProgress;
+
+    private synchronized void setExtractionInProgress(boolean inProgress) {
+        this.extractionInProgress = inProgress;
+        if (inProgress) {
+            if (!wakeLock.isHeld()) {
+                Timber.d("Acquiring WakeLock for TtsExtractor");
+                wakeLock.acquire(10 * 60 * 1000L); // 10 minute timeout to prevent indefinite hold
+            }
+        } else {
+            if (wakeLock.isHeld()) {
+                Timber.d("Releasing WakeLock for TtsExtractor");
+                wakeLock.release();
+            }
+        }
+    }
+
     private int delayTime;
     private TtsPlayerListener ttsCallback;
 
@@ -91,7 +109,7 @@ public class TtsExtractor {
 
     private volatile long lastSuccessfullyProcessedId = -1;
 
-    @SuppressLint("SetJavaScriptEnabled")
+    @SuppressLint({"SetJavaScriptEnabled", "InvalidWakeLockTag"})
     @Inject
     public TtsExtractor(@ApplicationContext Context context, EntryRepository entryRepository, FeedRepository feedRepository, PlaylistRepository playlistRepository, TextUtil textUtil, SharedPreferencesRepository sharedPreferencesRepository) {
         this.context = context;
@@ -100,6 +118,9 @@ public class TtsExtractor {
         this.playlistRepository = playlistRepository;
         this.textUtil = textUtil;
         this.sharedPreferencesRepository = sharedPreferencesRepository;
+
+        PowerManager powerManager = (PowerManager) context.getSystemService(Context.POWER_SERVICE);
+        this.wakeLock = powerManager.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "RSSReader:TtsExtractorLock");
 
         ContextCompat.getMainExecutor(context).execute(new Runnable() {
             @Override
@@ -185,7 +206,7 @@ public class TtsExtractor {
             finishedSetupLiveData.postValue(true);
 
             currentIdInProgress = -1;
-            extractionInProgress = false;
+            setExtractionInProgress(false);
 
             // LOAD THE NEXT URL
             extractAllEntries();
@@ -210,7 +231,7 @@ public class TtsExtractor {
                 
                 // Ensure extraction is not currently "in progress" for this ID
                 if (currentIdInProgress == entryId) {
-                    extractionInProgress = false;
+                    setExtractionInProgress(false);
                     currentIdInProgress = -1;
                 }
 
@@ -227,7 +248,7 @@ public class TtsExtractor {
 
                 if (extractionInProgress && currentIdInProgress == -1) {
                     Timber.w("Recovery: extractionInProgress = true but currentIdInProgress == -1 → Resetting flag.");
-                    extractionInProgress = false;
+                    setExtractionInProgress(false);
                 }
 
                 // 1. PRIORITIZE: Check if the currently viewing article needs extraction
@@ -282,7 +303,7 @@ public class TtsExtractor {
             Timber.d("Next entry: id=" + entry.getId() + ", title=" + entry.getTitle() + ", priority=" + entry.getPriority());
             if (!extractionInProgress) {
                 Timber.d("extracting...");
-                extractionInProgress = true;
+                setExtractionInProgress(true);
                 currentIdInProgress = entry.getId();
                 currentLink = entry.getLink();
                 currentTitle = entry.getTitle();
@@ -310,7 +331,7 @@ public class TtsExtractor {
                         Timber.w("[Timeout] Extraction stuck >30s, resetting manually");
                         failedIds.add(currentIdInProgress);
                         currentIdInProgress = -1;
-                        extractionInProgress = false;
+                        setExtractionInProgress(false);
                         extractAllEntries();
                     }
                 }, 30000);
@@ -324,7 +345,7 @@ public class TtsExtractor {
 
     public synchronized void cancelExtraction() {
         Timber.d("cancelExtraction called - resetting extraction state");
-        extractionInProgress = false;
+        setExtractionInProgress(false);
         currentIdInProgress = -1;
         ttsCallback = null;
         
@@ -389,7 +410,7 @@ public class TtsExtractor {
             Timber.d("[onPageStarted] " + url);
             currentLoadToken = java.util.UUID.randomUUID().toString();
             hasProcessedCurrentToken = false;
-            extractionInProgress = true;
+            setExtractionInProgress(true);
         }
 
         @Override
@@ -698,7 +719,7 @@ public class TtsExtractor {
 
                     if (processingId == lastSuccessfullyProcessedId) {
                         Timber.e("LOOP DETECTED on ID " + processingId + ". Skipping this entry.");
-                        extractionInProgress = false;
+                        setExtractionInProgress(false);
                         currentIdInProgress = -1;
                         // Try to find another entry instead of stopping
                         handler.postDelayed(this::extractAllEntries, 1000);
@@ -895,7 +916,7 @@ public class TtsExtractor {
 
     private void handleError(Throwable error, long id) {
         Timber.e(error, "Process Failed for ID: " + id);
-        extractionInProgress = false;
+        setExtractionInProgress(false);
         currentIdInProgress = -1;
         snackbarMessageLiveData.postValue("Process failed.");
         finishedSetupLiveData.postValue(true);
