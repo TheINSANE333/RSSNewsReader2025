@@ -316,32 +316,6 @@ public class AllEntriesFragment extends Fragment implements EntryItemAdapter.Ent
             }
         });
 
-        allEntriesViewModel.getAllEntries().observe(getViewLifecycleOwner(), new Observer<List<EntryInfo>>() {
-            @Override
-            public void onChanged(List<EntryInfo> entryInfos) {
-                entries = entryInfos;
-
-                if (entries.size() == 0) {
-                    entriesRecycler.setVisibility(View.GONE);
-                    emptyContainer.setVisibility(View.VISIBLE);
-                } else {
-                    emptyContainer.setVisibility(View.GONE);
-                    entriesRecycler.setVisibility(View.VISIBLE);
-                    
-                    // Use a temporary list for sorting to avoid modifying the observed list directly if needed,
-                    // but here we are assigning it back to 'entries'.
-                    List<EntryInfo> sortedList = new ArrayList<>(entries);
-                    if (sortBy.equals("oldest")) {
-                        Collections.sort(sortedList, new EntryInfo.OldestComparator());
-                    } else {
-                        Collections.sort(sortedList, new EntryInfo.LatestComparator());
-                    }
-                    entries = sortedList;
-                }
-                adapter.submitList(new ArrayList<>(entries));
-            }
-        });
-
         webViewViewModel = new ViewModelProvider(requireActivity()).get(WebViewViewModel.class);
         compositeDisposable = new CompositeDisposable();
         return binding.getRoot();
@@ -447,9 +421,24 @@ public class AllEntriesFragment extends Fragment implements EntryItemAdapter.Ent
 
     private void observeEntries() {
         allEntriesViewModel.getAllEntries().observe(getViewLifecycleOwner(), entries -> {
-
             this.entries = entries;
-            adapter.submitList(new ArrayList<>(entries));
+
+            if (this.entries.isEmpty()) {
+                binding.entriesRecycler.setVisibility(View.GONE);
+                binding.emptyContainer.setVisibility(View.VISIBLE);
+            } else {
+                binding.emptyContainer.setVisibility(View.GONE);
+                binding.entriesRecycler.setVisibility(View.VISIBLE);
+
+                List<EntryInfo> sortedList = new ArrayList<>(this.entries);
+                if (sortBy != null && sortBy.equals("oldest")) {
+                    Collections.sort(sortedList, new EntryInfo.OldestComparator());
+                } else {
+                    Collections.sort(sortedList, new EntryInfo.LatestComparator());
+                }
+                this.entries = sortedList;
+            }
+            adapter.submitList(new ArrayList<>(this.entries));
 
             // Auto-translation (single run)
             if (autoTranslator != null && autoTranslationStarted.compareAndSet(false, true)) {
