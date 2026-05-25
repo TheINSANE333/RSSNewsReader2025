@@ -1092,6 +1092,11 @@ public class WebViewActivity extends AppCompatActivity implements ReloadDialog.R
             c.registerCallback(mediaControllerCallback);
             mediaControllerCallback.onMetadataChanged(c.getMetadata());
             mediaControllerCallback.onPlaybackStateChanged(c.getPlaybackState());
+
+            // Force the service to sync metadata with the current article immediately
+            if (c.getTransportControls() != null) {
+                c.getTransportControls().prepare();
+            }
         }
     }
 }

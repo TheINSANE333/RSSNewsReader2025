@@ -49,7 +49,12 @@ import xiangze.mmu.rssnewsreader.data.feed.Feed;
 import xiangze.mmu.rssnewsreader.data.sharedpreferences.SharedPreferencesRepository;
 import xiangze.mmu.rssnewsreader.service.rss.RssWorkManager;
 import xiangze.mmu.rssnewsreader.service.tts.TtsExtractor;
+import xiangze.mmu.rssnewsreader.model.EntryInfo;
 import com.squareup.picasso.Picasso;
+
+import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers;
+import io.reactivex.rxjava3.core.Single;
+import io.reactivex.rxjava3.schedulers.Schedulers;
 
 import com.google.android.material.materialswitch.MaterialSwitch;
 
@@ -547,9 +552,47 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onResume() {
         super.onResume();
+        
+        // Immediate UI update from database to ensure current article is always shown correctly
+        long currentId = sharedPreferencesRepository.getCurrentReadingEntryId();
+        if (currentId != -1 && currentId != 0) {
+            Single.fromCallable(() -> mainActivityViewModel.getEntryInfoById(currentId))
+                    .subscribeOn(Schedulers.io())
+                    .observeOn(AndroidSchedulers.mainThread())
+                    .subscribe(info -> {
+                        if (info != null) {
+                            binding.mediaControlBarLayout.mediaTitle.setText(info.getEntryTitle());
+                            binding.mediaControlBarLayout.mediaSubtitle.setText(info.getFeedTitle());
+                            binding.mediaControlBarLayout.mediaTitle.setSelected(true);
+                            
+                            String imageUrl = info.getFeedImageUrl();
+                            if (imageUrl == null || imageUrl.isEmpty()) {
+                                imageUrl = info.getEntryImageUrl();
+                            }
+                            
+                            if (imageUrl != null && !imageUrl.isEmpty()) {
+                                Picasso.get()
+                                        .load(imageUrl)
+                                        .placeholder(R.drawable.ic_rss_feed)
+                                        .error(R.drawable.ic_rss_feed)
+                                        .into(binding.mediaControlBarLayout.mediaThumbnail);
+                            } else {
+                                binding.mediaControlBarLayout.mediaThumbnail.setImageResource(R.drawable.ic_rss_feed);
+                            }
+                            
+                            // Also make sure the bar is visible if we have a valid article
+                            binding.mediaControlBarLayout.mediaControlBar.setVisibility(View.VISIBLE);
+                        }
+                    }, throwable -> Timber.e(throwable, "Error updating media bar on resume"));
+        }
+
         if (mMediaBrowserHelper != null) {
             MediaControllerCompat controller = mMediaBrowserHelper.getMediaController();
             if (controller != null) {
+                // Force a sync with the service to ensure it matches the article we just loaded
+                if (controller.getTransportControls() != null) {
+                    controller.getTransportControls().prepare();
+                }
                 updateMediaBarMetadata(controller.getMetadata());
                 updateMediaBarPlaybackState(controller.getPlaybackState());
             }

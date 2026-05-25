@@ -11,6 +11,7 @@ import xiangze.mmu.rssnewsreader.data.entry.EntryRepository;
 import xiangze.mmu.rssnewsreader.data.feed.Feed;
 import xiangze.mmu.rssnewsreader.data.feed.FeedRepository;
 import xiangze.mmu.rssnewsreader.data.sharedpreferences.SharedPreferencesRepository;
+import xiangze.mmu.rssnewsreader.model.EntryInfo;
 
 import java.util.List;
 
@@ -99,6 +100,10 @@ public class MainActivityViewModel extends ViewModel {
 
     public void setNight(boolean isNight) {
         sharedPreferencesRepository.setNight(isNight);
+    }
+
+    public EntryInfo getEntryInfoById(long id) {
+        return entryRepository.getEntryInfoById(id);
     }
 
     @Override
