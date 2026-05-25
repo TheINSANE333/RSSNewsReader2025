@@ -211,6 +211,10 @@ public class TtsService extends MediaBrowserServiceCompat {
                     mediaSession.setActive(true);
                 }
                 mediaSession.setMetadata(preparedData);
+            } else {
+                mediaSession.setMetadata(null);
+                updatePlaybackState(PlaybackStateCompat.STATE_STOPPED);
+                return;
             }
 
             // 1.5 IMMEDIATE STATE SYNC: If paused manually, show PAUSED instead of BUFFERING
@@ -233,7 +237,10 @@ public class TtsService extends MediaBrowserServiceCompat {
                 Entry entry = entryRepository.getEntryById(targetReadingId);
                 if (entry == null) {
                     Timber.w("Entry not found for ID: " + targetReadingId);
-                    updatePlaybackState(PlaybackStateCompat.STATE_PAUSED);
+                    if (ttsPlayer.getCurrentId() == targetReadingId) {
+                        ttsPlayer.stopTtsPlayback();
+                    }
+                    new android.os.Handler(android.os.Looper.getMainLooper()).post(this::onSkipToNext);
                     return;
                 }
 
@@ -393,7 +400,7 @@ public class TtsService extends MediaBrowserServiceCompat {
                 onPrepare(true);
             } else {
                 if (ttsPlayer != null) {
-                    updatePlaybackState(PlaybackStateCompat.STATE_PAUSED);
+                    updatePlaybackState(PlaybackStateCompat.STATE_STOPPED);
                     ContextCompat.getMainExecutor(getApplicationContext()).execute(() -> ttsPlayer.hideFakeLoading());
                     ttsPlayer.stopMediaPlayer();
                 }
@@ -421,7 +428,7 @@ public class TtsService extends MediaBrowserServiceCompat {
                 onPrepare(true);
             } else {
                 if (ttsPlayer != null) {
-                    updatePlaybackState(PlaybackStateCompat.STATE_PAUSED);
+                    updatePlaybackState(PlaybackStateCompat.STATE_STOPPED);
                     ContextCompat.getMainExecutor(getApplicationContext()).execute(() -> ttsPlayer.hideFakeLoading());
                     ttsPlayer.stopMediaPlayer();
                 }

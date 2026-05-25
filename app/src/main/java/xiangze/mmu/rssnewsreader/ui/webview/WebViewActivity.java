@@ -25,6 +25,7 @@ import android.webkit.WebChromeClient;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.widget.LinearLayout;
+import android.widget.Toast;
 
 import java.util.ArrayList;
 import androidx.activity.OnBackPressedCallback;
@@ -338,7 +339,13 @@ public class WebViewActivity extends AppCompatActivity implements ReloadDialog.R
 
     private void loadEntryContent() {
         EntryInfo entryInfo = (currentId != 0) ? webViewViewModel.getEntryInfoById(currentId) : webViewViewModel.getLastVisitedEntry();
-        if (entryInfo == null) { makeSnackbar("No article to load."); return; }
+        
+        // AUTO-CLOSE LOGIC: If the article was deleted from the DB, don't stay on a blank screen
+        if (entryInfo == null) {
+            Toast.makeText(this, "Article no longer available", Toast.LENGTH_SHORT).show();
+            finish();
+            return;
+        }
 
         boolean isNewArticle = (lastLoadedEntryId != entryInfo.getEntryId());
         lastLoadedEntryId = entryInfo.getEntryId();
@@ -894,7 +901,7 @@ public class WebViewActivity extends AppCompatActivity implements ReloadDialog.R
     public void finishedSetup() {
         isTtsReady = true;
         runOnUiThread(() -> {
-            loading.setVisibility(View.INVISIBLE);
+            loading.setVisibility(View.GONE);
             if (!isReadingMode) {
                 binding.functionButtons.setVisibility(View.VISIBLE);
                 binding.functionButtons.setAlpha(1.0f);
@@ -915,6 +922,7 @@ public class WebViewActivity extends AppCompatActivity implements ReloadDialog.R
     }
 
     public void updateLoadingProgress(int p) {
+        if (isTtsReady && p < 100) return;
         loading.setIndeterminate(false);
         loading.setProgress(p);
         if (p < 100) {

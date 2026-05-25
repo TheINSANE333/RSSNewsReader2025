@@ -234,14 +234,6 @@ public class AllEntriesViewModel extends ViewModel {
 
     public void deleteAllVisitedEntries() {
         Completable.fromAction(() -> {
-            long currentId = ttsPlayer.getCurrentId();
-            if (currentId != 0) {
-                List<Long> ids = entryRepository.getAllVisitedEntriesId();
-                if (ids.contains(currentId)) {
-                    ttsPlayer.stop();
-                }
-            }
-
             entryRepository.deleteAllVisitedEntries();
         }).subscribeOn(Schedulers.io())
                 .observeOn(AndroidSchedulers.mainThread())
@@ -282,10 +274,6 @@ public class AllEntriesViewModel extends ViewModel {
         Completable.fromAction(new Action() {
                     @Override
                     public void run() throws Throwable {
-                        long currentId = ttsPlayer.getCurrentId();
-                        if (currentId == id) {
-                            ttsPlayer.stop();
-                        }
                         entryRepository.deleteById(id);
                     }
                 }).subscribeOn(Schedulers.io())

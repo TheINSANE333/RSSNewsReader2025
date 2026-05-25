@@ -795,7 +795,7 @@ public class TextUtil {
 
     @SuppressLint("SimpleDateFormat")
     public String formatAiResponseToHtml(String title, String content, String feedTitle, java.util.Date publishDate, String feedImageUrl, boolean isNightMode, String titleClass) {
-        String textColor = isNightMode ? "#E2E2E6" : "#1B1B1F";
+        String textColor = isNightMode ? "#E2E2E6" : "#000000";
         String classAttr = (titleClass != null && !titleClass.isEmpty()) ? " class=\"" + titleClass + "\"" : "";
         
         StringBuilder sb = new StringBuilder();
@@ -803,10 +803,10 @@ public class TextUtil {
         sb.append("<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">");
         sb.append("</head><body>");
         
-        sb.append("<div class=\"entry-header\" style=\"color: ").append(textColor).append("\">");
+        sb.append("<div class=\"entry-header\">");
         sb.append("  <div style=\"display: flex; align-items: center;\">");
         sb.append("    <img style=\"margin-right: 10px; width: 20px; height: 20px\" src=\"").append(feedImageUrl).append("\">");
-        sb.append("    <p style=\"font-size: 0.75em\">").append(feedTitle).append("</p>");
+        sb.append("    <p class=\"feed-title\" style=\"font-size: 0.75em\">").append(feedTitle).append("</p>");
         sb.append("  </div>");
         sb.append("  <p").append(classAttr).append(" style=\"margin:0; font-size: 1.25em; font-weight:bold\">").append(title).append("</p>");
         String dateStr = "";
@@ -817,7 +817,7 @@ public class TextUtil {
                 Timber.e(e, "Error formatting date");
             }
         }
-        sb.append("  <p style=\"font-size: 0.75em;\">").append(dateStr).append("</p>");
+        sb.append("  <p class=\"entry-date\" style=\"font-size: 0.75em;\">").append(dateStr).append("</p>");
         sb.append("</div>");
         
         // Wrap content in paragraphs if it doesn't look like HTML

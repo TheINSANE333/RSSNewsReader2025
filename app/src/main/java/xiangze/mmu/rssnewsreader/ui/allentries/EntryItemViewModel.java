@@ -94,10 +94,6 @@ public class EntryItemViewModel extends ViewModel {
                             }
                         }
 
-                        long currentId = ttsPlayer.getCurrentId();
-                        if (currentId != 0 && ids.contains(currentId) && !entryRepository.isBookmark(currentId)) {
-                            ttsPlayer.stop();
-                        }
                         entryRepository.deleteByIds(ids);
                     }
                 }).subscribeOn(Schedulers.io())
@@ -125,10 +121,6 @@ public class EntryItemViewModel extends ViewModel {
         Completable.fromAction(new Action() {
                     @Override
                     public void run() throws Throwable {
-                        long currentId = ttsPlayer.getCurrentId();
-                        if (currentId == id) {
-                            ttsPlayer.stop();
-                        }
                         entryRepository.deleteById(id);
                     }
                 }).subscribeOn(Schedulers.io())

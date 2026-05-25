@@ -495,7 +495,12 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void updateMediaBarMetadata(MediaMetadataCompat metadata) {
-        if (metadata == null) return;
+        if (metadata == null) {
+            binding.mediaControlBarLayout.mediaTitle.setText("");
+            binding.mediaControlBarLayout.mediaSubtitle.setText("");
+            binding.mediaControlBarLayout.mediaThumbnail.setImageResource(R.drawable.ic_rss_feed);
+            return;
+        }
         
         String articleTitle = metadata.getString(MediaMetadataCompat.METADATA_KEY_TITLE);
         String feedTitle = metadata.getString(MediaMetadataCompat.METADATA_KEY_ARTIST);

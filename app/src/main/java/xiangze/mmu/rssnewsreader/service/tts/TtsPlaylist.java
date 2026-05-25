@@ -68,7 +68,12 @@ public class TtsPlaylist {
             }
         }
 
-        if (entryInfo == null) return null;
+        if (entryInfo == null) {
+            playingId = 0;
+            sharedPreferencesRepository.setCurrentReadingEntryId(0);
+            metadata = null;
+            return null;
+        }
 
         long entryId = entryInfo.getEntryId();
         String content = entryRepository.getContentById(entryId);

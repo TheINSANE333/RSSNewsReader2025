@@ -212,7 +212,8 @@ public class WebViewViewModel extends ViewModel {
     }
 
     public String getStyle(boolean isNightMode) {
-        String textColor = isNightMode ? "#E2E2E6" : "#1B1B1F";
+        String textColor = isNightMode ? "#E2E2E6" : "#000000";
+        String secondaryTextColor = isNightMode ? "#C9C5D0" : "#212121";
         String highlightColor = isNightMode ? "#4B21BD" : "#FFFF00"; 
         String highlightTextColor = isNightMode ? "#E5DEFF" : "black";
         return "<style>\n" +
@@ -225,6 +226,13 @@ public class WebViewViewModel extends ViewModel {
                 "        text-align: justify;\n" +
                 "        font-size: 0.875em;\n" +
                 "        color: " + textColor + ";\n" +
+                "    }\n" +
+                "    .entry-header {\n" +
+                "        color: " + textColor + ";\n" +
+                "        margin-bottom: 16px;\n" +
+                "    }\n" +
+                "    .feed-title, .entry-date {\n" +
+                "        color: " + secondaryTextColor + " !important;\n" +
                 "    }\n" +
                 "    .tts-highlight {\n" +
                 "        background-color: " + highlightColor + " !important;\n" +
@@ -246,7 +254,7 @@ public class WebViewViewModel extends ViewModel {
 
     @SuppressLint("SimpleDateFormat")
     public String getHtml(String entryTitle, String feedTitle, Date publishDate, String feedImageUrl, boolean isNightMode, String titleClass) {
-        String textColor = isNightMode ? "#E2E2E6" : "#1B1B1F";
+        String textColor = isNightMode ? "#E2E2E6" : "#000000";
         String classAttr = (titleClass != null && !titleClass.isEmpty()) ? " class=\"" + titleClass + "\"" : "";
         String dateStr = "";
         if (publishDate != null) {
@@ -256,13 +264,13 @@ public class WebViewViewModel extends ViewModel {
                 Timber.e(e, "Error formatting date");
             }
         }
-        return "<div class=\"entry-header\" style=\"color: " + textColor + "\">" +
+        return "<div class=\"entry-header\">" +
                 "  <div style=\"display: flex; align-items: center;\">" +
                 "    <img style=\"margin-right: 10px; width: 20px; height: 20px\" src=" + feedImageUrl + ">" +
-                "    <p style=\"font-size: 0.75em\">" + feedTitle + "</p>" +
+                "    <p class=\"feed-title\" style=\"font-size: 0.75em\">" + feedTitle + "</p>" +
                 "  </div>" +
                 "  <p" + classAttr + " style=\"margin:0; font-size: 1.25em; font-weight:bold\">" + entryTitle + "</p>" +
-                "  <p style=\"font-size: 0.75em;\">" + dateStr + "</p>" +
+                "  <p class=\"entry-date\" style=\"font-size: 0.75em;\">" + dateStr + "</p>" +
                 "</div>";
     }
 
