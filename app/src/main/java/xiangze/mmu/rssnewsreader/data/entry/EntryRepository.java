@@ -132,6 +132,10 @@ public class EntryRepository {
         entryDao.updatePreloadStatus(id, true);
     }
 
+    public List<EntryInfo> getAllEntriesInfoList() {
+        return entryDao.getAllEntriesInfoList();
+    }
+
     public EntryInfo getEntryInfoById(long id) {
         return entryDao.getEntryInfoById(id);
     }

@@ -458,7 +458,10 @@ public class MainActivity extends AppCompatActivity {
             if (controller != null) {
                 PlaybackStateCompat state = controller.getPlaybackState();
                 if (state != null) {
-                    if (state.getState() == PlaybackStateCompat.STATE_PLAYING) {
+                    // Use the manual pause preference as the source of truth for "intent"
+                    boolean isPausedManually = sharedPreferencesRepository.getIsPausedManually();
+                    
+                    if (!isPausedManually) {
                         controller.getTransportControls().pause();
                     } else {
                         controller.getTransportControls().play();
@@ -539,15 +542,20 @@ public class MainActivity extends AppCompatActivity {
 
         binding.mediaControlBarLayout.mediaControlBar.setVisibility(View.VISIBLE);
 
-        if (state.getState() == PlaybackStateCompat.STATE_PLAYING) {
+        boolean isPausedManually = sharedPreferencesRepository.getIsPausedManually();
+
+        // The icon should reflect the INTENT: if not manually paused, we ARE/WILL BE playing.
+        // This allows the user to see the "Pause" button on app launch if auto-play is active.
+        if (!isPausedManually) {
             binding.mediaControlBarLayout.mediaPlayPause.setImageResource(R.drawable.ic_baseline_pause_24);
         } else {
             binding.mediaControlBarLayout.mediaPlayPause.setImageResource(R.drawable.ic_baseline_play_arrow_24);
         }
 
         if (state.getState() == PlaybackStateCompat.STATE_BUFFERING) {
-            binding.mediaControlBarLayout.mediaPlayPause.setEnabled(false);
-            binding.mediaControlBarLayout.mediaPlayPause.setAlpha(0.5f);
+            // Keep enabled so user can control (pause) it during preparation/launch
+            binding.mediaControlBarLayout.mediaPlayPause.setEnabled(true);
+            binding.mediaControlBarLayout.mediaPlayPause.setAlpha(0.8f);
         } else {
             binding.mediaControlBarLayout.mediaPlayPause.setEnabled(true);
             binding.mediaControlBarLayout.mediaPlayPause.setAlpha(1.0f);
@@ -570,6 +578,12 @@ public class MainActivity extends AppCompatActivity {
                             binding.mediaControlBarLayout.mediaSubtitle.setText(info.getFeedTitle());
                             binding.mediaControlBarLayout.mediaTitle.setSelected(true);
                             
+                            // Set initial play/pause icon based on persisted state
+                            boolean isPaused = sharedPreferencesRepository.getIsPausedManually();
+                            binding.mediaControlBarLayout.mediaPlayPause.setImageResource(
+                                    isPaused ? R.drawable.ic_baseline_play_arrow_24 : R.drawable.ic_baseline_pause_24
+                            );
+
                             String imageUrl = info.getFeedImageUrl();
                             if (imageUrl == null || imageUrl.isEmpty()) {
                                 imageUrl = info.getEntryImageUrl();

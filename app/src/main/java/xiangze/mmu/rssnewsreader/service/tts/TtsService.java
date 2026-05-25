@@ -191,9 +191,6 @@ public class TtsService extends MediaBrowserServiceCompat {
         private void onPrepare(final boolean ignoreViewingId) {
             Timber.d("onPrepare called - ignoreViewingId=" + ignoreViewingId);
 
-            // 1. SYNC UI FEEDBACK: Show buffering and update metadata immediately on the calling thread (usually UI)
-            updatePlaybackState(PlaybackStateCompat.STATE_BUFFERING);
-
             long currentReadingId = sharedPreferencesRepository.getCurrentReadingEntryId();
             long currentViewingId = GlobalState.getCurrentViewingId();
 
@@ -201,6 +198,11 @@ public class TtsService extends MediaBrowserServiceCompat {
                 currentReadingId = currentViewingId;
                 sharedPreferencesRepository.setCurrentReadingEntryId(currentReadingId);
                 ttsPlaylist.updatePlayingId(currentReadingId);
+            }
+
+            // 1. SYNC UI FEEDBACK: Show buffering only if we are actually changing articles or not already playing
+            if (ttsPlayer.getCurrentId() != currentReadingId || !ttsPlayer.isPlaying()) {
+                updatePlaybackState(PlaybackStateCompat.STATE_BUFFERING);
             }
 
             // Update Metadata immediately so title changes instantly

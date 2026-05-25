@@ -271,6 +271,12 @@ public class AllEntriesViewModel extends ViewModel {
     }
 
     public void deleteEntry(long id) {
+        if (id == sharedPreferencesRepository.getCurrentReadingEntryId()) {
+            sharedPreferencesRepository.setCurrentReadingEntryId(0);
+            if (ttsPlayer.getCurrentId() == id) {
+                ttsPlayer.stopTtsPlayback();
+            }
+        }
         Completable.fromAction(new Action() {
                     @Override
                     public void run() throws Throwable {

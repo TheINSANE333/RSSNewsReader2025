@@ -48,23 +48,35 @@ public class TtsPlaylist {
     public MediaMetadataCompat getCurrentMetadata() {
         if (entryRepository == null) return null;
 
-        EntryInfo entryInfo;
+        EntryInfo entryInfo = null;
         if (playingId != 0) {
             entryInfo = entryRepository.getEntryInfoById(playingId);
-        } else {
+        }
+        
+        if (entryInfo == null) {
             long savedId = sharedPreferencesRepository.getCurrentReadingEntryId();
-            if (savedId != -1) {
+            if (savedId != -1 && savedId != 0) {
                 playingId = savedId;
                 entryInfo = entryRepository.getEntryInfoById(playingId);
-            } else {
-                entryInfo = null;
             }
+        }
 
-            if (entryInfo == null) {
-                entryInfo = entryRepository.getLastVisitedEntry();
-                if (entryInfo != null) {
-                    playingId = entryInfo.getEntryId();
-                }
+        if (entryInfo == null) {
+            // Try fallback to last visited valid entry
+            entryInfo = entryRepository.getLastVisitedEntry();
+            if (entryInfo != null) {
+                playingId = entryInfo.getEntryId();
+                sharedPreferencesRepository.setCurrentReadingEntryId(playingId);
+            }
+        }
+
+        if (entryInfo == null) {
+            // Absolute fallback: Any recent entry
+            List<EntryInfo> recentEntries = entryRepository.getAllEntriesInfoList();
+            if (recentEntries != null && !recentEntries.isEmpty()) {
+                entryInfo = recentEntries.get(0);
+                playingId = entryInfo.getEntryId();
+                sharedPreferencesRepository.setCurrentReadingEntryId(playingId);
             }
         }
 
