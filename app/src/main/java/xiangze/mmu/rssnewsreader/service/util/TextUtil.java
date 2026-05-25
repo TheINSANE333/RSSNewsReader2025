@@ -809,7 +809,15 @@ public class TextUtil {
         sb.append("    <p style=\"font-size: 0.75em\">").append(feedTitle).append("</p>");
         sb.append("  </div>");
         sb.append("  <p").append(classAttr).append(" style=\"margin:0; font-size: 1.25em; font-weight:bold\">").append(title).append("</p>");
-        sb.append("  <p style=\"font-size: 0.75em;\">").append(new java.text.SimpleDateFormat("EEE, d MMM yyyy 'at' hh:mm aaa").format(publishDate)).append("</p>");
+        String dateStr = "";
+        if (publishDate != null) {
+            try {
+                dateStr = new java.text.SimpleDateFormat("EEE, d MMM yyyy 'at' hh:mm aaa").format(publishDate);
+            } catch (Exception e) {
+                Timber.e(e, "Error formatting date");
+            }
+        }
+        sb.append("  <p style=\"font-size: 0.75em;\">").append(dateStr).append("</p>");
         sb.append("</div>");
         
         // Wrap content in paragraphs if it doesn't look like HTML

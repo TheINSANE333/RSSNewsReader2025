@@ -8,6 +8,7 @@ import android.support.v4.media.MediaMetadataCompat;
 
 import xiangze.mmu.rssnewsreader.data.entry.EntryRepository;
 import xiangze.mmu.rssnewsreader.data.playlist.PlaylistRepository;
+import xiangze.mmu.rssnewsreader.data.sharedpreferences.SharedPreferencesRepository;
 import xiangze.mmu.rssnewsreader.model.EntryInfo;
 import com.squareup.picasso.Picasso;
 
@@ -23,13 +24,15 @@ public class TtsPlaylist {
 
     private final EntryRepository entryRepository;
     private final PlaylistRepository playlistRepository;
+    private final SharedPreferencesRepository sharedPreferencesRepository;
     private MediaMetadataCompat metadata;
     private volatile long playingId;
 
     @Inject
-    public TtsPlaylist(EntryRepository entryRepository, PlaylistRepository playlistRepository) {
+    public TtsPlaylist(EntryRepository entryRepository, PlaylistRepository playlistRepository, SharedPreferencesRepository sharedPreferencesRepository) {
         this.entryRepository = entryRepository;
         this.playlistRepository = playlistRepository;
+        this.sharedPreferencesRepository = sharedPreferencesRepository;
     }
 
     public List<MediaBrowserCompat.MediaItem> getMediaItems() {
@@ -55,9 +58,17 @@ public class TtsPlaylist {
             if (playingId != 0) {
                 localEntryInfo[0] = entryRepository.getEntryInfoById(playingId);
             } else {
-                localEntryInfo[0] = entryRepository.getLastVisitedEntry();
-                if (localEntryInfo[0] != null) {
-                    playingId = localEntryInfo[0].getEntryId();
+                long savedId = sharedPreferencesRepository.getCurrentReadingEntryId();
+                if (savedId != -1) {
+                    playingId = savedId;
+                    localEntryInfo[0] = entryRepository.getEntryInfoById(playingId);
+                }
+
+                if (localEntryInfo[0] == null) {
+                    localEntryInfo[0] = entryRepository.getLastVisitedEntry();
+                    if (localEntryInfo[0] != null) {
+                        playingId = localEntryInfo[0].getEntryId();
+                    }
                 }
             }
 

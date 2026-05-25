@@ -248,13 +248,21 @@ public class WebViewViewModel extends ViewModel {
     public String getHtml(String entryTitle, String feedTitle, Date publishDate, String feedImageUrl, boolean isNightMode, String titleClass) {
         String textColor = isNightMode ? "#E2E2E6" : "#1B1B1F";
         String classAttr = (titleClass != null && !titleClass.isEmpty()) ? " class=\"" + titleClass + "\"" : "";
+        String dateStr = "";
+        if (publishDate != null) {
+            try {
+                dateStr = new SimpleDateFormat("EEE, d MMM yyyy 'at' hh:mm aaa").format(publishDate);
+            } catch (Exception e) {
+                Timber.e(e, "Error formatting date");
+            }
+        }
         return "<div class=\"entry-header\" style=\"color: " + textColor + "\">" +
                 "  <div style=\"display: flex; align-items: center;\">" +
                 "    <img style=\"margin-right: 10px; width: 20px; height: 20px\" src=" + feedImageUrl + ">" +
                 "    <p style=\"font-size: 0.75em\">" + feedTitle + "</p>" +
                 "  </div>" +
                 "  <p" + classAttr + " style=\"margin:0; font-size: 1.25em; font-weight:bold\">" + entryTitle + "</p>" +
-                "  <p style=\"font-size: 0.75em;\">" + new SimpleDateFormat("EEE, d MMM yyyy 'at' hh:mm aaa").format(publishDate) + "</p>" +
+                "  <p style=\"font-size: 0.75em;\">" + dateStr + "</p>" +
                 "</div>";
     }
 

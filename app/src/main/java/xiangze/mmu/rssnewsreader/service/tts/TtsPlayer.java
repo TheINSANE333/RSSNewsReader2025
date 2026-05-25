@@ -202,6 +202,7 @@ public class TtsPlayer extends PlayerAdapter implements TtsPlayerListener {
                             if (currentId > 0) {
                                 sentenceCounter = index;
                                 entryRepository.updateSentCount(index, currentId);
+                                sharedPreferencesRepository.setCurrentReadingEntryId(currentId);
                             }
                         }
                     } catch (NumberFormatException e) {

@@ -347,6 +347,7 @@ public class WebViewActivity extends AppCompatActivity implements ReloadDialog.R
         }
 
         currentId = entryInfo.getEntryId();
+        sharedPreferencesRepository.setCurrentReadingEntryId(currentId);
         GlobalState.setCurrentViewingId(currentId); // SYNC GLOBAL STATE
         currentTitle = entryInfo.getEntryTitle();
         feedId = entryInfo.getFeedId();
