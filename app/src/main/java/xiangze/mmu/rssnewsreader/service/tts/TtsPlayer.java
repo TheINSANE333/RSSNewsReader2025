@@ -435,6 +435,7 @@ public class TtsPlayer extends PlayerAdapter implements TtsPlayerListener {
                 isPreparing = false;
                 showFakeLoadingLiveData.postValue(false);
                 finishedSetupLiveData.postValue(true);
+                setNewState(PlaybackStateCompat.STATE_PAUSED);
             }
         }, 10000);
 
@@ -512,6 +513,7 @@ public class TtsPlayer extends PlayerAdapter implements TtsPlayerListener {
                 isSettingUpNewArticle = false;
                 showFakeLoadingLiveData.postValue(false);
                 finishedSetupLiveData.postValue(true);
+                setNewState(PlaybackStateCompat.STATE_PAUSED);
             }
             return;
         }
@@ -610,6 +612,7 @@ public class TtsPlayer extends PlayerAdapter implements TtsPlayerListener {
                     isSettingUpNewArticle = false;
                     showFakeLoadingLiveData.postValue(false);
                     finishedSetupLiveData.postValue(true);
+                    setNewState(PlaybackStateCompat.STATE_PAUSED);
                 } else if (!firstBatchSignaled) {
                     // If the article is very short and we haven't signaled yet
                     int savedProgress = entryRepository.getSentCount(currentId);
@@ -664,6 +667,7 @@ public class TtsPlayer extends PlayerAdapter implements TtsPlayerListener {
             if (sentences == null || sentences.isEmpty()) {
                 Timber.w("No content to read in setupTts(), skipping...");
                 isSettingUpNewArticle = false;
+                setNewState(PlaybackStateCompat.STATE_PAUSED);
                 return;
             }
 
@@ -691,6 +695,7 @@ public class TtsPlayer extends PlayerAdapter implements TtsPlayerListener {
                 }, 300);
             } else {
                 Timber.d("TTS ready, but paused manually or no content. Waiting for user to resume.");
+                setNewState(PlaybackStateCompat.STATE_PAUSED);
             }
         });
     }

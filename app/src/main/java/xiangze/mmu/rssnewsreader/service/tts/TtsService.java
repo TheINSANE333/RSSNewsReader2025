@@ -191,8 +191,38 @@ public class TtsService extends MediaBrowserServiceCompat {
         private void onPrepare(final boolean ignoreViewingId) {
             Timber.d("onPrepare called - ignoreViewingId=" + ignoreViewingId);
 
+            // 1. SYNC UI FEEDBACK: Show buffering and update metadata immediately on the calling thread (usually UI)
+            updatePlaybackState(PlaybackStateCompat.STATE_BUFFERING);
+
+            long currentReadingId = sharedPreferencesRepository.getCurrentReadingEntryId();
+            long currentViewingId = GlobalState.getCurrentViewingId();
+
+            if (!ignoreViewingId && currentViewingId != 0 && currentViewingId != currentReadingId) {
+                currentReadingId = currentViewingId;
+                sharedPreferencesRepository.setCurrentReadingEntryId(currentReadingId);
+                ttsPlaylist.updatePlayingId(currentReadingId);
+            }
+
+            // Update Metadata immediately so title changes instantly
+            ttsPlaylist.updatePlayingId(currentReadingId);
+            preparedData = ttsPlaylist.getCurrentMetadata();
+            if (preparedData != null) {
+                if (!mediaSession.isActive()) {
+                    mediaSession.setActive(true);
+                }
+                mediaSession.setMetadata(preparedData);
+            }
+
+            // 1.5 IMMEDIATE STATE SYNC: If paused manually, show PAUSED instead of BUFFERING
+            if (ttsPlayer.isPausedManually()) {
+                updatePlaybackState(PlaybackStateCompat.STATE_PAUSED);
+            }
+
+            final long targetReadingId = currentReadingId;
+
+            // 2. BACKGROUND PROCESSING: Handle heavy extraction and setup off-thread
             Completable.fromAction(() -> {
-                // 1. Initialize TTS Engine and Player
+                // Initialize TTS Engine and Player
                 if (!ttsPlayer.isPausedManually()) {
                     ttsPlayer.setupMediaPlayer(false);
                 }
@@ -200,26 +230,15 @@ public class TtsService extends MediaBrowserServiceCompat {
                     ttsPlayer.initTts(TtsService.this, new TtsPlayerListener(), callback);
                 }
 
-                // 2. Fetch the current Entry from Database
-                long currentReadingId = sharedPreferencesRepository.getCurrentReadingEntryId();
-                long currentViewingId = GlobalState.getCurrentViewingId();
-
-                // If user is currently looking at an article, onPrepare should ideally respect that
-                // unless we are explicitly skipping (ignoreViewingId = true)
-                if (!ignoreViewingId && currentViewingId != 0 && currentViewingId != currentReadingId) {
-                    Timber.d("onPrepare: Viewing " + currentViewingId + " but reading " + currentReadingId + ". Syncing to view.");
-                    currentReadingId = currentViewingId;
-                    sharedPreferencesRepository.setCurrentReadingEntryId(currentReadingId);
-                    ttsPlaylist.updatePlayingId(currentReadingId);
-                }
-
-                Entry entry = entryRepository.getEntryById(currentReadingId);
-
+                Entry entry = entryRepository.getEntryById(targetReadingId);
                 if (entry == null) {
-                    Timber.w("Entry not found for ID: " + currentReadingId);
+                    Timber.w("Entry not found for ID: " + targetReadingId);
+                    updatePlaybackState(PlaybackStateCompat.STATE_PAUSED);
                     return;
                 }
 
+                // Metadata already updated early (Step 1)
+                
                 // 3. WATERFALL LOGIC: Content Selection
                 // Priority: Preference > Summarized > Translated > Original
                 String contentToSpeak;
@@ -229,11 +248,11 @@ public class TtsService extends MediaBrowserServiceCompat {
                 boolean hasSummary = entry.getSummarized() != null && !entry.getSummarized().trim().isEmpty();
                 boolean hasTranslation = entry.getTranslated() != null && !entry.getTranslated().trim().isEmpty();
 
-                if (sharedPreferencesRepository.hasSummarizationToggle(currentReadingId) ||
-                        sharedPreferencesRepository.hasTranslationToggle(currentReadingId)) {
+                if (sharedPreferencesRepository.hasSummarizationToggle(targetReadingId) ||
+                        sharedPreferencesRepository.hasTranslationToggle(targetReadingId)) {
                     // USE SAVED PREFERENCE
-                    useSummarized = sharedPreferencesRepository.getIsSummarizedView(currentReadingId) && hasSummary;
-                    useTranslated = !useSummarized && sharedPreferencesRepository.getIsTranslatedView(currentReadingId) && hasTranslation;
+                    useSummarized = sharedPreferencesRepository.getIsSummarizedView(targetReadingId) && hasSummary;
+                    useTranslated = !useSummarized && sharedPreferencesRepository.getIsTranslatedView(targetReadingId) && hasTranslation;
                 } else {
                     // NO PREFERENCE: Use Data Priority
                     if (hasSummary) {
@@ -255,7 +274,7 @@ public class TtsService extends MediaBrowserServiceCompat {
                 }
 
                 // 4. WATERFALL LOGIC: Language Selection
-                EntryInfo entryInfo = entryRepository.getEntryInfoById(currentReadingId);
+                EntryInfo entryInfo = entryRepository.getEntryInfoById(targetReadingId);
                 String feedLanguage = (entryInfo.getFeedLanguage() == null || entryInfo.getFeedLanguage().isEmpty())
                         ? "en" : entryInfo.getFeedLanguage();
                 String targetLanguage = sharedPreferencesRepository.getDefaultTranslationLanguage();
@@ -265,23 +284,18 @@ public class TtsService extends MediaBrowserServiceCompat {
                 String languageToUse = (useSummarized || useTranslated) ? targetLanguage : feedLanguage;
 
                 // 5. SYNC STATE: (Removed forcing of prefs here, as it overrides user manual choice)
-                // sharedPreferencesRepository.setIsSummarizedView(currentReadingId, useSummarized);
-                // sharedPreferencesRepository.setIsTranslatedView(currentReadingId, useTranslated);
+                // sharedPreferencesRepository.setIsSummarizedView(targetReadingId, useSummarized);
+                // sharedPreferencesRepository.setIsTranslatedView(targetReadingId, useTranslated);
 
-                // 6. Setup Media Session and Metadata
+                // 6. Setup Media Session (Metadata already updated early in step 2.5)
                 preparedData = ttsPlaylist.getCurrentMetadata();
                 if (preparedData == null) {
                     Timber.e("Metadata is null, cannot proceed with onPrepare");
+                    updatePlaybackState(PlaybackStateCompat.STATE_PAUSED);
                     return;
                 }
 
-                if (!mediaSession.isActive()) {
-                    mediaSession.setActive(true);
-                }
-
-                mediaSession.setMetadata(preparedData);
-
-                        // Apply speech rate settings
+                // Apply speech rate settings
                 String rateStr = preparedData.getString("ttsSpeechRate");
                 float rate = (rateStr != null) ? Float.parseFloat(rateStr) : 1.0f;
                 ttsPlayer.setTtsSpeechRate(rate);
@@ -291,8 +305,9 @@ public class TtsService extends MediaBrowserServiceCompat {
                 long feedId = preparedData.getLong("feedId");
 
                 // Safety check to ensure we aren't loading content for a different article
-                if (mediaId != currentReadingId) {
+                if (mediaId != targetReadingId) {
                     Timber.d("Skipping extract() — mediaId mismatch");
+                    updatePlaybackState(PlaybackStateCompat.STATE_PAUSED);
                     return;
                 }
 
@@ -368,12 +383,12 @@ public class TtsService extends MediaBrowserServiceCompat {
             }
 
             if (ttsPlaylist.skipNext()) {
-                preparedData = null;
-                MediaMetadataCompat metadata = ttsPlaylist.getCurrentMetadata();
-                if (metadata != null) {
+                preparedData = ttsPlaylist.getCurrentMetadata();
+                if (preparedData != null) {
                     sharedPreferencesRepository.setCurrentReadingEntryId(
-                            Long.parseLong(metadata.getString(MediaMetadataCompat.METADATA_KEY_MEDIA_ID))
+                            Long.parseLong(preparedData.getString(MediaMetadataCompat.METADATA_KEY_MEDIA_ID))
                     );
+                    mediaSession.setMetadata(preparedData);
                 }
                 onPrepare(true);
             } else {
@@ -396,12 +411,12 @@ public class TtsService extends MediaBrowserServiceCompat {
             }
 
             if (ttsPlaylist.skipPrevious()) {
-                preparedData = null;
-                MediaMetadataCompat metadata = ttsPlaylist.getCurrentMetadata();
-                if (metadata != null) {
+                preparedData = ttsPlaylist.getCurrentMetadata();
+                if (preparedData != null) {
                     sharedPreferencesRepository.setCurrentReadingEntryId(
-                            Long.parseLong(metadata.getString(MediaMetadataCompat.METADATA_KEY_MEDIA_ID))
+                            Long.parseLong(preparedData.getString(MediaMetadataCompat.METADATA_KEY_MEDIA_ID))
                     );
+                    mediaSession.setMetadata(preparedData);
                 }
                 onPrepare(true);
             } else {
@@ -461,7 +476,23 @@ public class TtsService extends MediaBrowserServiceCompat {
 
         private void play() {
             long currentReadingId = sharedPreferencesRepository.getCurrentReadingEntryId();
-            if (preparedData == null || ttsPlayer.getCurrentId() != currentReadingId) {
+            
+            // Check if preparedData actually matches the article we want to play
+            boolean isMetadataStale = true;
+            if (preparedData != null) {
+                String mediaIdStr = preparedData.getString(MediaMetadataCompat.METADATA_KEY_MEDIA_ID);
+                if (mediaIdStr != null) {
+                    try {
+                        long preparedMediaId = Long.parseLong(mediaIdStr);
+                        if (preparedMediaId == currentReadingId) {
+                            isMetadataStale = false;
+                        }
+                    } catch (NumberFormatException ignored) {}
+                }
+            }
+
+            if (isMetadataStale || ttsPlayer.getCurrentId() != currentReadingId) {
+                Timber.d("play: Metadata stale or player mismatch. Calling onPrepare.");
                 onPrepare();
             } else {
                 ttsPlayer.play();
@@ -525,6 +556,11 @@ public class TtsService extends MediaBrowserServiceCompat {
         onPlaybackStateChange(PlaybackStateCompat state) {
             if (mediaSession != null) {
                 mediaSession.setPlaybackState(state);
+
+                // Force metadata update on state change to ensure UI is in sync
+                if (preparedData != null) {
+                    mediaSession.setMetadata(preparedData);
+                }
 
                 switch (state.getState()) {
                     case PlaybackStateCompat.STATE_PLAYING:

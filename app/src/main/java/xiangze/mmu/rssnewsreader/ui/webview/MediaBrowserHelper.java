@@ -78,7 +78,7 @@ public class MediaBrowserHelper {
     protected void onDisconnected() {
     }
 
-    protected final MediaControllerCompat getMediaController() {
+    public final MediaControllerCompat getMediaController() {
         if (mMediaController != null) {
             return mMediaController;
         }

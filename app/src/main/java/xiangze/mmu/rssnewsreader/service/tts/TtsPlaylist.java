@@ -46,66 +46,60 @@ public class TtsPlaylist {
     }
 
     public MediaMetadataCompat getCurrentMetadata() {
-        final EntryInfo[] localEntryInfo = new EntryInfo[1];
-        final String[] localContent = new String[1];
-        final String[] localHtml = new String[1];
-        final String[] localTranslated = new String[1];
-        final String[] localSummarized = new String[1];
-        final Bitmap[] localFeedImage = new Bitmap[1];
+        if (entryRepository == null) return null;
 
-        Thread thread = new Thread(() -> {
-            if (entryRepository == null) return;
-            if (playingId != 0) {
-                localEntryInfo[0] = entryRepository.getEntryInfoById(playingId);
+        EntryInfo entryInfo;
+        if (playingId != 0) {
+            entryInfo = entryRepository.getEntryInfoById(playingId);
+        } else {
+            long savedId = sharedPreferencesRepository.getCurrentReadingEntryId();
+            if (savedId != -1) {
+                playingId = savedId;
+                entryInfo = entryRepository.getEntryInfoById(playingId);
             } else {
-                long savedId = sharedPreferencesRepository.getCurrentReadingEntryId();
-                if (savedId != -1) {
-                    playingId = savedId;
-                    localEntryInfo[0] = entryRepository.getEntryInfoById(playingId);
-                }
-
-                if (localEntryInfo[0] == null) {
-                    localEntryInfo[0] = entryRepository.getLastVisitedEntry();
-                    if (localEntryInfo[0] != null) {
-                        playingId = localEntryInfo[0].getEntryId();
-                    }
-                }
+                entryInfo = null;
             }
 
-            if (localEntryInfo[0] == null) return;
-
-            long entryId = localEntryInfo[0].getEntryId();
-            localContent[0] = entryRepository.getContentById(entryId);
-            localHtml[0] = entryRepository.getHtmlById(entryId);
-            localTranslated[0] = entryRepository.getTranslatedTextById(entryId);
-            localSummarized[0] = entryRepository.getSummarizedTextById(entryId);
-
-            try {
-                String imageUrl = localEntryInfo[0].getFeedImageUrl();
-                if (imageUrl != null && !imageUrl.isEmpty()) {
-                    localFeedImage[0] = Picasso.get().load(imageUrl).get();
+            if (entryInfo == null) {
+                entryInfo = entryRepository.getLastVisitedEntry();
+                if (entryInfo != null) {
+                    playingId = entryInfo.getEntryId();
                 }
-            } catch (Exception e) {
-                // Catching Exception to cover Picasso's ResponseException (for 404s) and other IO issues.
-                // Log as Warning instead of Error for 404s to reduce log noise.
-                Timber.w("Could not load feed image: " + e.getMessage());
             }
-        });
-        thread.start();
-        try {
-            thread.join(5000); // 5 second max wait
-        } catch (InterruptedException e) {
-            Timber.e(e, "Metadata thread interrupted");
         }
 
-        if (localEntryInfo[0] == null) return null;
+        if (entryInfo == null) return null;
 
-        EntryInfo entryInfo = localEntryInfo[0];
-        String content = localContent[0];
-        String html = localHtml[0];
-        String translated = localTranslated[0];
-        Bitmap feedImage = localFeedImage[0];
+        long entryId = entryInfo.getEntryId();
+        String content = entryRepository.getContentById(entryId);
+        String html = entryRepository.getHtmlById(entryId);
+        String translated = entryRepository.getTranslatedTextById(entryId);
+        String summarized = entryRepository.getSummarizedTextById(entryId);
+        Bitmap feedImage = null;
+
+        try {
+            String imageUrl = entryInfo.getFeedImageUrl();
+            if (imageUrl == null || imageUrl.isEmpty()) {
+                imageUrl = entryInfo.getEntryImageUrl();
+            }
+            
+            if (imageUrl != null && !imageUrl.isEmpty()) {
+                if (android.os.Looper.myLooper() == android.os.Looper.getMainLooper()) {
+                    Timber.d("getCurrentMetadata called on UI thread, skipping synchronous image download to avoid crash.");
+                } else {
+                    feedImage = Picasso.get().load(imageUrl).get();
+                }
+            }
+        } catch (Exception e) {
+            Timber.w("Could not load feed image: " + e.getMessage());
+        }
+
         long dateMillis = entryInfo.getEntryPublishedDate() != null ? entryInfo.getEntryPublishedDate().getTime() : 0L;
+        
+        String displayImageUrl = entryInfo.getFeedImageUrl();
+        if (displayImageUrl == null || displayImageUrl.isEmpty()) {
+            displayImageUrl = entryInfo.getEntryImageUrl();
+        }
 
         metadata = new MediaMetadataCompat.Builder()
                 .putString(MediaMetadataCompat.METADATA_KEY_MEDIA_ID, Long.toString(entryInfo.getEntryId()))
@@ -116,11 +110,12 @@ public class TtsPlaylist {
                 .putString("link", entryInfo.getEntryLink())
                 .putString("content", content)
                 .putString("translated", translated)
-                .putString("summarized", localSummarized[0])
+                .putString("summarized", summarized)
                 .putString("html", html)
                 .putString("language", entryInfo.getFeedLanguage())
                 .putLong("date", dateMillis)
                 .putBitmap(MediaMetadataCompat.METADATA_KEY_DISPLAY_ICON, feedImage)
+                .putString(MediaMetadataCompat.METADATA_KEY_DISPLAY_ICON_URI, displayImageUrl)
                 .putString("feedImageUrl", entryInfo.getFeedImageUrl())
                 .putString("entryImageUrl", entryInfo.getEntryImageUrl())
                 .putString("bookmark", entryInfo.getBookmark())

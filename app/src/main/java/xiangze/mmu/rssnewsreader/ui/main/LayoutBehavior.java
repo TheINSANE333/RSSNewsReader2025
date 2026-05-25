@@ -8,6 +8,7 @@ import androidx.coordinatorlayout.widget.CoordinatorLayout;
 
 import com.google.android.material.appbar.AppBarLayout;
 import com.google.android.material.bottomnavigation.BottomNavigationView;
+import androidx.appcompat.widget.LinearLayoutCompat;
 
 public class LayoutBehavior extends AppBarLayout.ScrollingViewBehavior {
 
@@ -24,7 +25,7 @@ public class LayoutBehavior extends AppBarLayout.ScrollingViewBehavior {
     @Override
     public boolean layoutDependsOn(CoordinatorLayout parent, View child, View dependency) {
         return super.layoutDependsOn(parent, child, dependency)
-                || (dependency instanceof BottomNavigationView);
+                || (dependency instanceof LinearLayoutCompat && dependency.getId() == xiangze.mmu.rssnewsreader.R.id.bottom_container);
     }
 
     @Override
@@ -34,7 +35,7 @@ public class LayoutBehavior extends AppBarLayout.ScrollingViewBehavior {
     }
 
     private boolean updateBottomMarginIfNeeded(View child, View dependency) {
-        if (dependency instanceof BottomNavigationView
+        if (dependency instanceof LinearLayoutCompat && dependency.getId() == xiangze.mmu.rssnewsreader.R.id.bottom_container
                 && dependency.getMeasuredHeight() != this.marginBottom) {
             this.marginBottom = dependency.getMeasuredHeight();
             CoordinatorLayout.LayoutParams lp = (CoordinatorLayout.LayoutParams) child.getLayoutParams();

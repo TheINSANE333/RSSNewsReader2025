@@ -11,6 +11,13 @@ import android.widget.Toast;
 
 import xiangze.mmu.rssnewsreader.R;
 import xiangze.mmu.rssnewsreader.databinding.ActivityMainBinding;
+import xiangze.mmu.rssnewsreader.service.tts.TtsService;
+import xiangze.mmu.rssnewsreader.ui.webview.MediaBrowserHelper;
+import xiangze.mmu.rssnewsreader.ui.webview.WebViewActivity;
+
+import android.support.v4.media.MediaMetadataCompat;
+import android.support.v4.media.session.MediaControllerCompat;
+import android.support.v4.media.session.PlaybackStateCompat;
 
 import com.getkeepsafe.taptargetview.TapTarget;
 import com.getkeepsafe.taptargetview.TapTargetView;
@@ -42,6 +49,7 @@ import xiangze.mmu.rssnewsreader.data.feed.Feed;
 import xiangze.mmu.rssnewsreader.data.sharedpreferences.SharedPreferencesRepository;
 import xiangze.mmu.rssnewsreader.service.rss.RssWorkManager;
 import xiangze.mmu.rssnewsreader.service.tts.TtsExtractor;
+import com.squareup.picasso.Picasso;
 
 import com.google.android.material.materialswitch.MaterialSwitch;
 
@@ -60,6 +68,7 @@ public class MainActivity extends AppCompatActivity {
     private NavigationFeedItemAdapter adapter;
     private MainActivityViewModel mainActivityViewModel;
     private GestureDetector gestureDetector;
+    private MediaBrowserHelper mMediaBrowserHelper;
     @Inject
     SharedPreferencesRepository sharedPreferencesRepository;
     @Inject
@@ -344,6 +353,8 @@ public class MainActivity extends AppCompatActivity {
 
         ttsExtractor.extractAllEntries();
         
+        setupMediaControlBar();
+
         // Show interactive walkthrough on first launch
         if (sharedPreferencesRepository.isFirstMainActivityView()) {
             sharedPreferencesRepository.setFirstMainActivityView(false);
@@ -408,8 +419,141 @@ public class MainActivity extends AppCompatActivity {
     }
 
     @Override
+    protected void onStart() {
+        super.onStart();
+        if (mMediaBrowserHelper != null) {
+            mMediaBrowserHelper.onStart();
+        }
+    }
+
+    @Override
+    protected void onStop() {
+        super.onStop();
+        if (mMediaBrowserHelper != null) {
+            mMediaBrowserHelper.onStop();
+        }
+    }
+
+    private void setupMediaControlBar() {
+        mMediaBrowserHelper = new MediaBrowserHelper(this, TtsService.class);
+        mMediaBrowserHelper.registerCallback(new MediaControllerCompat.Callback() {
+            @Override
+            public void onMetadataChanged(MediaMetadataCompat metadata) {
+                updateMediaBarMetadata(metadata);
+            }
+
+            @Override
+            public void onPlaybackStateChanged(PlaybackStateCompat state) {
+                updateMediaBarPlaybackState(state);
+            }
+        });
+
+        binding.mediaControlBarLayout.mediaPlayPause.setOnClickListener(v -> {
+            MediaControllerCompat controller = mMediaBrowserHelper.getMediaController();
+            if (controller != null) {
+                PlaybackStateCompat state = controller.getPlaybackState();
+                if (state != null) {
+                    if (state.getState() == PlaybackStateCompat.STATE_PLAYING) {
+                        controller.getTransportControls().pause();
+                    } else {
+                        controller.getTransportControls().play();
+                    }
+                }
+            }
+        });
+
+        binding.mediaControlBarLayout.mediaSkipNext.setOnClickListener(v -> {
+            MediaControllerCompat controller = mMediaBrowserHelper.getMediaController();
+            if (controller != null) {
+                controller.getTransportControls().skipToNext();
+            }
+        });
+
+        binding.mediaControlBarLayout.mediaSkipPrevious.setOnClickListener(v -> {
+            MediaControllerCompat controller = mMediaBrowserHelper.getMediaController();
+            if (controller != null) {
+                controller.getTransportControls().skipToPrevious();
+            }
+        });
+
+        binding.mediaControlBarLayout.mediaControlBar.setOnClickListener(v -> {
+            MediaControllerCompat controller = mMediaBrowserHelper.getMediaController();
+            if (controller != null && controller.getMetadata() != null) {
+                String mediaId = controller.getMetadata().getString(MediaMetadataCompat.METADATA_KEY_MEDIA_ID);
+                if (mediaId != null) {
+                    Intent intent = new Intent(MainActivity.this, WebViewActivity.class);
+                    intent.putExtra("id", Long.parseLong(mediaId));
+                    startActivity(intent);
+                }
+            }
+        });
+    }
+
+    private void updateMediaBarMetadata(MediaMetadataCompat metadata) {
+        if (metadata == null) return;
+        
+        String articleTitle = metadata.getString(MediaMetadataCompat.METADATA_KEY_TITLE);
+        String feedTitle = metadata.getString(MediaMetadataCompat.METADATA_KEY_ARTIST);
+        
+        binding.mediaControlBarLayout.mediaTitle.setText(articleTitle);
+        binding.mediaControlBarLayout.mediaSubtitle.setText(feedTitle);
+        
+        // Ensure marquee works
+        binding.mediaControlBarLayout.mediaTitle.setSelected(true);
+
+        String imageUrl = metadata.getString("feedImageUrl");
+        if (imageUrl == null || imageUrl.isEmpty()) {
+            imageUrl = metadata.getString(MediaMetadataCompat.METADATA_KEY_DISPLAY_ICON_URI);
+        }
+        
+        android.graphics.Bitmap icon = metadata.getBitmap(MediaMetadataCompat.METADATA_KEY_DISPLAY_ICON);
+        
+        if (imageUrl != null && !imageUrl.isEmpty()) {
+            Picasso.get()
+                    .load(imageUrl)
+                    .placeholder(R.drawable.ic_rss_feed)
+                    .error(R.drawable.ic_rss_feed)
+                    .into(binding.mediaControlBarLayout.mediaThumbnail);
+        } else if (icon != null) {
+            binding.mediaControlBarLayout.mediaThumbnail.setImageBitmap(icon);
+        } else {
+            binding.mediaControlBarLayout.mediaThumbnail.setImageResource(R.drawable.ic_rss_feed);
+        }
+    }
+
+    private void updateMediaBarPlaybackState(PlaybackStateCompat state) {
+        if (state == null || state.getState() == PlaybackStateCompat.STATE_NONE || state.getState() == PlaybackStateCompat.STATE_STOPPED) {
+            binding.mediaControlBarLayout.mediaControlBar.setVisibility(View.GONE);
+            return;
+        }
+
+        binding.mediaControlBarLayout.mediaControlBar.setVisibility(View.VISIBLE);
+
+        if (state.getState() == PlaybackStateCompat.STATE_PLAYING) {
+            binding.mediaControlBarLayout.mediaPlayPause.setImageResource(R.drawable.ic_baseline_pause_24);
+        } else {
+            binding.mediaControlBarLayout.mediaPlayPause.setImageResource(R.drawable.ic_baseline_play_arrow_24);
+        }
+
+        if (state.getState() == PlaybackStateCompat.STATE_BUFFERING) {
+            binding.mediaControlBarLayout.mediaPlayPause.setEnabled(false);
+            binding.mediaControlBarLayout.mediaPlayPause.setAlpha(0.5f);
+        } else {
+            binding.mediaControlBarLayout.mediaPlayPause.setEnabled(true);
+            binding.mediaControlBarLayout.mediaPlayPause.setAlpha(1.0f);
+        }
+    }
+
+    @Override
     protected void onResume() {
         super.onResume();
+        if (mMediaBrowserHelper != null) {
+            MediaControllerCompat controller = mMediaBrowserHelper.getMediaController();
+            if (controller != null) {
+                updateMediaBarMetadata(controller.getMetadata());
+                updateMediaBarPlaybackState(controller.getPlaybackState());
+            }
+        }
     }
 
     @Override
