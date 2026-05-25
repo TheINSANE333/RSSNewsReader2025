@@ -96,6 +96,7 @@ public class WebViewActivity extends AppCompatActivity implements ReloadDialog.R
     private MediaBrowserHelper mMediaBrowserHelper;
     private boolean isPlaying;
     private boolean isReadingMode;
+    private boolean isTtsReady;
     private long currentId;
     private long feedId;
     private String currentLink;
@@ -120,6 +121,7 @@ public class WebViewActivity extends AppCompatActivity implements ReloadDialog.R
         public void onPlaybackStateChanged(@NonNull PlaybackStateCompat state) {
             isPlaying = (state != null) && (state.getState() == PlaybackStateCompat.STATE_PLAYING);
             updatePlayPauseButtonIcon(isPlaying);
+            updateMediaButtonsState(isPlaying);
             
             if (isPlaying) {
                 getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
@@ -354,6 +356,8 @@ public class WebViewActivity extends AppCompatActivity implements ReloadDialog.R
         currentLink = entryInfo.getEntryLink();
 
         webViewViewModel.prioritizeEntry(currentId);
+        isTtsReady = false;
+        updateMediaButtonsState(isPlaying);
 
         compositeDisposable.add(Single.fromCallable(() -> entryRepository.getEntryById(currentId))
                 .subscribeOn(Schedulers.io())
@@ -850,6 +854,7 @@ public class WebViewActivity extends AppCompatActivity implements ReloadDialog.R
                 if (controls != null) controls.rewind();
             }
         });
+        updateMediaButtonsState(isPlaying);
     }
 
     private void setupReadingNavigation() {
@@ -887,12 +892,14 @@ public class WebViewActivity extends AppCompatActivity implements ReloadDialog.R
     }
 
     public void finishedSetup() {
+        isTtsReady = true;
         runOnUiThread(() -> {
             loading.setVisibility(View.INVISIBLE);
             if (!isReadingMode) {
                 binding.functionButtons.setVisibility(View.VISIBLE);
                 binding.functionButtons.setAlpha(1.0f);
             }
+            updateMediaButtonsState(isPlaying);
             refreshButtonVisibility();
         });
     }
@@ -946,6 +953,28 @@ public class WebViewActivity extends AppCompatActivity implements ReloadDialog.R
 
     private void updatePlayPauseButtonIcon(boolean p) {
         binding.playPauseButton.setIconResource(p ? R.drawable.ic_pause : R.drawable.ic_play);
+    }
+
+    private void updateMediaButtonsState(boolean playing) {
+        // Main control buttons (Play, Skip Next, Skip Previous)
+        binding.playPauseButton.setEnabled(isTtsReady);
+        binding.skipNextButton.setEnabled(isTtsReady);
+        binding.skipPreviousButton.setEnabled(isTtsReady);
+
+        float mainAlpha = isTtsReady ? 1.0f : 0.5f;
+        binding.playPauseButton.setAlpha(mainAlpha);
+        binding.skipNextButton.setAlpha(mainAlpha);
+        binding.skipPreviousButton.setAlpha(mainAlpha);
+
+        // Sub-control buttons (Rewind, Fast Forward)
+        // Disabled if either not ready OR not playing
+        boolean subEnabled = isTtsReady && playing;
+        binding.rewindButton.setEnabled(subEnabled);
+        binding.fastForwardButton.setEnabled(subEnabled);
+
+        float subAlpha = subEnabled ? 1.0f : 0.5f;
+        binding.rewindButton.setAlpha(subAlpha);
+        binding.fastForwardButton.setAlpha(subAlpha);
     }
 
     @Override public void onStart() { super.onStart(); if (!isReadingMode && mMediaBrowserHelper != null) mMediaBrowserHelper.onStart(); }
