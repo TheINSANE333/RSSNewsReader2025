@@ -12,6 +12,7 @@
     app:strokeWidth="0dp"
     android:clickable="true"
     android:focusable="true"
+    android:foreground="?attr/selectableItemBackground"
     android:visibility="gone">
 
     <androidx.constraintlayout.widget.ConstraintLayout

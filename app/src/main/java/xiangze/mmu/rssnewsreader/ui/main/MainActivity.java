@@ -491,7 +491,10 @@ public class MainActivity extends AppCompatActivity {
                 if (mediaId != null) {
                     Intent intent = new Intent(MainActivity.this, WebViewActivity.class);
                     intent.putExtra("id", Long.parseLong(mediaId));
-                    startActivity(intent);
+                    
+                    androidx.core.app.ActivityOptionsCompat options = androidx.core.app.ActivityOptionsCompat.makeCustomAnimation(
+                            MainActivity.this, R.anim.article_open_enter, R.anim.article_open_exit);
+                    startActivity(intent, options.toBundle());
                 }
             }
         });
