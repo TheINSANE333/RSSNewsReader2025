@@ -104,6 +104,7 @@ public class WebViewActivity extends AppCompatActivity implements ReloadDialog.R
     private String currentTitle;
     private String lastLoadedHtml = "";
     private long lastLoadedEntryId = 0;
+    private int loadGeneration = 0; // Monotonically increasing counter to discard stale async results
     private String currentLoadToken = "";
     private boolean hasProcessedCurrentToken = false;
     private boolean userManuallySwitchedToOriginal = false;
@@ -366,21 +367,37 @@ public class WebViewActivity extends AppCompatActivity implements ReloadDialog.R
         isTtsReady = false;
         updateMediaButtonsState(isPlaying);
 
-        compositeDisposable.add(Single.fromCallable(() -> entryRepository.getEntryById(currentId))
+        // Capture the target ID and generation for this specific load request.
+        // If TTS auto-advances before the async callback fires, the generation
+        // will have incremented, and we'll know to use the latest state instead.
+        final long targetId = currentId;
+        final long targetFeedId = feedId;
+        final String targetLink = currentLink;
+        final boolean capturedIsNewArticle = isNewArticle;
+        final int thisGeneration = ++loadGeneration;
+
+        compositeDisposable.add(Single.fromCallable(() -> entryRepository.getEntryById(targetId))
                 .subscribeOn(Schedulers.io())
                 .observeOn(AndroidSchedulers.mainThread())
                 .subscribe(entry -> {
                     if (entry == null) return;
 
+                    // If a newer loadEntryContent() call was made while we were on the IO thread,
+                    // discard this stale result — the newer call will handle its own loading.
+                    if (thisGeneration != loadGeneration) {
+                        Timber.d("Discarding stale load result for entry " + targetId + " (generation " + thisGeneration + " vs current " + loadGeneration + ")");
+                        return;
+                    }
+
                     // Auto-reload if content is detected as an error message or too short
-                    if (!sharedPreferencesRepository.getWebViewMode(currentId) && textUtil.isErrorContent(entry.getContent())) {
-                        Timber.d("Error content detected for ID: " + currentId + ". Triggering auto re-extraction.");
-                        ttsExtractor.resetAndRetry(currentId);
+                    if (!sharedPreferencesRepository.getWebViewMode(targetId) && textUtil.isErrorContent(entry.getContent())) {
+                        Timber.d("Error content detected for ID: " + targetId + ". Triggering auto re-extraction.");
+                        ttsExtractor.resetAndRetry(targetId);
                         showFakeLoading();
                     }
 
-                    if (sharedPreferencesRepository.getWebViewMode(currentId)) {
-                        webView.loadUrl(currentLink);
+                    if (sharedPreferencesRepository.getWebViewMode(targetId)) {
+                        webView.loadUrl(targetLink);
                         refreshButtonVisibility(entry);
                         return;
                     }
@@ -394,13 +411,13 @@ public class WebViewActivity extends AppCompatActivity implements ReloadDialog.R
                         // For same-article refreshes, only promote to summarized/translated, never demote.
                         if (hasSummary) {
                             webViewViewModel.setIsSummarizedView(true);
-                        } else if (isNewArticle) {
+                        } else if (capturedIsNewArticle) {
                             webViewViewModel.setIsSummarizedView(false);
                         }
 
                         if (hasTranslation && !hasSummary) {
                             webViewViewModel.setIsTranslatedView(true);
-                        } else if (isNewArticle) {
+                        } else if (capturedIsNewArticle) {
                             webViewViewModel.setIsTranslatedView(false);
                         }
                     }
