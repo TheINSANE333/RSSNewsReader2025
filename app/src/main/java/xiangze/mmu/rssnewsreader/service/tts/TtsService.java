@@ -510,18 +510,74 @@ public class TtsService extends MediaBrowserServiceCompat {
         }
 
         public void onPlayPause() {
-            Timber.d("onPlayPause called");
-            if (ttsPlayer.isPlaying()) {
-                onPause();
-            } else {
+            Timber.d("onPlayPause called - isPausedManually=" + ttsPlayer.isPausedManually());
+            // Use isPausedManually as the primary source of truth for toggle.
+            // ttsPlayer.isPlaying() uses tts.isSpeaking() which is false between
+            // sentences, causing incorrect toggling from Bluetooth/headset buttons.
+            if (ttsPlayer.isPausedManually()) {
                 onPlay();
+            } else {
+                // Also check session state as fallback for edge cases
+                PlaybackStateCompat state = mediaSession.getController().getPlaybackState();
+                if (state != null && state.getState() == PlaybackStateCompat.STATE_PAUSED) {
+                    onPlay();
+                } else {
+                    onPause();
+                }
             }
         }
 
         @Override
         public boolean onMediaButtonEvent(Intent mediaButtonIntent) {
-            Timber.d("onMediaButtonEvent: intent=" + mediaButtonIntent);
-            return super.onMediaButtonEvent(mediaButtonIntent);
+            if (mediaButtonIntent == null) {
+                return super.onMediaButtonEvent(mediaButtonIntent);
+            }
+
+            KeyEvent keyEvent = IntentCompat.getParcelableExtra(
+                    mediaButtonIntent, Intent.EXTRA_KEY_EVENT, KeyEvent.class);
+            if (keyEvent == null) {
+                return super.onMediaButtonEvent(mediaButtonIntent);
+            }
+
+            Timber.d("onMediaButtonEvent: keyCode=" + keyEvent.getKeyCode()
+                    + " action=" + keyEvent.getAction()
+                    + " isPaused=" + ttsPlayer.isPausedManually());
+
+            // Only handle ACTION_UP to avoid double-triggering from DOWN+UP pairs
+            if (keyEvent.getAction() != KeyEvent.ACTION_UP) {
+                return true; // Consume ACTION_DOWN without acting
+            }
+
+            switch (keyEvent.getKeyCode()) {
+                case KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE:
+                case KeyEvent.KEYCODE_HEADSETHOOK:
+                    onPlayPause();
+                    return true;
+                case KeyEvent.KEYCODE_MEDIA_PLAY:
+                    onPlay();
+                    return true;
+                case KeyEvent.KEYCODE_MEDIA_PAUSE:
+                    onPause();
+                    return true;
+                case KeyEvent.KEYCODE_MEDIA_NEXT:
+                    onSkipToNext();
+                    return true;
+                case KeyEvent.KEYCODE_MEDIA_PREVIOUS:
+                    onSkipToPrevious();
+                    return true;
+                case KeyEvent.KEYCODE_MEDIA_STOP:
+                    onStop();
+                    return true;
+                case KeyEvent.KEYCODE_MEDIA_FAST_FORWARD:
+                    onFastForward();
+                    return true;
+                case KeyEvent.KEYCODE_MEDIA_REWIND:
+                    onRewind();
+                    return true;
+                default:
+                    Timber.d("Unhandled media key: " + keyEvent.getKeyCode());
+                    return super.onMediaButtonEvent(mediaButtonIntent);
+            }
         }
 
         private void updatePlaybackState(int state) {
