@@ -317,24 +317,37 @@ public class TtsExtractor {
                 Timber.d("Delay for ID " + entry.getId() + " is " + delayTime + "s (Attempt " + attempts + ")");
 
                 final String linkToLoad = currentLink;
-                ContextCompat.getMainExecutor(context).execute(new Runnable() {
-                    @Override
-                    public void run() {
-                        webView.loadUrl(linkToLoad);
-                        Timber.d(linkToLoad);
-                    }
-                });
-                lastExtractStart = System.currentTimeMillis();
+                if (isWebViewServiceable()) {
+                    Timber.d("WebView is serviceable. Starting WebView extraction.");
+                    ContextCompat.getMainExecutor(context).execute(new Runnable() {
+                        @Override
+                        public void run() {
+                            webView.loadUrl(linkToLoad);
+                            Timber.d(linkToLoad);
+                        }
+                    });
+                    lastExtractStart = System.currentTimeMillis();
 
-                new Handler(Looper.getMainLooper()).postDelayed(() -> {
-                    if (extractionInProgress && System.currentTimeMillis() - lastExtractStart > 30000) {
-                        Timber.w("[Timeout] Extraction stuck >30s, resetting manually");
-                        failedIds.add(currentIdInProgress);
-                        currentIdInProgress = -1;
-                        setExtractionInProgress(false);
-                        extractAllEntries();
-                    }
-                }, 30000);
+                    new Handler(Looper.getMainLooper()).postDelayed(() -> {
+                        if (extractionInProgress && System.currentTimeMillis() - lastExtractStart > 30000) {
+                            Timber.w("[Timeout] WebView extraction stuck >30s, attempting HTTP fallback...");
+                            long id = currentIdInProgress;
+                            String link = currentLink;
+                            String title = currentTitle;
+                            // Stop WebView loading on UI thread
+                            ContextCompat.getMainExecutor(context).execute(() -> {
+                                if (webView != null) {
+                                    webView.stopLoading();
+                                    webView.loadUrl("about:blank");
+                                }
+                            });
+                            extractViaHttp(id, link, title);
+                        }
+                    }, 30000);
+                } else {
+                    Timber.d("WebView is NOT serviceable (background/screen off). Using direct HTTP extraction.");
+                    extractViaHttp(entry.getId(), currentLink, currentTitle);
+                }
             }
         } else {
             Timber.d("No entry returned by getEmptyContentEntry()");
@@ -391,9 +404,67 @@ public class TtsExtractor {
 
     // Helper methods to keep the main function cleaner
     private void handleFailure(long id) {
+        synchronized (this) {
+            if (id != currentIdInProgress || !extractionInProgress) {
+                Timber.w("Ignoring handleFailure for ID: " + id + " since it is no longer current.");
+                return;
+            }
+        }
         entryRepository.updatePriority(0, id);
         failedIds.add(id);
         finishAndMoveToNext();
+    }
+
+    private boolean isWebViewServiceable() {
+        PowerManager powerManager = (PowerManager) context.getSystemService(Context.POWER_SERVICE);
+        if (powerManager != null && !powerManager.isInteractive()) {
+            Timber.d("WebView not serviceable: Screen is off");
+            return false;
+        }
+
+        try {
+            android.app.ActivityManager.RunningAppProcessInfo appProcessInfo = new android.app.ActivityManager.RunningAppProcessInfo();
+            android.app.ActivityManager.getMyMemoryState(appProcessInfo);
+            if (appProcessInfo.importance != android.app.ActivityManager.RunningAppProcessInfo.IMPORTANCE_FOREGROUND) {
+                Timber.d("WebView not serviceable: App is in background (importance: " + appProcessInfo.importance + ")");
+                return false;
+            }
+        } catch (Exception e) {
+            Timber.e(e, "Error checking app foreground state");
+        }
+
+        return true;
+    }
+
+    private void extractViaHttp(long entryId, String link, String title) {
+        Timber.d("Starting background HTTP extraction for ID: " + entryId + ", Link: " + link);
+        Schedulers.io().scheduleDirect(() -> {
+            try {
+                synchronized (this) {
+                    if (entryId != currentIdInProgress || !extractionInProgress) {
+                        Timber.w("Aborting HTTP extraction start: ID mismatch or not in progress.");
+                        return;
+                    }
+                }
+                org.jsoup.nodes.Document doc = org.jsoup.Jsoup.connect(link)
+                        .userAgent("Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/116.0.0.0 Mobile Safari/537.36")
+                        .timeout(15000)
+                        .followRedirects(true)
+                        .get();
+                String html = doc.outerHtml();
+
+                if (html != null && html.length() >= 500) {
+                    Timber.d("HTTP extraction succeeded for ID: " + entryId);
+                    processExtraction(entryId, link, title, html);
+                } else {
+                    Timber.w("HTTP extraction failed: HTML too short or null for ID: " + entryId);
+                    handleFailure(entryId);
+                }
+            } catch (Throwable t) {
+                Timber.e(t, "HTTP extraction error for ID: " + entryId);
+                handleFailure(entryId);
+            }
+        });
     }
 
     public class WebClient extends WebViewClient {
@@ -542,6 +613,12 @@ public class TtsExtractor {
 
     @SuppressLint("CheckResult")
     public void processExtraction(long entryId, String link, String title, String html) {
+        synchronized (this) {
+            if (entryId != currentIdInProgress || !extractionInProgress) {
+                Timber.w("Aborting processExtraction: Entry ID mismatch or extraction not in progress. EntryId: " + entryId + ", currentIdInProgress: " + currentIdInProgress);
+                return;
+            }
+        }
         if (html == null || html.length() < 500) {
             Timber.w("HTML too short or null in processExtraction. Retrying...");
             handleFailure(entryId);
