@@ -332,10 +332,16 @@ public class WebViewActivity extends AppCompatActivity implements ReloadDialog.R
             } else {
                 // Check if there's already something playing/reading in the background
                 long playingId = sharedPreferencesRepository.getCurrentReadingEntryId();
-                if (playingId != 0) {
+                // If intent has an ID, prioritize it over resumed ID if forceId is not set but ID is present
+                long intentId = getIntent().getLongExtra("entry_id", 0);
+                if (intentId == 0) intentId = getIntent().getLongExtra("id", 0); // Handle 'id' fallback
+
+                if (intentId != 0) {
+                    currentId = intentId;
+                } else if (playingId != 0) {
                     currentId = playingId;
                 } else {
-                    currentId = getIntent().getLongExtra("entry_id", 0);
+                    currentId = 0;
                 }
             }
         }
@@ -410,6 +416,7 @@ public class WebViewActivity extends AppCompatActivity implements ReloadDialog.R
                         Timber.d("Discarding stale load result for entry " + targetId + " (generation " + thisGeneration + " vs current " + loadGeneration + ")");
                         return;
                     }
+                    Timber.d("Loading entry content for ID: " + targetId + " (Generation: " + thisGeneration + ")");
 
                     // Auto-reload if content is detected as an error message or too short
                     if (!sharedPreferencesRepository.getWebViewMode(targetId) && textUtil.isErrorContent(entry.getContent())) {
@@ -938,10 +945,32 @@ public class WebViewActivity extends AppCompatActivity implements ReloadDialog.R
     private void initializeWebViewSettings() {
         webView.getSettings().setJavaScriptEnabled(true);
         webView.getSettings().setDomStorageEnabled(true);
+        
+        applyZoomSettings();
+
+        // Enable pinch-to-zoom
+        webView.getSettings().setSupportZoom(true);
+        webView.getSettings().setBuiltInZoomControls(true);
+        webView.getSettings().setDisplayZoomControls(false);
+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             webView.getSettings().setAlgorithmicDarkeningAllowed(sharedPreferencesRepository.getNight());
         }
         webView.setWebChromeClient(new WebChromeClient());
+    }
+
+    private void applyZoomSettings() {
+        // Restore text zoom
+        int savedTextZoom = sharedPreferencesRepository.getTextZoom();
+        if (savedTextZoom > 0) {
+            webView.getSettings().setTextZoom(savedTextZoom);
+        }
+
+        // Restore scale zoom (pinch-to-zoom)
+        int savedScale = sharedPreferencesRepository.getZoomScale();
+        if (savedScale > 0) {
+            webView.setInitialScale(savedScale);
+        }
     }
 
     @Override
@@ -1075,6 +1104,13 @@ public class WebViewActivity extends AppCompatActivity implements ReloadDialog.R
                 return AdBlocker.createEmptyResource();
             }
             return super.shouldInterceptRequest(view, request);
+        }
+
+        @Override
+        public void onScaleChanged(WebView view, float oldScale, float newScale) {
+            super.onScaleChanged(view, oldScale, newScale);
+            // Save scale as percentage
+            sharedPreferencesRepository.setZoomScale((int) (newScale * 100));
         }
 
         @Override public void onPageFinished(WebView v, String u) { 

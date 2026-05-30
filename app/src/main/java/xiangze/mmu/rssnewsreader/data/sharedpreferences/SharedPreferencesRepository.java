@@ -32,6 +32,7 @@ public class SharedPreferencesRepository {
     private static final String KEY_FIRST_LAUNCH = "is_first_launch";
     private static final String KEY_FIRST_ARTICLE_VIEW = "is_first_article_view_v2";
     private static final String KEY_FIRST_MAIN_ACTIVITY_VIEW = "is_first_main_activity_view_v2";
+    private static final String KEY_ZOOM_SCALE = "zoom_scale";
 
     public static class ApiKey {
         @com.google.gson.annotations.SerializedName("name")
@@ -87,6 +88,14 @@ public class SharedPreferencesRepository {
 
     public int getTextZoom() {
         return sharedPreferences.getInt("textZoom", 0);
+    }
+
+    public void setZoomScale(int scale) {
+        sharedPreferences.edit().putInt(KEY_ZOOM_SCALE, scale).apply();
+    }
+
+    public int getZoomScale() {
+        return sharedPreferences.getInt(KEY_ZOOM_SCALE, 0);
     }
 
     public void setSortBy(String sortBy) {
