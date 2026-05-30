@@ -271,6 +271,20 @@ public class WebViewActivity extends AppCompatActivity implements ReloadDialog.R
             if (show != null) { if (show) showFakeLoading(); else hideFakeLoading(); }
         });
 
+        // Direct article-changed signal from TTS auto-advance.
+        // This bypasses the MediaSession metadata callback which can be blocked by
+        // ignoreMetadataUntilMatch or reading mode guards, causing screen desync.
+        ttsPlayer.getArticleChangedLiveData().observe(this, newId -> {
+            if (newId != null && newId != 0 && newId != currentId) {
+                Timber.d("articleChangedLiveData: Direct navigation to article " + newId + " (was " + currentId + ")");
+                ignoreMetadataUntilMatch = false; // Clear the flag since we're explicitly navigating
+                currentId = newId;
+                webViewViewModel.setCurrentId(currentId);
+                sharedPreferencesRepository.setCurrentReadingEntryId(currentId);
+                loadEntryContent();
+            }
+        });
+
         webViewViewModel.getTranslatedTextReady().observe(this, text -> handleProcessedTextReady(text, true));
         webViewViewModel.getSummarizedTextReady().observe(this, text -> handleProcessedTextReady(text, false));
         
@@ -332,6 +346,14 @@ public class WebViewActivity extends AppCompatActivity implements ReloadDialog.R
             ttsPlaylist.updatePlayingId(currentId);
             sharedPreferencesRepository.setCurrentReadingEntryId(currentId);
             entryRepository.updateDate(new Date(), currentId);
+            // Failsafe: clear the flag after 3s to prevent it getting permanently stuck,
+            // which would block all future auto-advance metadata updates from reaching the UI.
+            new Handler(Looper.getMainLooper()).postDelayed(() -> {
+                if (ignoreMetadataUntilMatch) {
+                    Timber.w("ignoreMetadataUntilMatch timeout in loadInitialState - clearing flag");
+                    ignoreMetadataUntilMatch = false;
+                }
+            }, 3000);
         }
 
         if (isReadingMode) switchReadMode(); else switchPlayMode();
@@ -886,6 +908,13 @@ public class WebViewActivity extends AppCompatActivity implements ReloadDialog.R
             if (ttsPlaylist.skipNext()) {
                 currentId = ttsPlaylist.getPlayingId();
                 ignoreMetadataUntilMatch = true;
+                // Failsafe: clear the flag after 3s to prevent permanent blocking
+                new Handler(Looper.getMainLooper()).postDelayed(() -> {
+                    if (ignoreMetadataUntilMatch) {
+                        Timber.w("ignoreMetadataUntilMatch timeout in nextArticle - clearing flag");
+                        ignoreMetadataUntilMatch = false;
+                    }
+                }, 3000);
                 loadEntryContent();
             }
         });
@@ -893,6 +922,13 @@ public class WebViewActivity extends AppCompatActivity implements ReloadDialog.R
             if (ttsPlaylist.skipPrevious()) {
                 currentId = ttsPlaylist.getPlayingId();
                 ignoreMetadataUntilMatch = true;
+                // Failsafe: clear the flag after 3s to prevent permanent blocking
+                new Handler(Looper.getMainLooper()).postDelayed(() -> {
+                    if (ignoreMetadataUntilMatch) {
+                        Timber.w("ignoreMetadataUntilMatch timeout in previousArticle - clearing flag");
+                        ignoreMetadataUntilMatch = false;
+                    }
+                }, 3000);
                 loadEntryContent();
             }
         });

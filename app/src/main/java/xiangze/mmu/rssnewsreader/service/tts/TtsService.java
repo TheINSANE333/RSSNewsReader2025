@@ -394,10 +394,14 @@ public class TtsService extends MediaBrowserServiceCompat {
             if (ttsPlaylist.skipNext()) {
                 preparedData = ttsPlaylist.getCurrentMetadata();
                 if (preparedData != null) {
-                    sharedPreferencesRepository.setCurrentReadingEntryId(
-                            Long.parseLong(preparedData.getString(MediaMetadataCompat.METADATA_KEY_MEDIA_ID))
-                    );
+                    long newId = Long.parseLong(preparedData.getString(MediaMetadataCompat.METADATA_KEY_MEDIA_ID));
+                    sharedPreferencesRepository.setCurrentReadingEntryId(newId);
+                    GlobalState.setCurrentViewingId(newId);
                     mediaSession.setMetadata(preparedData);
+                    // Direct signal to UI — bypasses metadata callback guards
+                    if (ttsPlayer != null) {
+                        ttsPlayer.getArticleChangedLiveData().postValue(newId);
+                    }
                 }
                 onPrepare(true);
             } else {
@@ -422,10 +426,14 @@ public class TtsService extends MediaBrowserServiceCompat {
             if (ttsPlaylist.skipPrevious()) {
                 preparedData = ttsPlaylist.getCurrentMetadata();
                 if (preparedData != null) {
-                    sharedPreferencesRepository.setCurrentReadingEntryId(
-                            Long.parseLong(preparedData.getString(MediaMetadataCompat.METADATA_KEY_MEDIA_ID))
-                    );
+                    long newId = Long.parseLong(preparedData.getString(MediaMetadataCompat.METADATA_KEY_MEDIA_ID));
+                    sharedPreferencesRepository.setCurrentReadingEntryId(newId);
+                    GlobalState.setCurrentViewingId(newId);
                     mediaSession.setMetadata(preparedData);
+                    // Direct signal to UI — bypasses metadata callback guards
+                    if (ttsPlayer != null) {
+                        ttsPlayer.getArticleChangedLiveData().postValue(newId);
+                    }
                 }
                 onPrepare(true);
             } else {
@@ -622,10 +630,10 @@ public class TtsService extends MediaBrowserServiceCompat {
             if (mediaSession != null) {
                 mediaSession.setPlaybackState(state);
 
-                // Force metadata update on state change to ensure UI is in sync
-                if (preparedData != null) {
-                    mediaSession.setMetadata(preparedData);
-                }
+                // NOTE: Removed stale metadata re-broadcast that was here previously.
+                // Re-broadcasting preparedData on every state change caused the OLD article's
+                // metadata to override the NEW article's metadata during auto-advance,
+                // preventing the UI from navigating to the next article.
 
                 switch (state.getState()) {
                     case PlaybackStateCompat.STATE_PLAYING:

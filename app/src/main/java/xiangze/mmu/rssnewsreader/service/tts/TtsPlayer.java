@@ -104,6 +104,7 @@ public class TtsPlayer extends PlayerAdapter implements TtsPlayerListener {
     private final MutableLiveData<Integer> loadingProgressLiveData = new MutableLiveData<>();
     private final MutableLiveData<Long> askForReloadLiveData = new MutableLiveData<>();
     private final MutableLiveData<Boolean> showFakeLoadingLiveData = new MutableLiveData<>();
+    private final MutableLiveData<Long> articleChangedLiveData = new MutableLiveData<>();
 
     public LiveData<String> getHighlightTextLiveData() { return highlightTextLiveData; }
     public LiveData<Boolean> getFinishedSetupLiveData() { return finishedSetupLiveData; }
@@ -111,6 +112,7 @@ public class TtsPlayer extends PlayerAdapter implements TtsPlayerListener {
     public LiveData<Integer> getLoadingProgressLiveData() { return loadingProgressLiveData; }
     public LiveData<Long> getAskForReloadLiveData() { return askForReloadLiveData; }
     public LiveData<Boolean> getShowFakeLoadingLiveData() { return showFakeLoadingLiveData; }
+    public MutableLiveData<Long> getArticleChangedLiveData() { return articleChangedLiveData; }
 
     @SuppressLint("InvalidWakeLockTag")
     @Inject
@@ -304,6 +306,7 @@ public class TtsPlayer extends PlayerAdapter implements TtsPlayerListener {
                 entryRepository.updateSentCount(0, currentId);
                 sentenceCounter = 0;
                 isArticleFinished = true;
+                // Notify that article finished — the actual new ID will be emitted after skipNext()
                 if (callback != null) {
                     callback.onSkipToNext();
                 } else {
