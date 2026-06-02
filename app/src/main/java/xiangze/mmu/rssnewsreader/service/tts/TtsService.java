@@ -192,9 +192,19 @@ public class TtsService extends MediaBrowserServiceCompat {
             Timber.d("onPrepare called - ignoreViewingId=" + ignoreViewingId);
 
             long currentReadingId = sharedPreferencesRepository.getCurrentReadingEntryId();
+            long lastVisitedId = entryRepository.getLastVisitedEntryId();
+
+            // Sync with Database if SharedPreferences is stale (common after background kill)
+            // lastVisitedId is updated synchronously in skipNext(), making it more reliable than SP
+            if (lastVisitedId != 0 && lastVisitedId != currentReadingId) {
+                Timber.d("Syncing stale SharedPreferences ID (%d) with DB Last Visited ID (%d)", currentReadingId, lastVisitedId);
+                currentReadingId = lastVisitedId;
+                sharedPreferencesRepository.setCurrentReadingEntryId(currentReadingId);
+            }
+
             long currentViewingId = GlobalState.getCurrentViewingId();
 
-            if (!ignoreViewingId && currentViewingId != 0 && currentViewingId != currentReadingId) {
+            if (!ignoreViewingId && currentViewingId != 0 && currentReadingId != currentViewingId) {
                 currentReadingId = currentViewingId;
                 sharedPreferencesRepository.setCurrentReadingEntryId(currentReadingId);
                 ttsPlaylist.updatePlayingId(currentReadingId);

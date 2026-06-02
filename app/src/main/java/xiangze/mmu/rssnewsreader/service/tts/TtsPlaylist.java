@@ -54,19 +54,20 @@ public class TtsPlaylist {
         }
         
         if (entryInfo == null) {
-            long savedId = sharedPreferencesRepository.getCurrentReadingEntryId();
-            if (savedId != -1 && savedId != 0) {
-                playingId = savedId;
+            // Prioritize Database's last visited entry as it's more reliable than async SharedPreferences (especially after background kill)
+            long lastVisitedId = entryRepository.getLastVisitedEntryId();
+            if (lastVisitedId != 0) {
+                playingId = lastVisitedId;
                 entryInfo = entryRepository.getEntryInfoById(playingId);
             }
         }
 
         if (entryInfo == null) {
-            // Try fallback to last visited valid entry
-            entryInfo = entryRepository.getLastVisitedEntry();
-            if (entryInfo != null) {
-                playingId = entryInfo.getEntryId();
-                sharedPreferencesRepository.setCurrentReadingEntryId(playingId);
+            // Fallback to SharedPreferences if DB check failed or was empty
+            long savedId = sharedPreferencesRepository.getCurrentReadingEntryId();
+            if (savedId != -1 && savedId != 0) {
+                playingId = savedId;
+                entryInfo = entryRepository.getEntryInfoById(playingId);
             }
         }
 
