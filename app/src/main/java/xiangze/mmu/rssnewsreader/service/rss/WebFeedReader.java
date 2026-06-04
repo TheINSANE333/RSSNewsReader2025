@@ -80,6 +80,8 @@ public class WebFeedReader {
             "[class*=news-list], [class*=story-list], [class*=article-list], " +
             "[class*=headlines], [class*=top-stories]";
 
+    private static final String USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36";
+
     public WebFeedReader(String url) {
         this.url = url.startsWith("http") ? url : "https://" + url;
     }
@@ -87,8 +89,16 @@ public class WebFeedReader {
     public RssFeed getFeed() throws Exception {
         Timber.d("Attempting to scrape feed from: " + url);
         Document doc = Jsoup.connect(url)
-                .userAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
-                .timeout(10000)
+                .userAgent(USER_AGENT)
+                .header("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8")
+                .header("Accept-Language", "en-US,en;q=0.9")
+                .header("Cache-Control", "no-cache")
+                .header("Pragma", "no-cache")
+                .header("Sec-Fetch-Dest", "document")
+                .header("Sec-Fetch-Mode", "navigate")
+                .header("Sec-Fetch-Site", "none")
+                .referrer("https://www.google.com/")
+                .timeout(15000)
                 .followRedirects(true)
                 .get();
 
