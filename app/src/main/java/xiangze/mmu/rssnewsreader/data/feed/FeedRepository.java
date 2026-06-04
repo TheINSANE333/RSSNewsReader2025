@@ -229,13 +229,14 @@ public class FeedRepository {
         List<Feed> feeds = getAllStaticFeeds();
         ExecutorService executorService = Executors.newFixedThreadPool(4); // Use 4 threads for parallel fetching
         AtomicInteger counter = new AtomicInteger(0); // Use AtomicInteger for thread-safe increments
+        int limit = preferencesRepository.getEntriesLimitPerFeed();
 
         for (Feed feed : feeds) {
             executorService.submit(() -> {
                 try {
-                    Timber.d("Fetching feed: " + feed.getLink());
+                    Timber.d("Fetching feed: " + feed.getLink() + " with limit " + limit);
                     RssReader rssReader = new RssReader(feed.getLink());
-                    RssFeed rssFeed = rssReader.getFeed();
+                    RssFeed rssFeed = rssReader.getFeed(limit);
 
                     List<History> histories = new ArrayList<>();
                     for (RssItem rssItem : rssFeed.getRssItems()) {

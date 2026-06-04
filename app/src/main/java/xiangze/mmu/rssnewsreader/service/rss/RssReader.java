@@ -67,21 +67,55 @@ public class RssReader {
     }
 
     public RssFeed getFeed() throws Exception {
+        return getFeed(50); // Default limit
+    }
+
+    public RssFeed getFeed(int limit) throws Exception {
         try {
-            Timber.d("Fetching RSS feed from: " + rssUrl);
+            Timber.d("Fetching RSS feed from: " + rssUrl + " with limit " + limit);
             
-            // Try direct parse first
+            // Tier 1: Try direct parse first (if the URL is already an RSS/Atom feed)
             RssFeed feed = parseDirectFeed(rssUrl);
             if (feed != null && !feed.getRssItems().isEmpty()) {
+                // If they want a lot of articles, and the RSS feed is short, 
+                // we might want to continue to scraping, but for now let's respect the direct feed.
                 return feed;
             }
             
             throw new Exception("Feed is empty or invalid.");
 
         } catch (Exception e) {
-            Timber.e("Initial RSS fetch failed: " + e.getMessage() + ". Trying RSS auto-discovery on: " + rssUrl);
+            Timber.e("Initial RSS fetch failed: " + e.getMessage() + ". Trying Web Scraper for: " + rssUrl + " with limit " + limit);
 
-            // --- Tier 2: Try RSS auto-discovery from HTML <link> tags ---
+            // --- Tier 2: Try Web Scraper (Now supports pagination) ---
+            // We prioritize this over auto-discovery because the user often wants more articles
+            // than a standard RSS feed provides, and our scraper can now crawl multiple pages.
+            try {
+                WebFeedReader webFeedReader = new WebFeedReader(rssUrl);
+                RssFeed scrapedFeed = webFeedReader.getFeed(limit);
+                if (scrapedFeed != null && !scrapedFeed.getRssItems().isEmpty()) {
+                    return scrapedFeed;
+                }
+            } catch (Exception webEx) {
+                Timber.e("Web Scraper fallback failed: " + webEx.getMessage());
+            }
+
+            // --- Tier 2.5: Try common RSS feed URL patterns ---
+            // Some sites block HTML scraping (403) but serve their RSS feeds normally.
+            // Try well-known feed paths derived from the base domain before auto-discovery
+            // (which itself requires fetching the HTML page and may also be blocked).
+            Timber.d("Trying common RSS feed URL patterns for: " + rssUrl);
+            try {
+                RssFeed guessedFeed = tryCommonFeedUrls(rssUrl);
+                if (guessedFeed != null) {
+                    return guessedFeed;
+                }
+            } catch (Exception guessEx) {
+                Timber.e("Common feed URL probing failed: " + guessEx.getMessage());
+            }
+
+            // --- Tier 3: Try RSS auto-discovery from HTML <link> tags ---
+            Timber.d("Trying RSS auto-discovery as final fallback for: " + rssUrl);
             try {
                 RssFeed discoveredFeed = tryAutoDiscoverRssFeed(rssUrl);
                 if (discoveredFeed != null) {
@@ -91,16 +125,8 @@ public class RssReader {
                 Timber.e("RSS auto-discovery failed: " + discoverEx.getMessage());
             }
 
-            // --- Tier 3: Fallback to Web Scraper ---
-            Timber.d("RSS auto-discovery found nothing. Trying Web Scraper fallback for: " + rssUrl);
-            try {
-                WebFeedReader webFeedReader = new WebFeedReader(rssUrl);
-                return webFeedReader.getFeed();
-            } catch (Exception webEx) {
-                Timber.e("Web Scraper also failed: " + webEx.getMessage());
-                // Throw the ORIGINAL exception to show why RSS failed
-                throw e;
-            }
+            // If everything failed, throw the original exception
+            throw e;
         }
     }
 
@@ -209,5 +235,54 @@ public class RssReader {
             Timber.w("Direct parse failed for " + feedUrl + ": " + e.getMessage());
             throw e;
         }
+    }
+
+    /**
+     * Tries common RSS/Atom feed URL patterns derived from the base domain.
+     * Many sites (especially WordPress) expose feeds at predictable paths like /feed/ or /rss/.
+     * This is useful when HTML scraping is blocked (e.g., by Cloudflare returning 403)
+     * but the RSS endpoint itself remains accessible.
+     */
+    private RssFeed tryCommonFeedUrls(String pageUrl) {
+        try {
+            URL urlObj = new URL(pageUrl);
+            String baseUrl = urlObj.getProtocol() + "://" + urlObj.getHost();
+            if (urlObj.getPort() != -1 && urlObj.getPort() != urlObj.getDefaultPort()) {
+                baseUrl += ":" + urlObj.getPort();
+            }
+
+            String[] commonFeedPaths = {
+                "/feed/",
+                "/feed",
+                "/rss/",
+                "/rss",
+                "/feed/rss/",
+                "/feed/rss2/",
+                "/feed/atom/",
+                "/atom.xml",
+                "/rss.xml",
+                "/index.xml",
+                "/feeds/posts/default",  // Blogger
+                "/?feed=rss2",           // WordPress alternative
+            };
+
+            for (String path : commonFeedPaths) {
+                String feedUrl = baseUrl + path;
+                try {
+                    Timber.d("Probing common feed URL: " + feedUrl);
+                    RssFeed feed = parseDirectFeed(feedUrl);
+                    if (feed != null && !feed.getRssItems().isEmpty()) {
+                        Timber.i("Successfully found feed at common URL: " + feedUrl);
+                        feed.setLink(pageUrl); // Keep the original page URL as the feed link
+                        return feed;
+                    }
+                } catch (Exception ex) {
+                    Timber.v("Common feed URL not valid: " + feedUrl + " (" + ex.getMessage() + ")");
+                }
+            }
+        } catch (Exception e) {
+            Timber.w("Error building common feed URLs from: " + pageUrl + " - " + e.getMessage());
+        }
+        return null;
     }
 }

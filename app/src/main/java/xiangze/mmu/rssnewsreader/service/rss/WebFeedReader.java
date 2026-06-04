@@ -61,7 +61,8 @@ public class WebFeedReader {
         "subscribe", "rss feed", "newsletter", "more stories", "see all",
         "show more", "load more", "view all", "all rights reserved",
         "copyright", "advertise", "careers", "jobs", "work for us",
-        "download our app", "get the app", "follow us"
+        "download our app", "get the app", "follow us", "popular posts",
+        "most read", "trending now", "archives", "categories", "tags"
     };
 
     // CSS selectors for semantic article containers (ordered by specificity)
@@ -75,81 +76,358 @@ public class WebFeedReader {
 
     // CSS selectors for main content areas
     private static final String MAIN_CONTENT_SELECTOR =
-            "main, [role=main], " +
+            "main, [role=main], #content, #main, #post-area, .posts-container, " +
             "[class*=main-content], [class*=content-area], [class*=feed], " +
             "[class*=news-list], [class*=story-list], [class*=article-list], " +
             "[class*=headlines], [class*=top-stories]";
 
     private static final String USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36";
 
+    private final okhttp3.OkHttpClient client = new okhttp3.OkHttpClient.Builder()
+            .connectTimeout(20, java.util.concurrent.TimeUnit.SECONDS)
+            .readTimeout(20, java.util.concurrent.TimeUnit.SECONDS)
+            .followRedirects(true)
+            .followSslRedirects(true)
+            .build();
+
     public WebFeedReader(String url) {
-        this.url = url.startsWith("http") ? url : "https://" + url;
+        String cleanedUrl = url.trim();
+        if (!cleanedUrl.toLowerCase().startsWith("http")) {
+            cleanedUrl = "https://" + cleanedUrl;
+        }
+        
+        if (cleanedUrl.contains("mnnonline.org") && !cleanedUrl.contains("www.")) {
+            cleanedUrl = cleanedUrl.replace("mnnonline.org", "www.mnnonline.org");
+        }
+        
+        this.url = cleanedUrl;
     }
 
     public RssFeed getFeed() throws Exception {
-        Timber.d("Attempting to scrape feed from: " + url);
-        Document doc = Jsoup.connect(url)
-                .userAgent(USER_AGENT)
-                .header("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8")
-                .header("Accept-Language", "en-US,en;q=0.9")
-                .header("Cache-Control", "no-cache")
-                .header("Pragma", "no-cache")
-                .header("Sec-Fetch-Dest", "document")
-                .header("Sec-Fetch-Mode", "navigate")
-                .header("Sec-Fetch-Site", "none")
-                .referrer("https://www.google.com/")
-                .timeout(15000)
-                .followRedirects(true)
-                .get();
+        return getFeed(50); // Default limit if not specified
+    }
 
-        RssFeed feed = new RssFeed();
-        feed.setTitle(doc.title());
-        feed.setLink(url);
-        feed.setDescription("Web Scraped Feed from " + url);
+    public RssFeed getFeed(int limit) throws Exception {
+        Timber.d("[Pagination] Starting scrape for: %s (limit: %d)", url, limit);
+        
+        RssFeed combinedFeed = new RssFeed();
+        combinedFeed.setLink(url);
+        combinedFeed.setDescription("Web Scraped Feed from " + url);
 
-        // Try to detect language from HTML lang attribute
-        String lang = doc.select("html").attr("lang");
-        feed.setLanguage(lang != null && !lang.isEmpty() ? lang.split("-")[0] : "en");
+        ArrayList<RssItem> allItems = new ArrayList<>();
+        Set<String> allVisitedArticleLinks = new HashSet<>();
+        Set<String> visitedPageUrls = new HashSet<>();
+        
+        String currentPageUrl = url;
+        int pageCount = 0;
+        int maxPages = 50;
 
-        URL baseUrlObj = new URL(url);
+        while (currentPageUrl != null && allItems.size() < limit && pageCount < maxPages) {
+            String normalizedCurrentUrl = normalizeUrl(currentPageUrl);
+            if (visitedPageUrls.contains(normalizedCurrentUrl)) {
+                Timber.w("[Pagination] Already visited page: %s. Stopping.", currentPageUrl);
+                break;
+            }
+            visitedPageUrls.add(normalizedCurrentUrl);
+            pageCount++;
+
+            Timber.i("[Pagination] Scraping page %d: %s", pageCount, currentPageUrl);
+            try {
+                // Use OkHttp for better header management and 403 bypass
+                okhttp3.Request request = new okhttp3.Request.Builder()
+                        .url(currentPageUrl)
+                        .header("User-Agent", USER_AGENT)
+                        .header("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8")
+                        .header("Accept-Language", "en-US,en;q=0.9")
+                        .header("Cache-Control", "no-cache")
+                        .header("Sec-Fetch-Dest", "document")
+                        .header("Sec-Fetch-Mode", "navigate")
+                        .header("Sec-Fetch-Site", "none")
+                        .header("Sec-Fetch-User", "?1")
+                        .header("Upgrade-Insecure-Requests", "1")
+                        .build();
+
+                try (okhttp3.Response response = client.newCall(request).execute()) {
+                    if (!response.isSuccessful()) {
+                        throw new Exception("HTTP " + response.code());
+                    }
+
+                    String html = response.body().string();
+                    Document doc = org.jsoup.Jsoup.parse(html, currentPageUrl);
+
+                    String finalUrl = doc.location();
+                    if (finalUrl != null && !finalUrl.isEmpty() && !finalUrl.equals(currentPageUrl)) {
+                        currentPageUrl = finalUrl;
+                    }
+
+                    if (pageCount == 1) {
+                        combinedFeed.setTitle(doc.title());
+                        String lang = doc.select("html").attr("lang");
+                        combinedFeed.setLanguage(lang != null && !lang.isEmpty() ? lang.split("-")[0] : "en");
+                    }
+
+                    List<RssItem> pageItems = scrapeArticlesFromDocument(doc, currentPageUrl, allVisitedArticleLinks);
+                    Timber.d("[Pagination] Found %d new articles on page %d", pageItems.size(), pageCount);
+                    
+                    for (RssItem item : pageItems) {
+                        if (allItems.size() < limit) {
+                            allItems.add(item);
+                        } else {
+                            break;
+                        }
+                    }
+
+                    if (allItems.size() < limit) {
+                        String nextUrl = findNextPageUrl(doc, currentPageUrl);
+                        Timber.d("[Pagination] Next URL search result: %s", nextUrl);
+                        currentPageUrl = nextUrl;
+                    } else {
+                        Timber.i("[Pagination] Reached article limit (%d). Stopping.", limit);
+                        currentPageUrl = null;
+                    }
+                }
+            } catch (Exception e) {
+                Timber.e(e, "[Pagination] Error scraping page %d (%s)", pageCount, currentPageUrl);
+                currentPageUrl = null;
+            }
+        }
+
+        combinedFeed.setRssItems(allItems);
+        Timber.i("[Pagination] Scrape complete. Total articles: %d, Total pages: %d", allItems.size(), pageCount);
+
+        if (allItems.isEmpty()) {
+            throw new Exception("No articles found on the page.");
+        }
+
+        return combinedFeed;
+    }
+
+    private List<RssItem> scrapeArticlesFromDocument(Document doc, String pageUrl, Set<String> globalVisitedLinks) throws Exception {
+        URL baseUrlObj = new URL(pageUrl);
         String host = baseUrlObj.getHost();
+
+        // Identify the main content area to prioritize articles found there
+        Element mainArea = doc.selectFirst(MAIN_CONTENT_SELECTOR);
+        if (mainArea == null) mainArea = doc.body();
 
         // Collect candidates using multiple strategies
         List<ArticleCandidate> candidates = new ArrayList<>();
-        Set<String> visitedLinks = new HashSet<>();
+        Set<String> localVisitedLinks = new HashSet<>();
 
         // Strategy 1: Extract from semantic article containers (highest quality)
-        extractFromArticleContainers(doc, host, candidates, visitedLinks);
+        extractFromArticleContainers(doc, host, candidates, localVisitedLinks);
 
         // Strategy 2: Extract from main content area headings
-        extractFromContentHeadings(doc, host, candidates, visitedLinks);
+        extractFromContentHeadings(doc, host, candidates, localVisitedLinks);
 
         // Strategy 3: Scan remaining links with heuristic scoring
-        extractFromAllLinks(doc, host, candidates, visitedLinks);
+        extractFromAllLinks(doc, host, candidates, localVisitedLinks);
+
+        // Post-processing: Apply main area bonus and date penalties
+        for (ArticleCandidate c : candidates) {
+            // Bonus for being in the main content area
+            if (mainArea != null && mainArea.select("a[href=\"" + c.href + "\"]").size() > 0) {
+                c.score += 5;
+            }
+            
+            // Penalty for old years in URL (e.g., /2010/, /2015/)
+            c.score += scoreDateInUrl(c.href);
+        }
 
         // Sort by score descending
         Collections.sort(candidates, (a, b) -> Integer.compare(b.score, a.score));
 
         // Filter and convert to RssItems
-        ArrayList<RssItem> items = new ArrayList<>();
+        List<RssItem> items = new ArrayList<>();
         for (ArticleCandidate candidate : candidates) {
-            if (candidate.score >= MIN_SCORE_THRESHOLD && items.size() < 50) {
+            if (candidate.score >= MIN_SCORE_THRESHOLD) {
+                if (globalVisitedLinks.contains(candidate.href)) continue;
+                
                 RssItem item = candidate.toRssItem();
                 if (item.isValid()) {
                     items.add(item);
-                    Timber.d("  +" + candidate.score + " | " + candidate.title + " -> " + candidate.href);
+                    globalVisitedLinks.add(candidate.href);
+                }
+            }
+        }
+        return items;
+    }
+
+    private int scoreDateInUrl(String href) {
+        int currentYear = java.util.Calendar.getInstance().get(java.util.Calendar.YEAR);
+        Pattern yearPattern = Pattern.compile("/(19|20)\\d{2}/");
+        Matcher m = yearPattern.matcher(href);
+        if (m.find()) {
+            try {
+                int year = Integer.parseInt(m.group(0).replaceAll("/", ""));
+                if (year < currentYear - 2) {
+                    return -15; // Heavy penalty for articles older than 2 years in URL
+                } else if (year == currentYear) {
+                    return 2; // Slight bonus for current year
+                }
+            } catch (Exception e) { /* ignore */ }
+        }
+        return 0;
+    }
+
+    private String findNextPageUrl(Document doc, String currentUrl) {
+        Timber.v("[Pagination] Looking for next page link on: %s", currentUrl);
+        String normalizedCurrent = normalizeUrl(currentUrl);
+
+        // 1. Priority 1: rel="next"
+        Element relNext = doc.selectFirst("link[rel=next], a[rel=next]");
+        if (relNext != null) {
+            String href = relNext.attr("abs:href");
+            if (!href.isEmpty() && !normalizeUrl(href).equals(normalizedCurrent)) {
+                Timber.i("[Pagination] Found via rel=next: %s", href);
+                return href;
+            }
+        }
+
+        // 2. Priority 2: Sequential Number (Current Page + 1)
+        // This prevents jumping to the "Last" page accidentally
+        int currentPageNum = extractPageNumber(currentUrl);
+        if (currentPageNum > 0) {
+            int nextPageNum = currentPageNum + 1;
+            Elements links = doc.select("a[href]");
+            for (Element link : links) {
+                String href = link.attr("abs:href");
+                if (href.isEmpty() || normalizeUrl(href).equals(normalizedCurrent)) continue;
+                
+                // Look for patterns like /page/2 or ?page=2
+                if (href.contains("/page/" + nextPageNum) || 
+                    href.contains("page=" + nextPageNum) || 
+                    href.contains("p=" + nextPageNum)) {
+                    Timber.i("[Pagination] Found sequential next page (page %d): %s", nextPageNum, href);
+                    return href;
                 }
             }
         }
 
-        feed.setRssItems(items);
-        Timber.d("Scraped " + items.size() + " items (from " + candidates.size() + " candidates).");
+        // 3. Priority 3: CSS selectors for common "Next" pagination classes
+        String[] nextSelectors = {
+            "a.next", "a.older", "a.next-page", "a.pagination-next", "a.pager-next",
+            "a.page-numbers.next", "a.next.page-numbers", "a.pagination__next",
+            ".pagination a[class*=next]", ".pagination a[class*=older]",
+            ".pager a[class*=next]", ".pager a[class*=older]", ".nav-links a.next",
+            "#pagination a.next", "#pager a.next", ".page-nav a[class*=next]",
+            "a[class*=next][class*=page]", "a[class*=pager][class*=next]"
+        };
 
-        if (items.isEmpty()) {
-            throw new Exception("No articles found on the page.");
+        for (String selector : nextSelectors) {
+            Element link = doc.selectFirst(selector);
+            if (link != null) {
+                String href = link.attr("abs:href");
+                if (!href.isEmpty() && !normalizeUrl(href).equals(normalizedCurrent)) {
+                    Timber.i("[Pagination] Found via selector '%s': %s", selector, href);
+                    return href;
+                }
+            }
         }
 
-        return feed;
+        // 4. Priority 4: Text-based search
+        Elements links = doc.select("a[href]");
+        for (Element link : links) {
+            String text = link.text().trim().toLowerCase();
+            String href = link.attr("abs:href");
+            
+            if (href.isEmpty() || normalizeUrl(href).equals(normalizedCurrent)) continue;
+
+            boolean matchesText = text.equals("next") || text.equals("older") || 
+                                 text.equals("next >") || text.equals("older posts") ||
+                                 text.equals("»") || text.equals(">") ||
+                                 text.contains("next page") || text.contains("older articles");
+
+            if (matchesText) {
+                boolean isLikely = isLikelyPaginationLink(link);
+                Timber.v("[Pagination] Link '%s' (href=%s) matches text but isLikelyPagination=%b", text, href, isLikely);
+                if (isLikely) {
+                    Timber.i("[Pagination] Found via text '%s': %s", text, href);
+                    return href;
+                }
+            }
+        }
+
+        // 5. Priority 5: URL pattern search in containers
+        Elements paginationContainers = doc.select("[class*=pagination], [class*=pager], [id*=pagination], [id*=pager], .nav-links, .page-nav");
+        for (Element container : paginationContainers) {
+            Elements pLinks = container.select("a[href]");
+            for (Element pLink : pLinks) {
+                String href = pLink.attr("abs:href");
+                if (href.contains("/page/") || href.contains("?page=") || href.contains("&page=") || href.contains("?p=")) {
+                    if (!normalizeUrl(href).equals(normalizedCurrent)) {
+                        // Extra check: only follow if it's a higher number or we don't know the current number
+                        int foundPageNum = extractPageNumber(href);
+                        if (foundPageNum == -1 || currentPageNum == -1 || foundPageNum > currentPageNum) {
+                            Timber.i("[Pagination] Found via URL pattern in container '%s': %s", container.className(), href);
+                            return href;
+                        }
+                    }
+                }
+            }
+        }
+        
+        Timber.w("[Pagination] No next page link found.");
+        return null;
+    }
+
+    private int extractPageNumber(String url) {
+        try {
+            // Pattern for /page/2 or ?page=2
+            Pattern p = Pattern.compile("[/=?&]page[=/](\\d+)");
+            Matcher m = p.matcher(url);
+            if (m.find()) {
+                return Integer.parseInt(m.group(1));
+            }
+            // If it's the root news page, it's effectively page 1
+            if (url.endsWith("/news") || url.endsWith("/news/") || url.contains("/news?")) {
+                return 1;
+            }
+        } catch (Exception e) { /* ignore */ }
+        return -1;
+    }
+
+    private String normalizeUrl(String url) {
+        if (url == null) return "";
+        String normalized = url.trim().toLowerCase();
+        if (normalized.endsWith("/")) {
+            normalized = normalized.substring(0, normalized.length() - 1);
+        }
+        normalized = normalized.replace("www.", "");
+        normalized = normalized.replace("https://", "http://"); // Treat both as same for visited check
+        return normalized;
+    }
+
+    private boolean isLikelyPaginationLink(Element link) {
+        // Check if the link itself has pagination-related classes
+        String linkClass = link.className().toLowerCase();
+        if (linkClass.contains("page-numbers") || linkClass.contains("pagination") || 
+            linkClass.contains("pager") || linkClass.contains("next") || linkClass.contains("older")) {
+            return true;
+        }
+
+        // Check if inside a pagination container
+        Element parent = link.parent();
+        int depth = 0;
+        while (parent != null && depth < 5) {
+            String className = parent.className().toLowerCase();
+            String id = parent.id().toLowerCase();
+            String role = parent.attr("role").toLowerCase();
+
+            if (className.contains("pagination") || className.contains("pager") || 
+                className.contains("nav-links") || className.contains("page-numbers") ||
+                id.contains("pagination") || id.contains("pager") ||
+                role.equals("navigation")) {
+                return true;
+            }
+            parent = parent.parent();
+            depth++;
+        }
+        
+        // Final fallback: if it's in a nav/footer and has "next" or "older" text, it's likely pagination
+        if (isInsideNavOrFooter(link)) return true;
+        
+        return false;
     }
 
     // =========================================================================
@@ -456,7 +734,18 @@ public class WebFeedReader {
             }
         }
 
-        // 2. Try <time> element without datetime attr
+        // 2. Try class-based date elements (very common in news sites)
+        Element dateElement = container.selectFirst("[class*=date], [class*=published], [class*=time], [class*=meta]");
+        if (dateElement != null) {
+            String text = dateElement.text().trim();
+            if (!text.isEmpty() && text.length() > 5 && text.length() < 50) {
+                // Try to parse the text directly
+                String converted = tryParseTextDate(text);
+                if (converted != null) return converted;
+            }
+        }
+
+        // 3. Try <time> element without datetime attr
         if (timeElement == null) {
             timeElement = container.selectFirst("time");
         }
@@ -469,7 +758,7 @@ public class WebFeedReader {
             }
         }
 
-        // 3. Try URL date pattern
+        // 4. Try URL date pattern
         return extractDateFromUrl(href);
     }
 

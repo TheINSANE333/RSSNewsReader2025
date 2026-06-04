@@ -90,8 +90,9 @@ public class FeedViewModel extends ViewModel {
             @Override
             public void run() throws Throwable {
                 if (!feedRepository.checkFeedExist(link)) {
+                    int limit = feedRepository.getSharedPreferencesRepository().getEntriesLimitPerFeed();
                     RssReader rssReader = new RssReader(link);
-                    rssFeed = rssReader.getFeed();
+                    rssFeed = rssReader.getFeed(limit);
                     rssFeed.setLink(link);
                     Timber.d(link);
                 } else {
