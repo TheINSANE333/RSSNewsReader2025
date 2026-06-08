@@ -641,9 +641,25 @@ public class TtsExtractor {
                 StringBuilder content = new StringBuilder();
 
                 String articleContent = article.getContentWithUtf8Encoding();
+                Document doc = null;
                 if (articleContent != null) {
-                    // 2. Clean with Jsoup
-                    Document doc = Jsoup.parse(articleContent);
+                    doc = Jsoup.parse(articleContent);
+                }
+
+                // Fallback to feed description if extracted content is null/empty or shorter than description
+                Entry dbEntry = entryRepository.getEntryById(entryId);
+                String description = (dbEntry != null) ? dbEntry.getDescription() : null;
+                if (description != null && !description.trim().isEmpty()) {
+                    String cleanDesc = Jsoup.parse(description).text().trim();
+                    String cleanExtracted = (doc != null) ? doc.body().text().trim() : "";
+                    if (cleanDesc.length() > cleanExtracted.length()) {
+                        Timber.d("Extracted text length (" + cleanExtracted.length() + ") is shorter than description text (" + cleanDesc.length() + "). Falling back to feed description.");
+                        doc = Jsoup.parse(description);
+                    }
+                }
+
+                if (doc != null) {
+                    final Document finalDoc = doc;
 
                     // Clean images and layout
                     doc.select("img").removeAttr("width");
@@ -869,8 +885,8 @@ public class TtsExtractor {
                                     xiangze.mmu.rssnewsreader.service.util.AutoSummarizer.processingIds.add(processingId);
 
                                     Single.zip(
-                                            textUtil.translateHtmlAllAtOnce(localizedLang, targetLang, doc.html(), processingTitle, processingId, progress -> {}, false).subscribeOn(Schedulers.io()),
-                                            textUtil.summarizeHtmlAllAtOnce(localizedLang, targetLang, doc.html(), length, processingId, processingTitle, progress -> {}, false).subscribeOn(Schedulers.io()),
+                                            textUtil.translateHtmlAllAtOnce(localizedLang, targetLang, finalDoc.html(), processingTitle, processingId, progress -> {}, false).subscribeOn(Schedulers.io()),
+                                            textUtil.summarizeHtmlAllAtOnce(localizedLang, targetLang, finalDoc.html(), length, processingId, processingTitle, progress -> {}, false).subscribeOn(Schedulers.io()),
                                             (translatedHtml, summarizedHtml) -> new String[]{translatedHtml, summarizedHtml}
                                     )
                                             .observeOn(AndroidSchedulers.mainThread())
@@ -917,7 +933,7 @@ public class TtsExtractor {
                                     }
                                     xiangze.mmu.rssnewsreader.service.util.AutoTranslator.processingIds.add(processingId);
 
-                                    textUtil.translateHtmlAllAtOnce(localizedLang, targetLang, doc.html(), processingTitle, processingId, progress -> {}, false)
+                                    textUtil.translateHtmlAllAtOnce(localizedLang, targetLang, finalDoc.html(), processingTitle, processingId, progress -> {}, false)
                                             .subscribeOn(Schedulers.io())
                                             .observeOn(AndroidSchedulers.mainThread())
                                             .doFinally(() -> xiangze.mmu.rssnewsreader.service.util.AutoTranslator.processingIds.remove(processingId))
@@ -946,7 +962,7 @@ public class TtsExtractor {
                                     }
                                     xiangze.mmu.rssnewsreader.service.util.AutoSummarizer.processingIds.add(processingId);
 
-                                    textUtil.summarizeHtmlAllAtOnce(localizedLang, targetLang, doc.html(), length, processingId, processingTitle, progress -> {}, false)
+                                    textUtil.summarizeHtmlAllAtOnce(localizedLang, targetLang, finalDoc.html(), length, processingId, processingTitle, progress -> {}, false)
                                             .subscribeOn(Schedulers.io())
                                             .observeOn(AndroidSchedulers.mainThread())
                                             .doFinally(() -> xiangze.mmu.rssnewsreader.service.util.AutoSummarizer.processingIds.remove(processingId))
