@@ -489,12 +489,25 @@ public class MainActivity extends AppCompatActivity {
             if (controller != null && controller.getMetadata() != null) {
                 String mediaId = controller.getMetadata().getString(MediaMetadataCompat.METADATA_KEY_MEDIA_ID);
                 if (mediaId != null) {
-                    Intent intent = new Intent(MainActivity.this, WebViewActivity.class);
-                    intent.putExtra("id", Long.parseLong(mediaId));
-                    
-                    androidx.core.app.ActivityOptionsCompat options = androidx.core.app.ActivityOptionsCompat.makeCustomAnimation(
-                            MainActivity.this, R.anim.article_open_enter, R.anim.article_open_exit);
-                    startActivity(intent, options.toBundle());
+                    long id = Long.parseLong(mediaId);
+                    // Verify the entry still exists before launching WebViewActivity
+                    Single.fromCallable(() -> mainActivityViewModel.getEntryInfoById(id))
+                            .subscribeOn(Schedulers.io())
+                            .observeOn(AndroidSchedulers.mainThread())
+                            .subscribe(info -> {
+                                if (info != null) {
+                                    Intent intent = new Intent(MainActivity.this, WebViewActivity.class);
+                                    intent.putExtra("entry_id", id);
+                                    intent.putExtra("force_id", true);
+                                    
+                                    androidx.core.app.ActivityOptionsCompat options = androidx.core.app.ActivityOptionsCompat.makeCustomAnimation(
+                                            MainActivity.this, R.anim.article_open_enter, R.anim.article_open_exit);
+                                    startActivity(intent, options.toBundle());
+                                } else {
+                                    Toast.makeText(MainActivity.this, "Article no longer available", Toast.LENGTH_SHORT).show();
+                                    // Could also trigger a skip next here if desired
+                                }
+                            }, throwable -> Timber.e(throwable, "Error checking entry existence"));
                 }
             }
         });

@@ -351,7 +351,17 @@ public class WebViewActivity extends AppCompatActivity implements ReloadDialog.R
             ignoreMetadataUntilMatch = true;
             ttsPlaylist.updatePlayingId(currentId);
             sharedPreferencesRepository.setCurrentReadingEntryId(currentId);
-            entryRepository.updateDate(new Date(), currentId);
+            
+            // Move updateDate to background to avoid blocking main thread and DB contention
+            compositeDisposable.add(
+                io.reactivex.rxjava3.core.Completable.fromAction(() -> entryRepository.updateDate(new Date(), currentId))
+                    .subscribeOn(Schedulers.io())
+                    .subscribe(
+                        () -> Timber.d("Visited date updated successfully"),
+                        throwable -> Timber.e(throwable, "Error updating visited date")
+                    )
+            );
+            
             // Failsafe: clear the flag after 3s to prevent it getting permanently stuck,
             // which would block all future auto-advance metadata updates from reaching the UI.
             new Handler(Looper.getMainLooper()).postDelayed(() -> {
@@ -367,93 +377,117 @@ public class WebViewActivity extends AppCompatActivity implements ReloadDialog.R
     }
 
     private void loadEntryContent() {
-        EntryInfo entryInfo = (currentId != 0) ? webViewViewModel.getEntryInfoById(currentId) : webViewViewModel.getLastVisitedEntry();
-        
-        // AUTO-CLOSE LOGIC: If the article was deleted from the DB, don't stay on a blank screen
-        if (entryInfo == null) {
-            Toast.makeText(this, "Article no longer available", Toast.LENGTH_SHORT).show();
-            finish();
-            return;
-        }
+        loadEntryContentWithRetry(0);
+    }
 
-        boolean isNewArticle = (lastLoadedEntryId != entryInfo.getEntryId());
-        lastLoadedEntryId = entryInfo.getEntryId();
+    private void loadEntryContentWithRetry(int retryCount) {
+        compositeDisposable.add(Single.fromCallable(() -> {
+            EntryInfo entryInfo = (currentId != 0) ? webViewViewModel.getEntryInfoById(currentId) : webViewViewModel.getLastVisitedEntry();
+            if (entryInfo == null) {
+                if (retryCount < 3) {
+                    // DB might be temporarily locked by async writes, retry
+                    try { Thread.sleep(200); } catch (InterruptedException e) { Thread.currentThread().interrupt(); }
+                    throw new RuntimeException("RETRY");
+                }
+            }
+            return entryInfo; // Could still be null after 3 retries
+        })
+        .subscribeOn(Schedulers.io())
+        .observeOn(AndroidSchedulers.mainThread())
+        .subscribe(entryInfo -> {
+            // AUTO-CLOSE LOGIC: If the article was deleted from the DB, don't stay on a blank screen
+            if (entryInfo == null) {
+                Toast.makeText(this, "Article no longer available", Toast.LENGTH_SHORT).show();
+                finish();
+                return;
+            }
 
-        if (isNewArticle) {
-            userManuallySwitchedToOriginal = false; // Reset for new article
-            lastLoadedHtml = ""; // Reset cache to force reload on new article
-        }
+            boolean isNewArticle = (lastLoadedEntryId != entryInfo.getEntryId());
+            lastLoadedEntryId = entryInfo.getEntryId();
 
-        currentId = entryInfo.getEntryId();
-        sharedPreferencesRepository.setCurrentReadingEntryId(currentId);
-        GlobalState.setCurrentViewingId(currentId); // SYNC GLOBAL STATE
-        currentTitle = entryInfo.getEntryTitle();
-        feedId = entryInfo.getFeedId();
-        currentLink = entryInfo.getEntryLink();
+            if (isNewArticle) {
+                userManuallySwitchedToOriginal = false; // Reset for new article
+                lastLoadedHtml = ""; // Reset cache to force reload on new article
+            }
 
-        webViewViewModel.prioritizeEntry(currentId);
-        isTtsReady = false;
-        updateMediaButtonsState(isPlaying);
+            currentId = entryInfo.getEntryId();
+            sharedPreferencesRepository.setCurrentReadingEntryId(currentId);
+            GlobalState.setCurrentViewingId(currentId); // SYNC GLOBAL STATE
+            currentTitle = entryInfo.getEntryTitle();
+            feedId = entryInfo.getFeedId();
+            currentLink = entryInfo.getEntryLink();
 
-        // Capture the target ID and generation for this specific load request.
-        // If TTS auto-advances before the async callback fires, the generation
-        // will have incremented, and we'll know to use the latest state instead.
-        final long targetId = currentId;
-        final long targetFeedId = feedId;
-        final String targetLink = currentLink;
-        final boolean capturedIsNewArticle = isNewArticle;
-        final int thisGeneration = ++loadGeneration;
+            webViewViewModel.prioritizeEntry(currentId);
+            isTtsReady = false;
+            updateMediaButtonsState(isPlaying);
 
-        compositeDisposable.add(Single.fromCallable(() -> entryRepository.getEntryById(targetId))
-                .subscribeOn(Schedulers.io())
-                .observeOn(AndroidSchedulers.mainThread())
-                .subscribe(entry -> {
-                    if (entry == null) return;
+            // Capture the target ID and generation for this specific load request.
+            // If TTS auto-advances before the async callback fires, the generation
+            // will have incremented, and we'll know to use the latest state instead.
+            final long targetId = currentId;
+            final long targetFeedId = feedId;
+            final String targetLink = currentLink;
+            final boolean capturedIsNewArticle = isNewArticle;
+            final int thisGeneration = ++loadGeneration;
 
-                    // If a newer loadEntryContent() call was made while we were on the IO thread,
-                    // discard this stale result — the newer call will handle its own loading.
-                    if (thisGeneration != loadGeneration) {
-                        Timber.d("Discarding stale load result for entry " + targetId + " (generation " + thisGeneration + " vs current " + loadGeneration + ")");
-                        return;
-                    }
-                    Timber.d("Loading entry content for ID: " + targetId + " (Generation: " + thisGeneration + ")");
+            compositeDisposable.add(Single.fromCallable(() -> entryRepository.getEntryById(targetId))
+                    .subscribeOn(Schedulers.io())
+                    .observeOn(AndroidSchedulers.mainThread())
+                    .subscribe(entry -> {
+                        if (entry == null) return;
 
-                    // Auto-reload if content is detected as an error message or too short
-                    if (!sharedPreferencesRepository.getWebViewMode(targetId) && textUtil.isErrorContent(entry.getContent())) {
-                        Timber.d("Error content detected for ID: " + targetId + ". Triggering auto re-extraction.");
-                        ttsExtractor.resetAndRetry(targetId);
-                        showFakeLoading();
-                    }
+                        // If a newer loadEntryContent() call was made while we were on the IO thread,
+                        // discard this stale result — the newer call will handle its own loading.
+                        if (thisGeneration != loadGeneration) {
+                            Timber.d("Discarding stale load result for entry " + targetId + " (generation " + thisGeneration + " vs current " + loadGeneration + ")");
+                            return;
+                        }
+                        Timber.d("Loading entry content for ID: " + targetId + " (Generation: " + thisGeneration + ")");
 
-                    if (sharedPreferencesRepository.getWebViewMode(targetId)) {
-                        webView.loadUrl(targetLink);
-                        refreshButtonVisibility(entry);
-                        return;
-                    }
-
-                    boolean hasSummary = entry.getSummarizedHtml() != null && !entry.getSummarizedHtml().trim().isEmpty();
-                    boolean hasTranslation = entry.getTranslatedHtml() != null && !entry.getTranslatedHtml().trim().isEmpty();
-
-                    // Only auto-summarize if the user hasn't explicitly said they want the original content for this article
-                    if (!userManuallySwitchedToOriginal) {
-                        // For new articles, always set the correct state based on available content.
-                        // For same-article refreshes, only promote to summarized/translated, never demote.
-                        if (hasSummary) {
-                            webViewViewModel.setIsSummarizedView(true);
-                        } else if (capturedIsNewArticle) {
-                            webViewViewModel.setIsSummarizedView(false);
+                        // Auto-reload if content is detected as an error message or too short
+                        if (!sharedPreferencesRepository.getWebViewMode(targetId) && textUtil.isErrorContent(entry.getContent())) {
+                            Timber.d("Error content detected for ID: " + targetId + ". Triggering auto re-extraction.");
+                            ttsExtractor.resetAndRetry(targetId);
+                            showFakeLoading();
                         }
 
-                        if (hasTranslation && !hasSummary) {
-                            webViewViewModel.setIsTranslatedView(true);
-                        } else if (capturedIsNewArticle) {
-                            webViewViewModel.setIsTranslatedView(false);
+                        if (sharedPreferencesRepository.getWebViewMode(targetId)) {
+                            applyZoomSettings();
+                            webView.loadUrl(targetLink);
+                            refreshButtonVisibility(entry);
+                            return;
                         }
-                    }
 
-                    loadCurrentViewState(entry);
-                    syncLoadingWithTts();
-                }, throwable -> Timber.e(throwable, "Error loading entry content")));
+                        boolean hasSummary = entry.getSummarizedHtml() != null && !entry.getSummarizedHtml().trim().isEmpty();
+                        boolean hasTranslation = entry.getTranslatedHtml() != null && !entry.getTranslatedHtml().trim().isEmpty();
+
+                        // Only auto-summarize if the user hasn't explicitly said they want the original content for this article
+                        if (!userManuallySwitchedToOriginal) {
+                            // For new articles, always set the correct state based on available content.
+                            // For same-article refreshes, only promote to summarized/translated, never demote.
+                            if (hasSummary) {
+                                webViewViewModel.setIsSummarizedView(true);
+                            } else if (capturedIsNewArticle) {
+                                webViewViewModel.setIsSummarizedView(false);
+                            }
+
+                            if (hasTranslation && !hasSummary) {
+                                webViewViewModel.setIsTranslatedView(true);
+                            } else if (capturedIsNewArticle) {
+                                webViewViewModel.setIsTranslatedView(false);
+                            }
+                        }
+
+                        loadCurrentViewState(entry);
+                        syncLoadingWithTts();
+                    }, throwable -> Timber.e(throwable, "Error loading entry content")));
+        }, throwable -> {
+            if (throwable.getMessage() != null && throwable.getMessage().equals("RETRY")) {
+                loadEntryContentWithRetry(retryCount + 1);
+            } else {
+                Timber.e(throwable, "Error loading entry info");
+            }
+        }));
     }
 
     private void loadCurrentViewState() {
@@ -465,6 +499,8 @@ public class WebViewActivity extends AppCompatActivity implements ReloadDialog.R
 
     private void loadCurrentViewState(Entry entry) {
         if (entry == null || entry.getId() != currentId) return;
+
+        applyZoomSettings();
 
         String htmlToLoad;
         String contentToRead;
@@ -634,7 +670,12 @@ public class WebViewActivity extends AppCompatActivity implements ReloadDialog.R
     @Override public void onAdjustTextZoom(boolean zoomIn) { 
         int zoom = webView.getSettings().getTextZoom() + (zoomIn ? 10 : -10);
         webView.getSettings().setTextZoom(zoom);
-        sharedPreferencesRepository.setTextZoom(zoom);
+        boolean isWebViewMode = currentId != 0 && sharedPreferencesRepository.getWebViewMode(currentId);
+        if (isWebViewMode) {
+            sharedPreferencesRepository.setBrowserTextZoom(zoom);
+        } else {
+            sharedPreferencesRepository.setTextZoom(zoom);
+        }
     }
     @Override public void onToggleHighlight() {
         boolean h = !sharedPreferencesRepository.getHighlightText();
@@ -644,12 +685,14 @@ public class WebViewActivity extends AppCompatActivity implements ReloadDialog.R
     }
     @Override public void onOpenInBrowser() { 
         sharedPreferencesRepository.setWebViewMode(currentId, true);
+        applyZoomSettings();
         lastLoadedHtml = ""; // Clear cache to force reload when exiting browser mode
         webView.loadUrl(currentLink);
         refreshButtonVisibility();
     }
     @Override public void onExitBrowser() {
         sharedPreferencesRepository.setWebViewMode(currentId, false);
+        applyZoomSettings();
         lastLoadedHtml = ""; // Ensure we force a fresh load of the extracted HTML
         userManuallySwitchedToOriginal = false; // Reset to allow auto-summarization logic
         loadEntryContent();
@@ -960,16 +1003,29 @@ public class WebViewActivity extends AppCompatActivity implements ReloadDialog.R
     }
 
     private void applyZoomSettings() {
+        boolean isWebViewMode = currentId != 0 && sharedPreferencesRepository.getWebViewMode(currentId);
+        int savedTextZoom;
+        int savedScale;
+        if (isWebViewMode) {
+            savedTextZoom = sharedPreferencesRepository.getBrowserTextZoom();
+            savedScale = sharedPreferencesRepository.getBrowserZoomScale();
+        } else {
+            savedTextZoom = sharedPreferencesRepository.getTextZoom();
+            savedScale = sharedPreferencesRepository.getZoomScale();
+        }
+
         // Restore text zoom
-        int savedTextZoom = sharedPreferencesRepository.getTextZoom();
         if (savedTextZoom > 0) {
             webView.getSettings().setTextZoom(savedTextZoom);
+        } else {
+            webView.getSettings().setTextZoom(100);
         }
 
         // Restore scale zoom (pinch-to-zoom)
-        int savedScale = sharedPreferencesRepository.getZoomScale();
         if (savedScale > 0) {
             webView.setInitialScale(savedScale);
+        } else {
+            webView.setInitialScale(0);
         }
     }
 
@@ -1110,7 +1166,12 @@ public class WebViewActivity extends AppCompatActivity implements ReloadDialog.R
         public void onScaleChanged(WebView view, float oldScale, float newScale) {
             super.onScaleChanged(view, oldScale, newScale);
             // Save scale as percentage
-            sharedPreferencesRepository.setZoomScale((int) (newScale * 100));
+            boolean isWebViewMode = currentId != 0 && sharedPreferencesRepository.getWebViewMode(currentId);
+            if (isWebViewMode) {
+                sharedPreferencesRepository.setBrowserZoomScale((int) (newScale * 100));
+            } else {
+                sharedPreferencesRepository.setZoomScale((int) (newScale * 100));
+            }
         }
 
         @Override public void onPageFinished(WebView v, String u) { 
