@@ -625,6 +625,11 @@ public class TtsExtractor {
             return;
         }
 
+        if (html.contains("summarized-title") || html.contains("translated-title")) {
+            Timber.w("Aborting processExtraction: HTML is already summarized or translated for ID: " + entryId);
+            return;
+        }
+
         if (textUtil.isErrorHtml(html)) {
             Timber.w("Error page detected in HTML for ID: " + entryId + ". Retrying extraction...");
             handleFailure(entryId);

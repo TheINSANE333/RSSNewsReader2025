@@ -1196,16 +1196,16 @@ public class WebViewActivity extends AppCompatActivity implements ReloadDialog.R
                         contentManager.highlightText(currentHighlight);
                     }
                 }
-            } else if (u != null) {
+            } else if (u != null && (u.startsWith("http://") || u.startsWith("https://"))) {
                 final String executionToken = currentLoadToken;
                 // Reduce the initial delay from database delay to a faster baseline (e.g., 1s)
                 // but still respect if the database asks for something extremely specific.
                 int dbDelay = feedRepository.getDelayTimeById(feedId);
                 int delay = Math.min(dbDelay, 1); 
                 new Handler(Looper.getMainLooper()).postDelayed(() -> checkReadyState(v, executionToken, 1), delay * 1000L);
+            }
         }
     }
-}
 
     private void checkReadyState(WebView view, String executionToken, int attempt) {
         if (!executionToken.equals(currentLoadToken) || hasProcessedCurrentToken) return;
