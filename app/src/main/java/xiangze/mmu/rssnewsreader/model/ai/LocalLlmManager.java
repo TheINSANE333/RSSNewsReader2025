@@ -64,7 +64,7 @@ public class LocalLlmManager {
             request.setAllowedOverRoaming(true);
             
             // Add User-Agent to mimic a browser, which can help with Hugging Face redirects/CDN issues
-            request.addRequestHeader("User-Agent", "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Mobile Safari/537.36");
+            request.addRequestHeader("User-Agent", "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.7778.216 Mobile Safari/537.36");
 
             android.app.DownloadManager manager = (android.app.DownloadManager) appContext.getSystemService(Context.DOWNLOAD_SERVICE);
             if (manager != null) {

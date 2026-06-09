@@ -55,7 +55,7 @@ public class DiscoveryViewModel extends ViewModel {
         List<DiscoveryFeed> results = new ArrayList<>();
         String searchUrl = "https://html.duckduckgo.com/html/?q=" + java.net.URLEncoder.encode(query, "UTF-8");
         
-        String userAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36";
+        String userAgent = "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.7778.216 Mobile Safari/537.36";
         org.jsoup.nodes.Document doc = org.jsoup.Jsoup.connect(searchUrl)
                 .userAgent(userAgent)
                 .header("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8")

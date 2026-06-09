@@ -81,7 +81,7 @@ public class WebFeedReader {
             "[class*=news-list], [class*=story-list], [class*=article-list], " +
             "[class*=headlines], [class*=top-stories]";
 
-    private static final String USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36";
+    private static final String USER_AGENT = "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.7778.216 Mobile Safari/537.36";
 
     private final okhttp3.OkHttpClient client = new okhttp3.OkHttpClient.Builder()
             .connectTimeout(20, java.util.concurrent.TimeUnit.SECONDS)

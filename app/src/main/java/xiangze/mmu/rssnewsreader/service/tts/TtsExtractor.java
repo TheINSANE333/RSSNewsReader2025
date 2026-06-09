@@ -141,7 +141,7 @@ public class TtsExtractor {
                 settings.setLoadWithOverviewMode(true);
                 
                 // Set a standard mobile User Agent to avoid being blocked by some sites
-                settings.setUserAgentString("Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/116.0.0.0 Mobile Safari/537.36");
+                settings.setUserAgentString("Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.7778.216 Mobile Safari/537.36");
 
                 // Give the WebView a size so that sites that depend on layout can render correctly
                 webView.measure(View.MeasureSpec.makeMeasureSpec(1080, View.MeasureSpec.EXACTLY), 
@@ -447,7 +447,7 @@ public class TtsExtractor {
                     }
                 }
                 org.jsoup.nodes.Document doc = org.jsoup.Jsoup.connect(link)
-                        .userAgent("Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/116.0.0.0 Mobile Safari/537.36")
+                        .userAgent("Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.7778.216 Mobile Safari/537.36")
                         .timeout(15000)
                         .followRedirects(true)
                         .get();
