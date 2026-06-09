@@ -988,6 +988,8 @@ public class WebViewActivity extends AppCompatActivity implements ReloadDialog.R
     private void initializeWebViewSettings() {
         webView.getSettings().setJavaScriptEnabled(true);
         webView.getSettings().setDomStorageEnabled(true);
+        webView.getSettings().setUseWideViewPort(true);
+        webView.getSettings().setLoadWithOverviewMode(true);
         
         applyZoomSettings();
 

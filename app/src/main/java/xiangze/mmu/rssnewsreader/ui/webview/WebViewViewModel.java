@@ -98,6 +98,7 @@ public class WebViewViewModel extends ViewModel {
         if (html == null) return null;
 
         org.jsoup.nodes.Document doc = org.jsoup.Jsoup.parse(html);
+        doc.head().append("<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">");
         doc.head().append(getStyle(isNightMode));
 
         String titleClass = null;

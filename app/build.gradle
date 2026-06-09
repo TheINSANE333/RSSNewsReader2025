@@ -112,12 +112,12 @@ dependencies {
     // Language Identifier
     implementation 'com.google.mlkit:language-id:17.0.6'
 
-    implementation 'com.squareup.okhttp3:okhttp:5.3.2'
+    implementation 'com.squareup.okhttp3:okhttp:5.4.0'
 
     // AI
     implementation 'com.squareup.retrofit2:retrofit:3.0.0'
     implementation 'com.squareup.retrofit2:converter-gson:3.0.0'
-    implementation 'com.squareup.okhttp3:logging-interceptor:5.3.2'
+    implementation 'com.squareup.okhttp3:logging-interceptor:5.4.0'
 
     // Local LLM
     implementation 'com.google.mediapipe:tasks-genai:0.10.35'

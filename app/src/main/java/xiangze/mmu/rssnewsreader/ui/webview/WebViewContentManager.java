@@ -42,6 +42,7 @@ public class WebViewContentManager {
             }
 
             org.jsoup.nodes.Document doc = org.jsoup.Jsoup.parse(processedHtml);
+            doc.head().append("<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">");
             doc.head().append(viewModel.getStyle(sharedPreferencesRepository.getNight()));
 
             EntryInfo entryInfo = viewModel.getEntryInfoById(articleId);

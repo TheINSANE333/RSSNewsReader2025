@@ -693,6 +693,11 @@ public class TextUtil {
 
     public ProcessedAiResponse processAiResponse(String rawAiResponse, String defaultTitle, String feedTitle, java.util.Date publishDate, String feedImageUrl, boolean isNightMode, String titleClass) {
         AiResponse aiRes = parseAiResponse(rawAiResponse, defaultTitle);
+        
+        if (isAiRefusalResponse(aiRes.content)) {
+            throw new IllegalArgumentException("AI response indicates a refusal or error: " + aiRes.content);
+        }
+
         String finalHtml = formatAiResponseToHtml(
                 aiRes.title,
                 aiRes.content,
@@ -880,6 +885,10 @@ public class TextUtil {
         String trimmed = text.trim();
         String lower = trimmed.toLowerCase();
         
+        if (isAiRefusalResponse(trimmed)) {
+            return true;
+        }
+        
         // Check for error indicators regardless of length
         // These patterns indicate the AI received an error page instead of article content
         if (lower.contains("webpage could not be loaded") ||
@@ -926,10 +935,38 @@ public class TextUtil {
             }
             
             // If it's very short and doesn't look like a title/snippet, it's likely an error
-            return trimmed.length() < 30; 
+            return trimmed.length() < 50; 
         }
         
         return false;
+    }
+
+    public boolean isAiRefusalResponse(String text) {
+        if (text == null || text.trim().isEmpty()) return true;
+        String lower = text.trim().toLowerCase();
+        
+        return lower.contains("no content to summarize") ||
+               lower.contains("nothing to summarize") ||
+               lower.contains("cannot summarize") ||
+               lower.contains("unable to summarize") ||
+               lower.contains("no text to summarize") ||
+               lower.contains("no content to translate") ||
+               lower.contains("nothing to translate") ||
+               lower.contains("cannot translate") ||
+               lower.contains("unable to translate") ||
+               lower.contains("no text to translate") ||
+               lower.contains("there is no content") ||
+               lower.contains("there is no text") ||
+               lower.contains("does not contain any content") ||
+               lower.contains("does not contain any text") ||
+               lower.contains("cannot access") ||
+               lower.contains("cannot view") ||
+               lower.contains("unable to access") ||
+               lower.contains("unable to view") ||
+               lower.contains("as an ai") ||
+               lower.contains("as a language model") ||
+               lower.contains("i am unable to") ||
+               lower.contains("i cannot fulfill");
     }
 
     /**
