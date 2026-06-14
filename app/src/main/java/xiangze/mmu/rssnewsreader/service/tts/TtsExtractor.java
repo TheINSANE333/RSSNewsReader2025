@@ -615,8 +615,14 @@ public class TtsExtractor {
     public void processExtraction(long entryId, String link, String title, String html) {
         synchronized (this) {
             if (entryId != currentIdInProgress || !extractionInProgress) {
-                Timber.w("Aborting processExtraction: Entry ID mismatch or extraction not in progress. EntryId: " + entryId + ", currentIdInProgress: " + currentIdInProgress);
-                return;
+                if (entryId == GlobalState.getCurrentViewingId()) {
+                    Timber.d("Accepting manual extraction from WebViewActivity for ID: " + entryId);
+                    currentIdInProgress = entryId;
+                    setExtractionInProgress(true);
+                } else {
+                    Timber.w("Aborting processExtraction: Entry ID mismatch or extraction not in progress. EntryId: " + entryId + ", currentIdInProgress: " + currentIdInProgress);
+                    return;
+                }
             }
         }
         if (html == null || html.length() < 500) {

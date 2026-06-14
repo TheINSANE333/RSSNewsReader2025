@@ -282,6 +282,9 @@ public class WebViewActivity extends AppCompatActivity implements ReloadDialog.R
                 webViewViewModel.setCurrentId(currentId);
                 sharedPreferencesRepository.setCurrentReadingEntryId(currentId);
                 loadEntryContent();
+                
+                // Consume the event so it doesn't replay on rotation or recreation
+                ttsPlayer.getArticleChangedLiveData().setValue(0L);
             }
         });
 
@@ -329,6 +332,9 @@ public class WebViewActivity extends AppCompatActivity implements ReloadDialog.R
             
             if (forceId) {
                 currentId = getIntent().getLongExtra("entry_id", 0);
+                // User explicitly selected an article, so clear any pending auto-advance navigation
+                // to prevent LiveData replay from immediately overriding this selection
+                ttsPlayer.getArticleChangedLiveData().setValue(0L);
             } else {
                 // Check if there's already something playing/reading in the background
                 long playingId = sharedPreferencesRepository.getCurrentReadingEntryId();

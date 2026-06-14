@@ -84,6 +84,31 @@ public class OpmlRepository {
           });
     }
 
+    public void importSettingsOnly(Uri uri, OnImportCompleteListener listener) {
+        io.reactivex.rxjava3.core.Completable.fromAction(() -> {
+            InputStream inputStream = context.getContentResolver().openInputStream(uri);
+            XmlPullParserFactory factory = XmlPullParserFactory.newInstance();
+            XmlPullParser parser = factory.newPullParser();
+            parser.setInput(inputStream, null);
+            int eventType = parser.getEventType();
+
+            while (eventType != XmlPullParser.END_DOCUMENT) {
+                if (eventType == XmlPullParser.START_TAG && parser.getName().equals("setting")) {
+                    importSettings(parser);
+                }
+                eventType = parser.next();
+            }
+            if (inputStream != null) inputStream.close();
+        }).subscribeOn(io.reactivex.rxjava3.schedulers.Schedulers.io())
+          .observeOn(io.reactivex.rxjava3.android.schedulers.AndroidSchedulers.mainThread())
+          .subscribe(() -> {
+              if (listener != null) listener.onImportComplete(true, null);
+          }, throwable -> {
+              Timber.e(throwable, "Import settings failed");
+              if (listener != null) listener.onImportComplete(false, throwable.getMessage());
+          });
+    }
+
     private void importSettings(XmlPullParser parser) {
         String jobPeriodic = parser.getAttributeValue(null, "jobPeriodic");
         String highlightText = parser.getAttributeValue(null, "highlightText");
@@ -358,6 +383,31 @@ public class OpmlRepository {
               if (listener != null) listener.onExportComplete(true, null);
           }, throwable -> {
               Timber.e(throwable, "Export failed");
+              if (listener != null) listener.onExportComplete(false, throwable.getMessage());
+          });
+    }
+
+    public void exportSettingsOnly(Uri uri, OnExportCompleteListener listener) {
+        io.reactivex.rxjava3.core.Completable.fromAction(() -> {
+            XmlSerializer serializer = Xml.newSerializer();
+            OutputStream os = context.getContentResolver().openOutputStream(uri);
+            serializer.setOutput(os, StandardCharsets.UTF_8.name());
+            serializer.startDocument(null, true);
+            serializer.startTag(null, "opml");
+            serializer.startTag(null, "body");
+
+            exportSettings(serializer);
+
+            serializer.endTag(null, "body");
+            serializer.endTag(null, "opml");
+            serializer.endDocument();
+            if (os != null) os.close();
+        }).subscribeOn(io.reactivex.rxjava3.schedulers.Schedulers.io())
+          .observeOn(io.reactivex.rxjava3.android.schedulers.AndroidSchedulers.mainThread())
+          .subscribe(() -> {
+              if (listener != null) listener.onExportComplete(true, null);
+          }, throwable -> {
+              Timber.e(throwable, "Export settings failed");
               if (listener != null) listener.onExportComplete(false, throwable.getMessage());
           });
     }

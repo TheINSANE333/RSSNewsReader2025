@@ -204,6 +204,24 @@
                 android:text="@string/save_app_state"
                 app:icon="@drawable/ic_export" />
 
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/navigationImportSettingsButton"
+                style="@style/Widget.Material3.Button.TextButton"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="start|center_vertical"
+                android:text="@string/load_settings_state"
+                app:icon="@drawable/ic_import" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/navigationExportSettingsButton"
+                style="@style/Widget.Material3.Button.TextButton"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="start|center_vertical"
+                android:text="@string/save_settings_state"
+                app:icon="@drawable/ic_export" />
+
             <com.google.android.material.divider.MaterialDivider
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"

@@ -74,6 +74,7 @@ public class MainActivity extends AppCompatActivity {
     private MainActivityViewModel mainActivityViewModel;
     private GestureDetector gestureDetector;
     private MediaBrowserHelper mMediaBrowserHelper;
+    private long mDisplayedEntryId = 0;
     @Inject
     SharedPreferencesRepository sharedPreferencesRepository;
     @Inject
@@ -115,6 +116,45 @@ public class MainActivity extends AppCompatActivity {
                         mainActivityViewModel.setIsLoading(false);
                         if (success) {
                             Toast.makeText(getApplicationContext(), "Feeds exported successfully", Toast.LENGTH_SHORT).show();
+                        } else {
+                            Toast.makeText(getApplicationContext(), "Export failed: " + error, Toast.LENGTH_SHORT).show();
+                        }
+                    });
+                } else {
+                    Toast.makeText(getApplicationContext(), "Export failed", Toast.LENGTH_SHORT).show();
+                }
+            });
+
+    private final ActivityResultLauncher<String[]> importSettingsLauncher = registerForActivityResult(
+            new ActivityResultContracts.OpenMultipleDocuments(),
+            uris -> {
+                if (uris != null && !uris.isEmpty()) {
+                    mainActivityViewModel.setIsLoading(true);
+                    for (Uri uri : uris) {
+                        if (uri != null) {
+                            opmlRepository.importSettingsOnly(uri, (success, error) -> {
+                                mainActivityViewModel.setIsLoading(false);
+                                if (success) {
+                                    updateThemeSwitch();
+                                    Toast.makeText(getApplicationContext(), "Settings imported successfully", Toast.LENGTH_SHORT).show();
+                                } else {
+                                    Toast.makeText(getApplicationContext(), "Import failed: " + error, Toast.LENGTH_SHORT).show();
+                                }
+                            });
+                        }
+                    }
+                }
+            });
+
+    private final ActivityResultLauncher<Intent> exportSettingsLauncher = registerForActivityResult(
+            new ActivityResultContracts.StartActivityForResult(),
+            result -> {
+                if (result.getResultCode() == RESULT_OK && result.getData() != null) {
+                    mainActivityViewModel.setIsLoading(true);
+                    opmlRepository.exportSettingsOnly(result.getData().getData(), (success, error) -> {
+                        mainActivityViewModel.setIsLoading(false);
+                        if (success) {
+                            Toast.makeText(getApplicationContext(), "Settings exported successfully", Toast.LENGTH_SHORT).show();
                         } else {
                             Toast.makeText(getApplicationContext(), "Export failed: " + error, Toast.LENGTH_SHORT).show();
                         }
@@ -321,6 +361,21 @@ public class MainActivity extends AppCompatActivity {
             exportOpmlLauncher.launch(intent);
         });
 
+        binding.navigationView.findViewById(R.id.navigationImportSettingsButton).setOnClickListener(view -> {
+            Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
+            intent.setType("text/xml");
+            intent.putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true);
+            importSettingsLauncher.launch(new String[]{"text/xml"});
+        });
+
+        binding.navigationView.findViewById(R.id.navigationExportSettingsButton).setOnClickListener(view -> {
+            Intent intent = new Intent(Intent.ACTION_CREATE_DOCUMENT);
+            intent.addCategory(Intent.CATEGORY_OPENABLE);
+            intent.setType("text/xml");
+            intent.putExtra(Intent.EXTRA_TITLE, "rss_settings.opml");
+            exportSettingsLauncher.launch(intent);
+        });
+
         binding.navigationView.findViewById(R.id.settingsButton).setOnClickListener(view -> {
             NavOptions navOptions = new NavOptions.Builder()
                     .setPopUpTo(R.id.allEntriesFragment, false)
@@ -485,44 +540,64 @@ public class MainActivity extends AppCompatActivity {
         });
 
         binding.mediaControlBarLayout.mediaControlBar.setOnClickListener(v -> {
-            MediaControllerCompat controller = mMediaBrowserHelper.getMediaController();
-            if (controller != null && controller.getMetadata() != null) {
-                String mediaId = controller.getMetadata().getString(MediaMetadataCompat.METADATA_KEY_MEDIA_ID);
-                if (mediaId != null) {
-                    long id = Long.parseLong(mediaId);
-                    // Verify the entry still exists before launching WebViewActivity
-                    Single.fromCallable(() -> mainActivityViewModel.getEntryInfoById(id))
-                            .subscribeOn(Schedulers.io())
-                            .observeOn(AndroidSchedulers.mainThread())
-                            .subscribe(info -> {
-                                if (info != null) {
-                                    Intent intent = new Intent(MainActivity.this, WebViewActivity.class);
-                                    intent.putExtra("entry_id", id);
-                                    intent.putExtra("force_id", true);
-                                    
-                                    androidx.core.app.ActivityOptionsCompat options = androidx.core.app.ActivityOptionsCompat.makeCustomAnimation(
-                                            MainActivity.this, R.anim.article_open_enter, R.anim.article_open_exit);
-                                    startActivity(intent, options.toBundle());
-                                } else {
-                                    Toast.makeText(MainActivity.this, "Article no longer available", Toast.LENGTH_SHORT).show();
-                                    // Could also trigger a skip next here if desired
-                                }
-                            }, throwable -> Timber.e(throwable, "Error checking entry existence"));
+            long id = mDisplayedEntryId;
+            if (id == 0) {
+                MediaControllerCompat controller = mMediaBrowserHelper.getMediaController();
+                if (controller != null && controller.getMetadata() != null) {
+                    String mediaId = controller.getMetadata().getString(MediaMetadataCompat.METADATA_KEY_MEDIA_ID);
+                    if (mediaId != null) {
+                        try {
+                            id = Long.parseLong(mediaId);
+                        } catch (NumberFormatException ignored) {}
+                    }
                 }
+            }
+            if (id == 0) {
+                id = sharedPreferencesRepository.getCurrentReadingEntryId();
+            }
+            
+            if (id != -1 && id != 0) {
+                final long finalId = id;
+                // Verify the entry still exists before launching WebViewActivity
+                Single.fromCallable(() -> mainActivityViewModel.getEntryInfoById(finalId))
+                        .subscribeOn(Schedulers.io())
+                        .observeOn(AndroidSchedulers.mainThread())
+                        .subscribe(info -> {
+                            if (info != null) {
+                                Intent intent = new Intent(MainActivity.this, WebViewActivity.class);
+                                intent.putExtra("entry_id", finalId);
+                                intent.putExtra("force_id", true);
+                                
+                                androidx.core.app.ActivityOptionsCompat options = androidx.core.app.ActivityOptionsCompat.makeCustomAnimation(
+                                        MainActivity.this, R.anim.article_open_enter, R.anim.article_open_exit);
+                                startActivity(intent, options.toBundle());
+                            } else {
+                                Toast.makeText(MainActivity.this, "Article no longer available", Toast.LENGTH_SHORT).show();
+                            }
+                        }, throwable -> Timber.e(throwable, "Error checking entry existence"));
             }
         });
     }
 
     private void updateMediaBarMetadata(MediaMetadataCompat metadata) {
         if (metadata == null) {
-            binding.mediaControlBarLayout.mediaTitle.setText("");
-            binding.mediaControlBarLayout.mediaSubtitle.setText("");
-            binding.mediaControlBarLayout.mediaThumbnail.setImageResource(R.drawable.ic_rss_feed);
+            if (mDisplayedEntryId == 0) {
+                binding.mediaControlBarLayout.mediaTitle.setText("");
+                binding.mediaControlBarLayout.mediaSubtitle.setText("");
+                binding.mediaControlBarLayout.mediaThumbnail.setImageResource(R.drawable.ic_rss_feed);
+            }
             return;
         }
         
         String articleTitle = metadata.getString(MediaMetadataCompat.METADATA_KEY_TITLE);
         String feedTitle = metadata.getString(MediaMetadataCompat.METADATA_KEY_ARTIST);
+        String mediaId = metadata.getString(MediaMetadataCompat.METADATA_KEY_MEDIA_ID);
+        
+        if (mediaId != null) {
+            try {
+                mDisplayedEntryId = Long.parseLong(mediaId);
+            } catch (NumberFormatException ignored) {}
+        }
         
         binding.mediaControlBarLayout.mediaTitle.setText(articleTitle);
         binding.mediaControlBarLayout.mediaSubtitle.setText(feedTitle);
@@ -590,6 +665,7 @@ public class MainActivity extends AppCompatActivity {
                     .observeOn(AndroidSchedulers.mainThread())
                     .subscribe(info -> {
                         if (info != null) {
+                            mDisplayedEntryId = info.getEntryId();
                             binding.mediaControlBarLayout.mediaTitle.setText(info.getEntryTitle());
                             binding.mediaControlBarLayout.mediaSubtitle.setText(info.getFeedTitle());
                             binding.mediaControlBarLayout.mediaTitle.setSelected(true);

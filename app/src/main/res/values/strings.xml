@@ -158,6 +158,8 @@
     <string name="add_more_feed">Add more feed</string>
     <string name="save_app_state">Save app state</string>
     <string name="load_app_state">Load app state</string>
+    <string name="save_settings_state">Save settings state</string>
+    <string name="load_settings_state">Load settings state</string>
     <string name="all_feed">All feeds</string>
 
     <!-- Reload Dialog -->

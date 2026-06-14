@@ -817,9 +817,9 @@ public class TtsPlayer extends PlayerAdapter implements TtsPlayerListener {
 
     private void doSpeak(String sentence, int index) {
         Timber.d("TTS Speaking [#" + index + "]: " + sentence);
-        int queueMode = isManualSkip ? TextToSpeech.QUEUE_FLUSH : TextToSpeech.QUEUE_ADD;
+        int queueMode = TextToSpeech.QUEUE_FLUSH;
         
-        // Reset manual skip flag immediately after use so subsequent automatic plays use QUEUE_ADD
+        // Reset manual skip flag immediately after use so subsequent automatic plays work normally
         if (isManualSkip) {
             isManualSkip = false;
         }
