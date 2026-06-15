@@ -718,6 +718,7 @@ public class WebViewActivity extends AppCompatActivity implements ReloadDialog.R
         } else {
             userManuallySwitchedToOriginal = true;
         }
+        loadEntryContent();
     }
 
     @Override
@@ -732,6 +733,7 @@ public class WebViewActivity extends AppCompatActivity implements ReloadDialog.R
         } else {
             userManuallySwitchedToOriginal = true;
         }
+        loadEntryContent();
     }
 
     @Override
