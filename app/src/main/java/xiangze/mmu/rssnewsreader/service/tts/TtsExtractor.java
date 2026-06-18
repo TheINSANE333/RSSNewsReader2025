@@ -455,7 +455,7 @@ public class TtsExtractor {
 
                 if (html != null && html.length() >= 500) {
                     Timber.d("HTTP extraction succeeded for ID: " + entryId);
-                    processExtraction(entryId, link, title, html);
+                    processExtraction(entryId, link, title, html, false);
                 } else {
                     Timber.w("HTTP extraction failed: HTML too short or null for ID: " + entryId);
                     handleFailure(entryId);
@@ -594,7 +594,7 @@ public class TtsExtractor {
                 String html = reader.nextString();
 
                 if (html != null && html.length() >= 500) {
-                    processExtraction(currentIdInProgress, currentLink, currentTitle, html);
+                    processExtraction(currentIdInProgress, currentLink, currentTitle, html, false);
                 } else {
                     Timber.w("HTML too short (" + (html != null ? html.length() : 0) + " chars). Retrying...");
                     handleFailure(currentIdInProgress);
@@ -612,7 +612,7 @@ public class TtsExtractor {
     }
 
     @SuppressLint("CheckResult")
-    public void processExtraction(long entryId, String link, String title, String html) {
+    public void processExtraction(long entryId, String link, String title, String html, boolean isManual) {
         synchronized (this) {
             if (entryId != currentIdInProgress || !extractionInProgress) {
                 if (entryId == GlobalState.getCurrentViewingId()) {
@@ -788,33 +788,42 @@ public class TtsExtractor {
                         return;
                     }
 
+                    String existingContent = entryRepository.getContentById(entryId);
+                    String existingOriginal = entryRepository.getOriginalHtmlById(entryId);
+                    String newHtml = doc.html();
+
+                    boolean existingIsFull = existingContent != null && !existingContent.trim().isEmpty()
+                            && !textUtil.isErrorContent(existingContent)
+                            && !textUtil.isPaywallOrLogin(existingOriginal, existingContent);
+
+                    boolean newIsPaywall = textUtil.isPaywallOrLogin(newHtml, extractedContent);
+
+                    if (!isManual && existingIsFull && newIsPaywall) {
+                        Timber.d("Ignoring paywall/login extraction in background for ID: " + entryId + " because database already has full content.");
+                        if (entryId == currentIdInProgress) {
+                            finishAndMoveToNext();
+                        }
+                        return;
+                    }
+
                     // Save Content & Backup HTML
                     entryRepository.updateContent(extractedContent, entryId);
 
-                    String existingOriginal = entryRepository.getOriginalHtmlById(entryId);
-                    String newHtml = doc.html();
                     boolean isProcessed = newHtml.contains("summarized-title") || newHtml.contains("translated-title");
 
-                    if ((existingOriginal == null || existingOriginal.trim().isEmpty()) && !isProcessed) {
-                        entryRepository.updateOriginalHtml(newHtml, entryId);
-                        Timber.d("Original HTML backed up for ID: " + entryId);
+                    if (!isProcessed) {
+                        if (isManual || existingOriginal == null || existingOriginal.trim().isEmpty() || (newHtml != null && newHtml.length() > existingOriginal.length() + 100)) {
+                            entryRepository.updateOriginalHtml(newHtml, entryId);
+                            Timber.d("Original HTML backed up or updated for ID: " + entryId + " (New size: " + (newHtml != null ? newHtml.length() : 0) + ", isManual: " + isManual + ")");
+                        }
                     }
 
-                    // View State Logic
-                    boolean isSummarizedView = sharedPreferencesRepository.getIsSummarizedView(entryId);
-                    String existingSummarized = entryRepository.getSummarizedTextById(entryId);
-                    boolean hasSummarization = existingSummarized != null && !existingSummarized.trim().isEmpty();
-
-                    if (!isSummarizedView || !hasSummarization) {
-                        entryRepository.updateHtml(doc.html(), entryId);
-                    }
-
-                    boolean isTranslatedView = sharedPreferencesRepository.getIsTranslatedView(entryId);
-                    String existingTranslated = entryRepository.getTranslatedTextById(entryId);
-                    boolean hasTranslation = existingTranslated != null && !existingTranslated.trim().isEmpty();
-
-                    if (!isTranslatedView || !hasTranslation) {
-                        entryRepository.updateHtml(doc.html(), entryId);
+                    // Always update the main HTML column with the latest extraction if it's not a processed (summarized/translated) version.
+                    // This ensures that if a background fetch or a more complete page load provides more content, it's saved correctly.
+                    // We don't need to check isSummarizedView/isTranslatedView here because we already checked isProcessed,
+                    // and WebViewActivity will avoid redundant reloads if the shown content (summary/translation) hasn't changed.
+                    if (!isProcessed) {
+                        entryRepository.updateHtml(newHtml, entryId);
                     }
 
                     // 3. Loop Guard

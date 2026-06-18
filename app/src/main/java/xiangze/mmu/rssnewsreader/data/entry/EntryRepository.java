@@ -157,22 +157,43 @@ public class EntryRepository {
 
     public void updateContent(String content, long id) {
         entryDao.updateContent(content, id);
+        Entry entry = entryCache.get(id);
+        if (entry != null) {
+            entry.setContent(content);
+        }
     }
 
     public void updateHtml(String html, long id) {
         entryDao.updateHtml(html, id);
+        Entry entry = entryCache.get(id);
+        if (entry != null) {
+            entry.setHtml(html);
+        }
     }
 
     public void updateTitle(String title, long id, String link) {
         entryDao.updateTitle(id, title, link);
+        Entry entry = entryCache.get(id);
+        if (entry != null) {
+            entry.setTitle(title);
+            entry.setLink(link);
+        }
     }
 
     public void updateTranslatedHtml(String html, long id) {
         entryDao.updateTranslatedHtml(html, id);
+        Entry entry = entryCache.get(id);
+        if (entry != null) {
+            entry.setTranslatedHtml(html);
+        }
     }
 
     public void updateSummarizedHtml(String html, long id) {
         entryDao.updateSummarizedHtml(html, id);
+        Entry entry = entryCache.get(id);
+        if (entry != null) {
+            entry.setSummarizedHtml(html);
+        }
     }
 
     public String getTranslatedHtmlById(long id) {
@@ -430,6 +451,10 @@ public class EntryRepository {
 
     public void updateOriginalHtml(String originalHtml, long id) {
         entryDao.updateOriginalHtml(originalHtml, id);
+        Entry entry = entryCache.get(id);
+        if (entry != null) {
+            entry.setOriginalHtml(originalHtml);
+        }
     }
 
     public String getOriginalHtmlById(long id) {

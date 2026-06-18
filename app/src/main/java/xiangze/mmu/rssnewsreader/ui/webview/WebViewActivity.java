@@ -450,13 +450,6 @@ public class WebViewActivity extends AppCompatActivity implements ReloadDialog.R
                         }
                         Timber.d("Loading entry content for ID: " + targetId + " (Generation: " + thisGeneration + ")");
 
-                        // Auto-reload if content is detected as an error message or too short
-                        if (!sharedPreferencesRepository.getWebViewMode(targetId) && textUtil.isErrorContent(entry.getContent())) {
-                            Timber.d("Error content detected for ID: " + targetId + ". Triggering auto re-extraction.");
-                            ttsExtractor.resetAndRetry(targetId);
-                            showFakeLoading();
-                        }
-
                         if (sharedPreferencesRepository.getWebViewMode(targetId)) {
                             applyZoomSettings();
                             webView.loadUrl(targetLink);
@@ -482,6 +475,23 @@ public class WebViewActivity extends AppCompatActivity implements ReloadDialog.R
                             } else if (capturedIsNewArticle) {
                                 webViewViewModel.setIsTranslatedView(false);
                             }
+                        }
+
+                        // Auto-reload if content is detected as an error message or too short
+                        // BUT ONLY if we are actually intending to show the original content and we don't have a better view (summary/translation)
+                        // AND only if the content is not already null (to avoid reload loops)
+                        boolean isSummarizedMode = Boolean.TRUE.equals(webViewViewModel.getIsSummarizedViewLiveData().getValue());
+                        boolean isTranslatedMode = Boolean.TRUE.equals(webViewViewModel.getIsTranslatedViewLiveData().getValue());
+                        boolean showingBetterView = (hasSummary && !userManuallySwitchedToOriginal && isSummarizedMode) || 
+                                                  (hasTranslation && !userManuallySwitchedToOriginal && isTranslatedMode);
+
+                        if (!sharedPreferencesRepository.getWebViewMode(targetId) 
+                            && !showingBetterView 
+                            && entry.getContent() != null 
+                            && textUtil.isErrorContent(entry.getContent())) {
+                            Timber.d("Error content detected for ID: " + targetId + ". Triggering auto re-extraction.");
+                            ttsExtractor.resetAndRetry(targetId);
+                            showFakeLoading();
                         }
 
                         loadCurrentViewState(entry);
@@ -1245,7 +1255,7 @@ public class WebViewActivity extends AppCompatActivity implements ReloadDialog.R
                 r.setLenient(true);
                 if (r.peek() == JsonToken.STRING) {
                     String h = r.nextString();
-                    if (h != null && h.length() >= 500) ttsExtractor.processExtraction(currentId, currentLink, currentTitle, h);
+                    if (h != null && h.length() >= 500) ttsExtractor.processExtraction(currentId, currentLink, currentTitle, h, true);
                 }
             } catch (Throwable t) { 
                 Timber.e(t, "Fatal error during JS extraction");

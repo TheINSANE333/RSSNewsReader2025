@@ -880,6 +880,25 @@ public class TextUtil {
         return result;
     }
 
+    public boolean isPaywallOrLogin(String html, String text) {
+        if (html == null || html.trim().isEmpty()) return false;
+        String lowerHtml = html.toLowerCase();
+        String lowerText = text != null ? text.toLowerCase() : "";
+
+        // Common paywall/login/credential check keywords
+        boolean hasPaywallKeywords =
+                lowerHtml.contains("sign in") || lowerHtml.contains("log in") || lowerHtml.contains("login") ||
+                lowerHtml.contains("subscribe") || lowerHtml.contains("subscribers only") || lowerHtml.contains("credential") ||
+                lowerHtml.contains("paywall") || lowerHtml.contains("register to read") || lowerHtml.contains("create an account") ||
+                lowerText.contains("sign in") || lowerText.contains("log in") || lowerText.contains("login") ||
+                lowerText.contains("subscribe") || lowerText.contains("subscribers only") || lowerText.contains("credential") ||
+                lowerText.contains("paywall") || lowerText.contains("register to read") || lowerText.contains("create an account");
+
+        // Paywall pages are usually shorter/promotional compared to full articles.
+        // If it matches keywords and the content/html is short, it's a paywall.
+        return hasPaywallKeywords && (html.length() < 25000 || lowerText.length() < 1200);
+    }
+
     public boolean isErrorContent(String text) {
         if (text == null || text.trim().isEmpty()) return true;
         String trimmed = text.trim();
