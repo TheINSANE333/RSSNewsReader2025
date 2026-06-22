@@ -371,6 +371,11 @@ public class TtsPlayer extends PlayerAdapter implements TtsPlayerListener {
             return;
         }
 
+        if (content == null && currentId == this.currentId && pendingExtractorId != -1) {
+            Timber.d("Already waiting for extractor for current article ID: " + currentId + ", skipping redundant extraction.");
+            return;
+        }
+
         boolean isNewArticle = currentId != this.currentId;
 
         if (currentId != this.lastCurrentId) {
@@ -498,9 +503,10 @@ public class TtsPlayer extends PlayerAdapter implements TtsPlayerListener {
     }
 
     @Override
-    public void extractToTts(String content, String language) {
+    public synchronized void extractToTts(String content, String language) {
         if (pendingExtractorId != -1) {
             Timber.d("TtsExtractor callback received for pending ID: " + pendingExtractorId);
+            lastContent = content;
             extractToTts(content, language, pendingExtractorId);
             pendingExtractorId = -1;
         } else {
@@ -509,6 +515,11 @@ public class TtsPlayer extends PlayerAdapter implements TtsPlayerListener {
     }
 
     private void extractToTts(String content, String language, final int extractionId) {
+        if (extractionId != currentExtractionId) {
+            Timber.d("Ignoring stale extractToTts call for extractionId: " + extractionId + " (Current: " + currentExtractionId + ")");
+            return;
+        }
+
         if (content == null || content.trim().isEmpty()) {
             Timber.w("extractToTts: No content provided.");
             if (extractionId == currentExtractionId) {

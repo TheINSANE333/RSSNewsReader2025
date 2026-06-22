@@ -1250,12 +1250,22 @@ public class WebViewActivity extends AppCompatActivity implements ReloadDialog.R
         if (!executionToken.equals(currentLoadToken) || hasProcessedCurrentToken) return;
         hasProcessedCurrentToken = true;
 
+        final long capturedId = currentId;
+        final String capturedLink = currentLink;
+        final String capturedTitle = currentTitle;
+
         view.evaluateJavascript("(function() { return document.getElementsByTagName('html')[0].outerHTML; })();", val -> {
+            if (!executionToken.equals(currentLoadToken)) {
+                Timber.d("Ignoring stale JS callback. Token mismatch.");
+                return;
+            }
             try (JsonReader r = new JsonReader(new StringReader(val))) {
                 r.setLenient(true);
                 if (r.peek() == JsonToken.STRING) {
                     String h = r.nextString();
-                    if (h != null && h.length() >= 500) ttsExtractor.processExtraction(currentId, currentLink, currentTitle, h, true);
+                    if (h != null && h.length() >= 500) {
+                        ttsExtractor.processExtraction(capturedId, capturedLink, capturedTitle, h, true);
+                    }
                 }
             } catch (Throwable t) { 
                 Timber.e(t, "Fatal error during JS extraction");

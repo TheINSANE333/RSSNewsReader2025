@@ -332,12 +332,14 @@ public class TtsService extends MediaBrowserServiceCompat {
 
                 String viewMode = useSummarized ? "summarized" : (useTranslated ? "translated" : "original");
                 
+                String contentToSpeakArg = (contentToSpeak != null && !contentToSpeak.trim().isEmpty()) ? contentToSpeak : null;
+
                 if (ttsPlayer.getCurrentId() != mediaId || ttsPlayer.isArticleFinished()) {
                     ttsPlayer.stopTtsPlayback();
                 }
-                ttsPlayer.extract(mediaId, feedId, contentToSpeak, languageToUse, viewMode, false);
+                ttsPlayer.extract(mediaId, feedId, contentToSpeakArg, languageToUse, viewMode, false);
 
-                if (!ttsPlayer.isPausedManually()) {
+                if (!ttsPlayer.isPausedManually() && contentToSpeakArg != null) {
                     ttsPlayer.play();
                 }
 

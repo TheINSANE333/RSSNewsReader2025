@@ -985,7 +985,19 @@ public class TextUtil {
                lower.contains("as an ai") ||
                lower.contains("as a language model") ||
                lower.contains("i am unable to") ||
-               lower.contains("i cannot fulfill");
+               lower.contains("i cannot fulfill") ||
+               lower.contains("no content was provided") ||
+               lower.contains("no content provided") ||
+               lower.contains("was provided for") ||
+               lower.contains("content was not provided") ||
+               lower.contains("no article was provided") ||
+               lower.contains("provided for summariz") ||
+               lower.contains("no article content") ||
+               lower.contains("unrelated to the title") ||
+               lower.contains("appears to be unrelated") ||
+               lower.contains("unrelated to") ||
+               lower.contains("not related to") ||
+               lower.contains("does not match the title");
     }
 
     /**
