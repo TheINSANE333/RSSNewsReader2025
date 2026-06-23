@@ -108,6 +108,7 @@ public class WebViewActivity extends AppCompatActivity implements ReloadDialog.R
     private String currentLoadToken = "";
     private boolean hasProcessedCurrentToken = false;
     private boolean userManuallySwitchedToOriginal = false;
+    private boolean suppressObserverReload = false;
     private boolean isInitializing = true;
     private boolean ignoreMetadataUntilMatch = false;
 
@@ -257,8 +258,12 @@ public class WebViewActivity extends AppCompatActivity implements ReloadDialog.R
 
     private void setupObservers() {
         webViewViewModel.getCurrentIdLiveData().observe(this, id -> currentId = id);
-        webViewViewModel.getIsTranslatedViewLiveData().observe(this, translated -> loadCurrentViewState());
-        webViewViewModel.getIsSummarizedViewLiveData().observe(this, summarized -> loadCurrentViewState());
+        webViewViewModel.getIsTranslatedViewLiveData().observe(this, translated -> {
+            if (!suppressObserverReload) loadCurrentViewState();
+        });
+        webViewViewModel.getIsSummarizedViewLiveData().observe(this, summarized -> {
+            if (!suppressObserverReload) loadCurrentViewState();
+        });
         webViewViewModel.getSnackbarMessageLiveData().observe(this, this::makeSnackbar);
         
         // TtsPlayer Observers
@@ -533,6 +538,18 @@ public class WebViewActivity extends AppCompatActivity implements ReloadDialog.R
             htmlToLoad = entry.getOriginalHtml();
             if (htmlToLoad == null || htmlToLoad.trim().isEmpty()) htmlToLoad = entry.getHtml();
             contentToRead = entry.getContent();
+
+            // Fallback: if original HTML is missing (e.g. not yet extracted), show the best
+            // available processed content rather than loading the raw URL.
+            if (htmlToLoad == null || htmlToLoad.trim().isEmpty()) {
+                if (entry.getSummarizedHtml() != null && !entry.getSummarizedHtml().trim().isEmpty()) {
+                    htmlToLoad = entry.getSummarizedHtml();
+                    if (contentToRead == null || contentToRead.trim().isEmpty()) contentToRead = entry.getSummarized();
+                } else if (entry.getTranslatedHtml() != null && !entry.getTranslatedHtml().trim().isEmpty()) {
+                    htmlToLoad = entry.getTranslatedHtml();
+                    if (contentToRead == null || contentToRead.trim().isEmpty()) contentToRead = entry.getTranslated();
+                }
+            }
         }
 
         if (htmlToLoad != null && !htmlToLoad.trim().isEmpty()) {
@@ -721,6 +738,7 @@ public class WebViewActivity extends AppCompatActivity implements ReloadDialog.R
         Boolean current = webViewViewModel.getIsTranslatedViewLiveData().getValue();
         boolean newVal = (current == null) || !current;
         lastLoadedHtml = ""; // Force reload UI
+        suppressObserverReload = true;
         webViewViewModel.setIsTranslatedView(newVal);
         if (newVal) {
             webViewViewModel.setIsSummarizedView(false);
@@ -728,6 +746,7 @@ public class WebViewActivity extends AppCompatActivity implements ReloadDialog.R
         } else {
             userManuallySwitchedToOriginal = true;
         }
+        suppressObserverReload = false;
         loadEntryContent();
     }
 
@@ -736,6 +755,7 @@ public class WebViewActivity extends AppCompatActivity implements ReloadDialog.R
         Boolean current = webViewViewModel.getIsSummarizedViewLiveData().getValue();
         boolean newVal = (current == null) || !current;
         lastLoadedHtml = ""; // Force reload UI
+        suppressObserverReload = true;
         webViewViewModel.setIsSummarizedView(newVal);
         if (newVal) {
             webViewViewModel.setIsTranslatedView(false);
@@ -743,6 +763,7 @@ public class WebViewActivity extends AppCompatActivity implements ReloadDialog.R
         } else {
             userManuallySwitchedToOriginal = true;
         }
+        suppressObserverReload = false;
         loadEntryContent();
     }
 
@@ -803,17 +824,23 @@ public class WebViewActivity extends AppCompatActivity implements ReloadDialog.R
         final EntryInfo info = webViewViewModel.getEntryInfoById(currentId);
         final String targetLang = sharedPreferencesRepository.getDefaultTranslationLanguage();
 
+        loading.setIndeterminate(false);
+        loading.setProgress(0);
         loading.setVisibility(View.VISIBLE);
         compositeDisposable.add(textUtil.identifyLanguageRx(sourceHtml)
             .flatMap(sLang -> {
                 if (sLang != null && sLang.equalsIgnoreCase(targetLang)) {
                     return io.reactivex.rxjava3.core.Single.error(new Exception("Article is already in the target language (" + targetLang + ")"));
                 }
-                return textUtil.translateHtmlAllAtOnce(sLang, targetLang, sourceHtml, info.getEntryTitle(), currentId, p -> runOnUiThread(() -> loading.setProgress(p)), true);
+                return textUtil.translateHtmlAllAtOnce(sLang, targetLang, sourceHtml, info.getEntryTitle(), currentId, p -> runOnUiThread(() -> {
+                    loading.setIndeterminate(false);
+                    loading.setProgress(p);
+                }), true);
             })
             .subscribeOn(Schedulers.io())
             .observeOn(AndroidSchedulers.mainThread())
             .subscribe(res -> {
+                loading.setProgress(0);
                 loading.setVisibility(View.GONE);
                 TextUtil.ProcessedAiResponse processed = textUtil.processAiResponse(
                     res, 
@@ -830,6 +857,7 @@ public class WebViewActivity extends AppCompatActivity implements ReloadDialog.R
                 webViewViewModel.setIsTranslatedView(true);
                 loadCurrentViewState();
             }, err -> {
+                loading.setProgress(0);
                 loading.setVisibility(View.GONE);
                 makeSnackbar(err.getMessage());
             }));
@@ -869,12 +897,19 @@ public class WebViewActivity extends AppCompatActivity implements ReloadDialog.R
         final String targetLang = sharedPreferencesRepository.getDefaultTranslationLanguage();
         final int length = sharedPreferencesRepository.getSummaryLength();
 
+        loading.setIndeterminate(false);
+        loading.setProgress(0);
         loading.setVisibility(View.VISIBLE);
         compositeDisposable.add(textUtil.identifyLanguageRx(sourceHtml)
-            .flatMap(sLang -> textUtil.summarizeHtmlAllAtOnce(sLang, targetLang, sourceHtml, length, currentId, info.getEntryTitle(), p -> runOnUiThread(() -> loading.setProgress(p)), true))
+            .flatMap(sLang -> textUtil.summarizeHtmlAllAtOnce(sLang, targetLang, sourceHtml, length, currentId, info.getEntryTitle(), p -> runOnUiThread(() -> {
+                loading.setIndeterminate(false);
+                loading.setProgress(p);
+            }), true))
             .subscribeOn(Schedulers.io())
             .observeOn(AndroidSchedulers.mainThread())
             .subscribe(res -> {
+                loading.setProgress(0);
+                loading.setVisibility(View.GONE);
                 TextUtil.ProcessedAiResponse processed = textUtil.processAiResponse(
                     res, 
                     info.getEntryTitle(), 
@@ -889,7 +924,11 @@ public class WebViewActivity extends AppCompatActivity implements ReloadDialog.R
                 webViewViewModel.updateSummarizedHtml(processed.html, currentId);
                 webViewViewModel.setIsSummarizedView(true);
                 loadCurrentViewState();
-            }, err -> makeSnackbar("Error: " + err.getMessage())));
+            }, err -> {
+                loading.setProgress(0);
+                loading.setVisibility(View.GONE);
+                makeSnackbar("Error: " + err.getMessage());
+            }));
     }
 
     private void toggleBookmark() {
@@ -1070,6 +1109,7 @@ public class WebViewActivity extends AppCompatActivity implements ReloadDialog.R
     }
 
     public void showFakeLoading() {
+        loading.setProgress(0);
         loading.setIndeterminate(true);
         loading.setVisibility(View.VISIBLE);
     }
@@ -1077,6 +1117,7 @@ public class WebViewActivity extends AppCompatActivity implements ReloadDialog.R
     public void hideFakeLoading() {
         loading.setVisibility(View.GONE);
         loading.setIndeterminate(false);
+        loading.setProgress(0);
     }
 
     public void updateLoadingProgress(int p) {
