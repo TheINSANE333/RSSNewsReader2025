@@ -259,7 +259,7 @@ public class TtsPlayer extends PlayerAdapter implements TtsPlayerListener {
     private void handleOnDone(String utteranceId) {
         final int extractionId = currentExtractionId;
         
-        if (currentUtteranceID != null && !currentUtteranceID.equals(utteranceId)) {
+        if (currentUtteranceID == null || !currentUtteranceID.equals(utteranceId)) {
             Timber.d("Ignoring stale onDone for utteranceId: " + utteranceId + " (Current: " + currentUtteranceID + ")");
             return;
         }
@@ -331,6 +331,9 @@ public class TtsPlayer extends PlayerAdapter implements TtsPlayerListener {
             tts.stop();
         }
 
+        currentExtractionId++;
+        currentUtteranceID = null;
+        isSentenceSplittingInProgress = false;
         currentId = -1;
         isPreparing = false;
         isArticleFinished = false;
@@ -349,6 +352,7 @@ public class TtsPlayer extends PlayerAdapter implements TtsPlayerListener {
         if (tts != null && tts.isSpeaking()) {
             tts.stop();
         }
+        currentUtteranceID = null;
         processingSentenceIndex = -1;
         setPausedManually(true);
         setNewState(PlaybackStateCompat.STATE_PAUSED);
