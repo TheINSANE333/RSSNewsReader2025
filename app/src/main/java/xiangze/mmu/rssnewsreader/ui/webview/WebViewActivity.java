@@ -544,10 +544,8 @@ public class WebViewActivity extends AppCompatActivity implements ReloadDialog.R
             if (htmlToLoad == null || htmlToLoad.trim().isEmpty()) {
                 if (entry.getSummarizedHtml() != null && !entry.getSummarizedHtml().trim().isEmpty()) {
                     htmlToLoad = entry.getSummarizedHtml();
-                    if (contentToRead == null || contentToRead.trim().isEmpty()) contentToRead = entry.getSummarized();
                 } else if (entry.getTranslatedHtml() != null && !entry.getTranslatedHtml().trim().isEmpty()) {
                     htmlToLoad = entry.getTranslatedHtml();
-                    if (contentToRead == null || contentToRead.trim().isEmpty()) contentToRead = entry.getTranslated();
                 }
             }
         }
