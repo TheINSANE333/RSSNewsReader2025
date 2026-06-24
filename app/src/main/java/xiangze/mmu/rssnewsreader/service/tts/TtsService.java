@@ -264,8 +264,8 @@ public class TtsService extends MediaBrowserServiceCompat {
                 boolean useSummarized = false;
                 boolean useTranslated = false;
 
-                boolean hasSummary = entry.getSummarized() != null && !entry.getSummarized().trim().isEmpty();
-                boolean hasTranslation = entry.getTranslated() != null && !entry.getTranslated().trim().isEmpty();
+                boolean hasSummary = entry.getSummarizedHtml() != null && !entry.getSummarizedHtml().trim().isEmpty();
+                boolean hasTranslation = entry.getTranslatedHtml() != null && !entry.getTranslatedHtml().trim().isEmpty();
 
                 if (sharedPreferencesRepository.hasSummarizationToggle(targetReadingId) ||
                         sharedPreferencesRepository.hasTranslationToggle(targetReadingId)) {

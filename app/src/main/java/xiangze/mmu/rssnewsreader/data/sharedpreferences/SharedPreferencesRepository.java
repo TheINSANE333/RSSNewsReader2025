@@ -175,6 +175,14 @@ public class SharedPreferencesRepository {
         sharedPreferences.edit().putBoolean("isPausedManually", isPaused).apply();
     }
 
+    public String getSavedViewMode(long entryId) {
+        return sharedPreferences.getString("savedViewMode_" + entryId, "original");
+    }
+
+    public void setSavedViewMode(long entryId, String viewMode) {
+        sharedPreferences.edit().putString("savedViewMode_" + entryId, viewMode).apply();
+    }
+
     public String getDefaultTranslationLanguage() {
         return sharedPreferences.getString("defaultTranslationLanguage", java.util.Locale.getDefault().getLanguage());
     }

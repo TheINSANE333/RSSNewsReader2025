@@ -187,24 +187,27 @@ public class TtsPlayer extends PlayerAdapter implements TtsPlayerListener {
             @Override
             public void onStart(String utteranceId) {
                 cancelTimeout();
-                final int extractionId = currentExtractionId;
                 if (utteranceId != null) {
                     try {
-                        int index = Integer.parseInt(utteranceId);
-                        if (extractionId != currentExtractionId) {
-                            Timber.d("Ignoring stale onStart for extractionId: " + extractionId);
-                            return;
-                        }
-                        // Accessing sentences.size() and sentences.get() on a CopyOnWriteArrayList is thread-safe
-                        if (index >= 0 && index < sentences.size()) {
-                            String sentenceToHighlight = originalSentences.size() > index ? originalSentences.get(index) : sentences.get(index);
-                            highlightTextLiveData.postValue(sentenceToHighlight);
-                            
-                            // Save progress immediately as we start speaking this sentence
-                            if (currentId > 0) {
-                                sentenceCounter = index;
-                                entryRepository.updateSentCount(index, currentId);
-                                sharedPreferencesRepository.setCurrentReadingEntryId(currentId);
+                        String[] parts = utteranceId.split("_");
+                        if (parts.length == 2) {
+                            int index = Integer.parseInt(parts[0]);
+                            int callbackExtractionId = Integer.parseInt(parts[1]);
+                            if (callbackExtractionId != currentExtractionId) {
+                                Timber.d("Ignoring stale onStart for extractionId: " + callbackExtractionId + " (Current: " + currentExtractionId + ")");
+                                return;
+                            }
+                            // Accessing sentences.size() and sentences.get() on a CopyOnWriteArrayList is thread-safe
+                            if (index >= 0 && index < sentences.size()) {
+                                String sentenceToHighlight = originalSentences.size() > index ? originalSentences.get(index) : sentences.get(index);
+                                highlightTextLiveData.postValue(sentenceToHighlight);
+                                
+                                // Save progress immediately as we start speaking this sentence
+                                if (currentId > 0) {
+                                    sentenceCounter = index;
+                                    updateSentCountInDb(index, currentId);
+                                    sharedPreferencesRepository.setCurrentReadingEntryId(currentId);
+                                }
                             }
                         }
                     } catch (NumberFormatException e) {
@@ -257,15 +260,21 @@ public class TtsPlayer extends PlayerAdapter implements TtsPlayerListener {
     }
 
     private void handleOnDone(String utteranceId) {
-        final int extractionId = currentExtractionId;
+        if (utteranceId != null) {
+            String[] parts = utteranceId.split("_");
+            if (parts.length == 2) {
+                try {
+                    int callbackExtractionId = Integer.parseInt(parts[1]);
+                    if (callbackExtractionId != currentExtractionId) {
+                        Timber.d("Ignoring stale handleOnDone for extractionId: " + callbackExtractionId + " (Current: " + currentExtractionId + ")");
+                        return;
+                    }
+                } catch (NumberFormatException ignored) {}
+            }
+        }
         
         if (currentUtteranceID == null || !currentUtteranceID.equals(utteranceId)) {
             Timber.d("Ignoring stale onDone for utteranceId: " + utteranceId + " (Current: " + currentUtteranceID + ")");
-            return;
-        }
-
-        if (extractionId != currentExtractionId) {
-            Timber.d("Ignoring stale onDone for extractionId: " + extractionId + " (Current: " + currentExtractionId + ")");
             return;
         }
 
@@ -303,7 +312,7 @@ public class TtsPlayer extends PlayerAdapter implements TtsPlayerListener {
                 // Transition to buffering immediately to give UI feedback
                 setNewState(PlaybackStateCompat.STATE_BUFFERING);
                 
-                entryRepository.updateSentCount(0, currentId);
+                updateSentCountInDb(0, currentId);
                 sentenceCounter = 0;
                 isArticleFinished = true;
                 // Notify that article finished — the actual new ID will be emitted after skipNext()
@@ -334,6 +343,9 @@ public class TtsPlayer extends PlayerAdapter implements TtsPlayerListener {
         currentExtractionId++;
         currentUtteranceID = null;
         isSentenceSplittingInProgress = false;
+        isWaitingForArticleCompletion = false;
+        processingSentenceIndex = -1;
+        isManualSkip = false;
         currentId = -1;
         isPreparing = false;
         isArticleFinished = false;
@@ -398,13 +410,20 @@ public class TtsPlayer extends PlayerAdapter implements TtsPlayerListener {
         String resolvedLanguage = (language != null && language.equals("Use Language Identifier")) ? null : language;
         boolean isSameViewMode = (viewMode == null && this.lastViewMode == null) || (viewMode != null && viewMode.equals(this.lastViewMode));
         
+        if (currentId == this.currentId && isSettingUpNewArticle && isSameViewMode && !isMandatory) {
+            Timber.d("Already setting up/extracting article ID: " + currentId + " with viewMode: " + viewMode + ", skipping non-mandatory redundant extraction.");
+            return;
+        }
+
         if (content != null && content.equals(this.lastContent) && currentId == this.currentId && 
             (resolvedLanguage == null ? this.language == null : resolvedLanguage.equals(this.language)) &&
             isSameViewMode) {
             Timber.d("Content, language, viewMode and ID are identical to last extraction, skipping redundant extraction.");
             isArticleFinished = false;
-            // Only reset hasSpokenAfterSetup if we are NOT currently speaking or setting up
-            if (!isSpeaking() && !isSettingUpNewArticle) {
+            // No extraction is actually running for this content, so clear setup flags
+            isSettingUpNewArticle = false;
+            isPreparing = false;
+            if (!isSpeaking()) {
                 hasSpokenAfterSetup = false;
             }
             showFakeLoadingLiveData.postValue(false);
@@ -469,7 +488,7 @@ public class TtsPlayer extends PlayerAdapter implements TtsPlayerListener {
         if (content != null) {
             if (!isNewArticle && !content.equals(lastContent)) {
                 Timber.d("Content changed for SAME article, resetting sentence counter to 0");
-                entryRepository.updateSentCount(0, currentId);
+                updateSentCountInDb(0, currentId);
             }
             lastContent = content; // Update lastContent here
             pendingExtractorId = -1; // New content provided directly, cancel any pending extractor callback
@@ -480,18 +499,30 @@ public class TtsPlayer extends PlayerAdapter implements TtsPlayerListener {
             // Content is null - check if we already have it in DB before triggering background extraction
             new Thread(() -> {
                 xiangze.mmu.rssnewsreader.data.entry.Entry dbEntry = entryRepository.getEntryById(this.currentId);
-                if (dbEntry != null && dbEntry.getContent() != null && !dbEntry.getContent().trim().isEmpty()) {
-                    Timber.d("Content found in DB, using that instead of background extraction.");
-                    String dbContent = dbEntry.getContent();
-                    lastContent = dbContent;
-                    pendingExtractorId = -1;
-                    extractToTts(dbContent, language, extractionId);
-                } else {
-                    Timber.d("No content in DB, triggering background extraction.");
-                    pendingExtractorId = extractionId; // Mark this extractionId as waiting for the extractor
-                    ttsExtractor.setCallback(this);
-                    ttsExtractor.prioritize();
+                if (dbEntry != null) {
+                    String dbContent = null;
+                    if ("summarized".equals(viewMode)) {
+                        dbContent = dbEntry.getSummarized();
+                    } else if ("translated".equals(viewMode)) {
+                        dbContent = dbEntry.getTranslated();
+                    }
+                    if (dbContent == null || dbContent.trim().isEmpty()) {
+                        dbContent = dbEntry.getContent();
+                    }
+
+                    if (dbContent != null && !dbContent.trim().isEmpty()) {
+                        Timber.d("Content found in DB for viewMode " + viewMode + ", using that instead of background extraction.");
+                        lastContent = dbContent;
+                        pendingExtractorId = -1;
+                        extractToTts(dbContent, language, extractionId);
+                        return;
+                    }
                 }
+
+                Timber.d("No content in DB, triggering background extraction.");
+                pendingExtractorId = extractionId; // Mark this extractionId as waiting for the extractor
+                ttsExtractor.setCallback(this);
+                ttsExtractor.prioritize();
             }).start();
         }
     }
@@ -534,6 +565,14 @@ public class TtsPlayer extends PlayerAdapter implements TtsPlayerListener {
                 setNewState(PlaybackStateCompat.STATE_PAUSED);
             }
             return;
+        }
+
+        // Compare saved view mode with active view mode
+        String savedViewMode = sharedPreferencesRepository.getSavedViewMode(currentId);
+        String currentViewMode = (this.lastViewMode == null || this.lastViewMode.isEmpty()) ? "original" : this.lastViewMode;
+        if (!savedViewMode.equals(currentViewMode)) {
+            Timber.d("View mode mismatch (saved: " + savedViewMode + ", current: " + currentViewMode + "). Resetting progress to 0.");
+            updateSentCountInDb(0, currentId);
         }
 
         if (content.contains("Extraction Failed")) {
@@ -652,7 +691,7 @@ public class TtsPlayer extends PlayerAdapter implements TtsPlayerListener {
                     if (isWaitingForArticleCompletion) {
                         isWaitingForArticleCompletion = false;
                         Timber.d("Splitting finished and we were waiting for it (counter=" + sentenceCounter + ", total=" + sentences.size() + "). Moving to next article.");
-                        entryRepository.updateSentCount(0, currentId);
+                        updateSentCountInDb(0, currentId);
                         sentenceCounter = 0;
                         isArticleFinished = true;
                         if (callback != null) {
@@ -775,8 +814,17 @@ public class TtsPlayer extends PlayerAdapter implements TtsPlayerListener {
     public void speak() {
         ContextCompat.getMainExecutor(context).execute(() -> {
             if (isSettingUpNewArticle) {
-                Timber.d("TTS setup in progress, skipping speak()");
-                return;
+                // Safety net: if sentences are ready and splitting is done, the setup flag is stale
+                if (!isSentenceSplittingInProgress && sentences != null && !sentences.isEmpty()) {
+                    Timber.w("isSettingUpNewArticle was stale (sentences ready, splitting done). Resetting.");
+                    isSettingUpNewArticle = false;
+                    isPreparing = false;
+                    showFakeLoadingLiveData.postValue(false);
+                    finishedSetupLiveData.postValue(true);
+                } else {
+                    Timber.d("TTS setup in progress, skipping speak()");
+                    return;
+                }
             }
 
             if (isArticleFinished) {
@@ -795,20 +843,23 @@ public class TtsPlayer extends PlayerAdapter implements TtsPlayerListener {
             
             if (sentenceCounter < 0) sentenceCounter = 0;
 
-            if (sentences == null || sentences.size() == 0 || sentenceCounter >= sentences.size()) {
+            if (sentences == null || sentences.isEmpty() || sentenceCounter >= sentences.size()) {
                 if (isSentenceSplittingInProgress) {
                     Timber.d("Waiting for splitting to catch up to counter " + sentenceCounter);
                     isWaitingForArticleCompletion = true;
                     setNewState(PlaybackStateCompat.STATE_BUFFERING);
+                    return;
                 } else {
-                    Timber.d("No sentences ready or counter out of bounds, skipping speak(). size=" + (sentences == null ? "null" : sentences.size()) + ", counter=" + sentenceCounter);
-                    if (sentenceCounter >= sentences.size() && sentences.size() > 0) {
+                    Timber.d("No sentences ready or counter out of bounds, checking recovery. size=" + (sentences == null ? "null" : sentences.size()) + ", counter=" + sentenceCounter);
+                    if (sentences != null && sentences.size() > 0 && sentenceCounter >= sentences.size()) {
                         // Truly out of bounds
                         sentenceCounter = 0;
-                        entryRepository.updateSentCount(0, currentId);
+                        updateSentCountInDb(0, currentId);
+                        // Do not return; let it fall through to speak sentence 0
+                    } else {
+                        return;
                     }
                 }
-                return;
             }
 
             // GUARD: Prevent multiple calls for the same sentence while it's already playing or being processed
@@ -840,7 +891,7 @@ public class TtsPlayer extends PlayerAdapter implements TtsPlayerListener {
         }
 
         // Pass index as utteranceId to track progress in onStart
-        String utteranceId = String.valueOf(index);
+        String utteranceId = index + "_" + currentExtractionId;
         currentUtteranceID = utteranceId;
 
         // Apply volume
@@ -873,12 +924,12 @@ public class TtsPlayer extends PlayerAdapter implements TtsPlayerListener {
             
             // Re-verify bounds after increment in case sentences changed
             if (sentenceCounter < sentences.size()) {
-                entryRepository.updateSentCount(sentenceCounter, currentId);
+                updateSentCountInDb(sentenceCounter, currentId);
                 
                 String sentence = sentences.get(sentenceCounter);
                 int index = sentenceCounter;
                 processingSentenceIndex = index; // Update guard
-                String utteranceId = String.valueOf(index);
+                String utteranceId = index + "_" + currentExtractionId;
                 currentUtteranceID = utteranceId;
 
                 android.os.Bundle params = new android.os.Bundle();
@@ -893,12 +944,12 @@ public class TtsPlayer extends PlayerAdapter implements TtsPlayerListener {
             } else {
                 Timber.d("fastForward: sentenceCounter became out of bounds after increment");
                 isManualSkip = true;
-                entryRepository.updateSentCount(0, currentId);
+                updateSentCountInDb(0, currentId);
                 callback.onSkipToNext();
             }
         } else {
             isManualSkip = true;
-            entryRepository.updateSentCount(0, currentId);
+            updateSentCountInDb(0, currentId);
             callback.onSkipToNext();
         }
     }
@@ -910,12 +961,12 @@ public class TtsPlayer extends PlayerAdapter implements TtsPlayerListener {
             
             // Re-verify bounds after decrement in case sentences changed
             if (sentenceCounter >= 0 && sentenceCounter < sentences.size()) {
-                entryRepository.updateSentCount(sentenceCounter, currentId);
+                updateSentCountInDb(sentenceCounter, currentId);
                 
                 String sentence = sentences.get(sentenceCounter);
                 int index = sentenceCounter;
                 processingSentenceIndex = index; // Update guard
-                String utteranceId = String.valueOf(index);
+                String utteranceId = index + "_" + currentExtractionId;
                 currentUtteranceID = utteranceId;
 
                 android.os.Bundle params = new android.os.Bundle();
@@ -1012,7 +1063,7 @@ public class TtsPlayer extends PlayerAdapter implements TtsPlayerListener {
         }
         processingSentenceIndex = -1;
         if (currentId > 0) {
-            entryRepository.updateSentCount(sentenceCounter, currentId);
+            updateSentCountInDb(sentenceCounter, currentId);
         }
         setNewState(PlaybackStateCompat.STATE_PAUSED);
     }
@@ -1022,8 +1073,10 @@ public class TtsPlayer extends PlayerAdapter implements TtsPlayerListener {
         stopMediaPlayer();
         Timber.d(" player stopped");
         processingSentenceIndex = -1;
+        isManualSkip = false;
+        isWaitingForArticleCompletion = false;
         if (currentId > 0) {
-            entryRepository.updateSentCount(sentenceCounter, currentId);
+            updateSentCountInDb(sentenceCounter, currentId);
         }
         if (tts != null) {
             tts.stop();
@@ -1182,5 +1235,13 @@ public class TtsPlayer extends PlayerAdapter implements TtsPlayerListener {
 
     public String getLastViewMode() {
         return lastViewMode;
+    }
+
+    private void updateSentCountInDb(int count, long id) {
+        if (id > 0) {
+            entryRepository.updateSentCount(count, id);
+            String currentViewMode = (this.lastViewMode == null || this.lastViewMode.isEmpty()) ? "original" : this.lastViewMode;
+            sharedPreferencesRepository.setSavedViewMode(id, currentViewMode);
+        }
     }
 }
