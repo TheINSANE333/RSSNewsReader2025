@@ -812,9 +812,9 @@ public class TtsExtractor {
                     boolean isProcessed = newHtml.contains("summarized-title") || newHtml.contains("translated-title");
 
                     if (!isProcessed) {
-                        if (isManual || existingOriginal == null || existingOriginal.trim().isEmpty() || (newHtml != null && newHtml.length() > existingOriginal.length() + 100)) {
+                        if (isManual || existingOriginal == null || existingOriginal.trim().isEmpty() || !existingIsFull || (newHtml != null && newHtml.length() > existingOriginal.length() + 100)) {
                             entryRepository.updateOriginalHtml(newHtml, entryId);
-                            Timber.d("Original HTML backed up or updated for ID: " + entryId + " (New size: " + (newHtml != null ? newHtml.length() : 0) + ", isManual: " + isManual + ")");
+                            Timber.d("Original HTML backed up or updated for ID: " + entryId + " (New size: " + (newHtml != null ? newHtml.length() : 0) + ", isManual: " + isManual + ", existingIsFull: " + existingIsFull + ")");
                         }
                     }
 

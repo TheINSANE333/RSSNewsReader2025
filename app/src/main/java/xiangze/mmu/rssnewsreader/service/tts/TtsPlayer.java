@@ -417,7 +417,7 @@ public class TtsPlayer extends PlayerAdapter implements TtsPlayerListener {
 
         if (content != null && content.equals(this.lastContent) && currentId == this.currentId && 
             (resolvedLanguage == null ? this.language == null : resolvedLanguage.equals(this.language)) &&
-            isSameViewMode) {
+            isSameViewMode && !sentences.isEmpty()) {
             Timber.d("Content, language, viewMode and ID are identical to last extraction, skipping redundant extraction.");
             isArticleFinished = false;
             // No extraction is actually running for this content, so clear setup flags
@@ -623,8 +623,17 @@ public class TtsPlayer extends PlayerAdapter implements TtsPlayerListener {
                         iterator.setText(sentence);
                         int start = iterator.first();
                         for (int end = iterator.next(); end != BreakIterator.DONE; start = end, end = iterator.next()) {
-                            sentences.add(sentence.substring(start, end));
-                            originalSentences.add(originalSentence); // Add the full original sentence for highlighting
+                            String sub = sentence.substring(start, end);
+                            if (sub.length() >= TextToSpeech.getMaxSpeechInputLength()) {
+                                int maxLen = TextToSpeech.getMaxSpeechInputLength() - 1;
+                                for (int k = 0; k < sub.length(); k += maxLen) {
+                                    sentences.add(sub.substring(k, Math.min(k + maxLen, sub.length())));
+                                    originalSentences.add(originalSentence);
+                                }
+                            } else {
+                                sentences.add(sub);
+                                originalSentences.add(originalSentence);
+                            }
                         }
                     } else {
                         sentences.add(sentence);
@@ -863,7 +872,7 @@ public class TtsPlayer extends PlayerAdapter implements TtsPlayerListener {
             }
 
             // GUARD: Prevent multiple calls for the same sentence while it's already playing or being processed
-            if (sentenceCounter == processingSentenceIndex && !isManualSkip && (isSpeaking() || currentState == PlaybackStateCompat.STATE_PLAYING)) {
+            if (sentenceCounter == processingSentenceIndex && !isManualSkip && isSpeaking()) {
                 Timber.d("Already processing or speaking sentence [#" + sentenceCounter + "], skipping redundant speak() call.");
                 return;
             }
