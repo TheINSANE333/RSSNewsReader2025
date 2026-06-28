@@ -538,28 +538,33 @@ public class TtsExtractor {
         private void checkReadyState(WebView view, String executionToken, int attempt) {
              if (!executionToken.equals(currentLoadToken) || !extractionInProgress || hasProcessedCurrentToken) return;
              
-             // Scroll to bottom to trigger lazy loading
-             view.evaluateJavascript("(function() { window.scrollTo(0, document.body.scrollHeight); return document.readyState; })();", value -> {
+             // Scroll to bottom to trigger lazy loading and evaluate DOM readiness
+             String js = "(function() {\n" +
+                     "    window.scrollTo(0, document.body.scrollHeight);\n" +
+                     "    if (document.readyState !== 'complete') return 'loading';\n" +
+                     "    var bodyText = document.body ? document.body.innerText : '';\n" +
+                     "    if (bodyText.indexOf('Unlocking Article') !== -1 || bodyText.indexOf('unlocking article') !== -1) return 'unlocking';\n" +
+                     "    var loaders = document.querySelectorAll('.spinner, .loader, .loading, [class*=spinner-], [class*=loading-spinner]');\n" +
+                     "    for (var i = 0; i < loaders.length; i++) {\n" +
+                     "        var style = window.getComputedStyle(loaders[i]);\n" +
+                     "        if (style.display !== 'none' && style.visibility !== 'hidden' && loaders[i].offsetWidth > 0) return 'spinner-active';\n" +
+                     "    }\n" +
+                     "    return 'complete';\n" +
+                     "})();";
+
+             view.evaluateJavascript(js, value -> {
                  if (!executionToken.equals(currentLoadToken) || hasProcessedCurrentToken) return;
                  
-                 // Value is JSON string, e.g. "complete"
                  if (value != null && value.contains("complete")) {
-                     Timber.d("Page ready (" + value + "). Waiting 5s settle time...");
+                     Timber.d("Page fully loaded and settled. Waiting 5s settle time...");
                      handler.postDelayed(() -> extractHtml(view, executionToken), 5000);
-                 } else if (value != null && value.contains("interactive")) {
-                     if (attempt < 15) { 
-                         Timber.d("Page interactive. Attempt " + attempt + "/15. Waiting 2s for complete...");
-                         handler.postDelayed(() -> checkReadyState(view, executionToken, attempt + 1), 2000);
-                     } else {
-                         Timber.w("Page stuck at interactive. Proceeding with 5s settle...");
-                         handler.postDelayed(() -> extractHtml(view, executionToken), 5000);
-                     }
                  } else {
-                     if (attempt < 20) {
-                         Timber.d("Page loading (" + value + "). Attempt " + attempt + "/20. Waiting 2s...");
+                     // Retrying on loading, unlocking, or spinner-active states
+                     if (attempt < 25) { 
+                         Timber.d("Page loading/unlocking/spinner active (" + value + "). Attempt " + attempt + "/25. Waiting 2s...");
                          handler.postDelayed(() -> checkReadyState(view, executionToken, attempt + 1), 2000);
                      } else {
-                         Timber.w("Page ready check timed out. Forcing extraction with 5s settle.");
+                         Timber.w("Page ready check timed out (" + value + "). Forcing extraction with 5s settle.");
                          handler.postDelayed(() -> extractHtml(view, executionToken), 5000);
                      }
                  }
@@ -682,71 +687,7 @@ public class TtsExtractor {
                     doc.select("figure").attr("style", "width: 100%; margin-left:0");
                     doc.select("iframe").attr("style", "width: 100%; margin-left:0");
 
-                    List<String> tags = Arrays.asList("h1", "h2", "h3", "h4", "h5", "h6", "p", "td", "pre", "th", "li", "figcaption", "blockquote", "section", "div");
-
-                    // Initialize the Sentence Iterator with Locale.ROOT for universal language support
-                    BreakIterator sentenceIterator = BreakIterator.getSentenceInstance(Locale.ROOT);
-
-                    // Extract text by sentences
-                    Elements allElements = doc.getAllElements();
-                    for (Element element : allElements) {
-                        if (tags.contains(element.tagName())) {
-                            // Check if any ancestor is also in the selected elements to avoid double counting
-                            // We only process the highest-level container in our tag list
-                            boolean hasSelectedAncestor = false;
-                            Element parent = element.parent();
-                            while (parent != null) {
-                                if (tags.contains(parent.tagName())) {
-                                    hasSelectedAncestor = true;
-                                    break;
-                                }
-                                parent = parent.parent();
-                            }
-
-                            if (!hasSelectedAncestor) {
-                                String elementText = element.text().trim();
-                                if (!elementText.isEmpty() && elementText.length() > 1) {
-
-                                    // --- START SENTENCE SPLITTING LOGIC ---
-                                    sentenceIterator.setText(elementText);
-                                    int start = sentenceIterator.first();
-                                    int end = sentenceIterator.next();
-
-                                    while (end != BreakIterator.DONE) {
-                                        String candidate = elementText.substring(start, end);
-                                        String sentence = candidate.trim();
-
-                                        // Check if the sentence ends with a common abbreviation
-                                        if (textUtil.endsWithAbbreviation(sentence)) {
-                                            int nextEnd = sentenceIterator.next();
-                                            if (nextEnd != BreakIterator.DONE) {
-                                                end = nextEnd;
-                                                continue;
-                                            }
-                                        }
-
-                                        if (!sentence.isEmpty()) {
-                                            if (content.length() > 0) {
-                                                // Always add DELIMITER BEFORE adding a new sentence
-                                                content.append(DELIMITER).append(sentence);
-                                            } else {
-                                                content.append(sentence);
-                                            }
-                                        }
-                                        start = end;
-                                        end = sentenceIterator.next();
-                                    }
-                                    // --- END SENTENCE SPLITTING LOGIC ---
-
-                                } else if (elementText.length() <= 1) {
-                                    element.remove();
-                                }
-                            }
-                        }
-                    }
-
-                    // Only prepend title if it's not already at the start of the content
-                    String tempContent = content.toString().trim();
+                    String tempContent = textUtil.extractHtmlContent(doc.html(), DELIMITER);
 
                     // Fallback to basic text if extraction yielded very little but body has content
                     if (tempContent.length() < MIN_CONTENT_LENGTH) {
@@ -754,9 +695,9 @@ public class TtsExtractor {
                         if (bodyText.length() > tempContent.length() + 50) {
                             Timber.d("Extraction too short (" + tempContent.length() + "). Falling back to body text (" + bodyText.length() + ")");
                             tempContent = bodyText;
-                            content = new StringBuilder(tempContent);
                         }
                     }
+                    content = new StringBuilder(tempContent);
 
                     if (title != null && !title.trim().isEmpty()) {
                         String cleanTitle = title.trim();

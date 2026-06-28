@@ -1267,15 +1267,25 @@ public class WebViewActivity extends AppCompatActivity implements ReloadDialog.R
     private void checkReadyState(WebView view, String executionToken, int attempt) {
         if (!executionToken.equals(currentLoadToken) || hasProcessedCurrentToken) return;
 
-        view.evaluateJavascript("(function() { return document.readyState; })();", value -> {
+        String js = "(function() {\n" +
+                "    if (document.readyState !== 'complete') return 'loading';\n" +
+                "    var bodyText = document.body ? document.body.innerText : '';\n" +
+                "    if (bodyText.indexOf('Unlocking Article') !== -1 || bodyText.indexOf('unlocking article') !== -1) return 'unlocking';\n" +
+                "    var loaders = document.querySelectorAll('.spinner, .loader, .loading, [class*=spinner-], [class*=loading-spinner]');\n" +
+                "    for (var i = 0; i < loaders.length; i++) {\n" +
+                "        var style = window.getComputedStyle(loaders[i]);\n" +
+                "        if (style.display !== 'none' && style.visibility !== 'hidden' && loaders[i].offsetWidth > 0) return 'spinner-active';\n" +
+                "    }\n" +
+                "    return 'complete';\n" +
+                "})();";
+
+        view.evaluateJavascript(js, value -> {
             if (!executionToken.equals(currentLoadToken) || hasProcessedCurrentToken) return;
 
-            // Trigger extraction faster: if 'complete' or 'interactive', we can usually extract safely.
-            if (value != null && (value.contains("complete") || value.contains("interactive"))) {
-                // Reduced from 5000ms to 1000ms for much faster response
+            if (value != null && value.contains("complete")) {
                 new Handler(Looper.getMainLooper()).postDelayed(() -> extractHtml(view, executionToken), 1000);
             } else {
-                if (attempt < 15) {
+                if (attempt < 25) {
                     new Handler(Looper.getMainLooper()).postDelayed(() -> checkReadyState(view, executionToken, attempt + 1), 1000);
                 } else {
                     // Fail-safe: extract anyway if we've waited too long
