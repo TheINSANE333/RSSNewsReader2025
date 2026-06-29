@@ -1267,7 +1267,32 @@ public class WebViewActivity extends AppCompatActivity implements ReloadDialog.R
     private void checkReadyState(WebView view, String executionToken, int attempt) {
         if (!executionToken.equals(currentLoadToken) || hasProcessedCurrentToken) return;
 
+        // Scroll progressively to bottom to trigger lazy loading and evaluate DOM readiness
         String js = "(function() {\n" +
+                "    if (!window.__scrollInProgress) {\n" +
+                "        window.__scrollInProgress = true;\n" +
+                "        window.__scrollFinished = false;\n" +
+                "        var initialScrollY = window.scrollY;\n" +
+                "        var currentScroll = 0;\n" +
+                "        var steps = 0;\n" +
+                "        var maxSteps = 40;\n" +
+                "        var timer = setInterval(function() {\n" +
+                "            var scrollHeight = document.documentElement.scrollHeight || document.body.scrollHeight;\n" +
+                "            var clientHeight = window.innerHeight;\n" +
+                "            var maxScroll = scrollHeight - clientHeight;\n" +
+                "            steps++;\n" +
+                "            if (currentScroll < maxScroll && steps < maxSteps) {\n" +
+                "                currentScroll = Math.min(currentScroll + 1200, maxScroll);\n" +
+                "                window.scrollTo(0, currentScroll);\n" +
+                "            } else {\n" +
+                "                clearInterval(timer);\n" +
+                "                window.scrollTo(0, initialScrollY);\n" +
+                "                window.__scrollFinished = true;\n" +
+                "            }\n" +
+                "        }, 100);\n" +
+                "        return 'scrolling-started';\n" +
+                "    }\n" +
+                "    if (!window.__scrollFinished) return 'scrolling-in-progress';\n" +
                 "    if (document.readyState !== 'complete') return 'loading';\n" +
                 "    var bodyText = document.body ? document.body.innerText : '';\n" +
                 "    if (bodyText.indexOf('Unlocking Article') !== -1 || bodyText.indexOf('unlocking article') !== -1) return 'unlocking';\n" +

@@ -538,9 +538,32 @@ public class TtsExtractor {
         private void checkReadyState(WebView view, String executionToken, int attempt) {
              if (!executionToken.equals(currentLoadToken) || !extractionInProgress || hasProcessedCurrentToken) return;
              
-             // Scroll to bottom to trigger lazy loading and evaluate DOM readiness
+             // Scroll progressively to bottom to trigger lazy loading and evaluate DOM readiness
              String js = "(function() {\n" +
-                     "    window.scrollTo(0, document.body.scrollHeight);\n" +
+                     "    if (!window.__scrollInProgress) {\n" +
+                     "        window.__scrollInProgress = true;\n" +
+                     "        window.__scrollFinished = false;\n" +
+                     "        var initialScrollY = window.scrollY;\n" +
+                     "        var currentScroll = 0;\n" +
+                     "        var steps = 0;\n" +
+                     "        var maxSteps = 40;\n" +
+                     "        var timer = setInterval(function() {\n" +
+                     "            var scrollHeight = document.documentElement.scrollHeight || document.body.scrollHeight;\n" +
+                     "            var clientHeight = window.innerHeight;\n" +
+                     "            var maxScroll = scrollHeight - clientHeight;\n" +
+                     "            steps++;\n" +
+                     "            if (currentScroll < maxScroll && steps < maxSteps) {\n" +
+                     "                currentScroll = Math.min(currentScroll + 1200, maxScroll);\n" +
+                     "                window.scrollTo(0, currentScroll);\n" +
+                     "            } else {\n" +
+                     "                clearInterval(timer);\n" +
+                     "                window.scrollTo(0, initialScrollY);\n" +
+                     "                window.__scrollFinished = true;\n" +
+                     "            }\n" +
+                     "        }, 100);\n" +
+                     "        return 'scrolling-started';\n" +
+                     "    }\n" +
+                     "    if (!window.__scrollFinished) return 'scrolling-in-progress';\n" +
                      "    if (document.readyState !== 'complete') return 'loading';\n" +
                      "    var bodyText = document.body ? document.body.innerText : '';\n" +
                      "    if (bodyText.indexOf('Unlocking Article') !== -1 || bodyText.indexOf('unlocking article') !== -1) return 'unlocking';\n" +
@@ -553,21 +576,21 @@ public class TtsExtractor {
                      "})();";
 
              view.evaluateJavascript(js, value -> {
-                 if (!executionToken.equals(currentLoadToken) || hasProcessedCurrentToken) return;
-                 
-                 if (value != null && value.contains("complete")) {
-                     Timber.d("Page fully loaded and settled. Waiting 5s settle time...");
-                     handler.postDelayed(() -> extractHtml(view, executionToken), 5000);
-                 } else {
-                     // Retrying on loading, unlocking, or spinner-active states
-                     if (attempt < 25) { 
-                         Timber.d("Page loading/unlocking/spinner active (" + value + "). Attempt " + attempt + "/25. Waiting 2s...");
-                         handler.postDelayed(() -> checkReadyState(view, executionToken, attempt + 1), 2000);
-                     } else {
-                         Timber.w("Page ready check timed out (" + value + "). Forcing extraction with 5s settle.");
-                         handler.postDelayed(() -> extractHtml(view, executionToken), 5000);
-                     }
-                 }
+                  if (!executionToken.equals(currentLoadToken) || hasProcessedCurrentToken) return;
+                  
+                  if (value != null && value.contains("complete")) {
+                      Timber.d("Page fully loaded and settled. Waiting 5s settle time...");
+                      handler.postDelayed(() -> extractHtml(view, executionToken), 5000);
+                  } else {
+                      // Retrying on loading, unlocking, or spinner-active states
+                      if (attempt < 25) { 
+                          Timber.d("Page loading/unlocking/spinner active (" + value + "). Attempt " + attempt + "/25. Waiting 2s...");
+                          handler.postDelayed(() -> checkReadyState(view, executionToken, attempt + 1), 2000);
+                      } else {
+                          Timber.w("Page ready check timed out (" + value + "). Forcing extraction with 5s settle.");
+                          handler.postDelayed(() -> extractHtml(view, executionToken), 5000);
+                      }
+                  }
              });
         }
 
@@ -578,15 +601,15 @@ public class TtsExtractor {
                  return;
              }
 
-             // One last scroll to ensure all lazy content is triggered
-             view.evaluateJavascript("(function() { window.scrollTo(0, document.body.scrollHeight); return document.getElementsByTagName('html')[0].outerHTML; })();", value -> {
+             // Extract HTML content after page has fully settled and scrolled
+             view.evaluateJavascript("(function() { return document.getElementsByTagName('html')[0].outerHTML; })();", value -> {
                 if (!executionToken.equals(currentLoadToken) || hasProcessedCurrentToken) {
                     Timber.d("Ignoring JS callback. Token mismatch.");
                     return;
                 }
                 hasProcessedCurrentToken = true;
                 processHtmlExtraction(value);
-            });
+             });
         }
     }
 
