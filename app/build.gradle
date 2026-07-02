@@ -93,6 +93,7 @@ dependencies {
     testImplementation 'junit:junit:4.13.2'
     androidTestImplementation 'junit:junit:4.13.2'
     androidTestImplementation 'androidx.test.espresso:espresso-core:3.7.0'
+    androidTestImplementation 'androidx.test.espresso:espresso-contrib:3.7.0'
     androidTestImplementation 'androidx.test:core:1.7.0'
 
     // Room
