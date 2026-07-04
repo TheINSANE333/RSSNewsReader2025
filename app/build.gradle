@@ -17,7 +17,7 @@ android {
         minSdk = 29
         targetSdk = 37
         versionCode = 1
-        versionName = "1.0.10"
+        versionName = "1.1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
@@ -36,14 +36,26 @@ android {
         resConfigs "en"
     }
 
+    signingConfigs {
+        release {
+            storeFile = localProperties['keystore.file'] ? file(localProperties['keystore.file']) : null
+            storePassword = localProperties['keystore.password']
+            keyAlias = localProperties['keystore.alias']
+            keyPassword = localProperties['keystore.key_password']
+        }
+    }
+
     buildTypes {
         release {
             minifyEnabled = true
             shrinkResources = true
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
-            // CRITICAL: Replace with your actual release signing config for Play Store
-            // signingConfig signingConfigs.release 
-            signingConfig = signingConfigs.debug
+            
+            if (signingConfigs.release.storeFile != null) {
+                signingConfig = signingConfigs.release
+            } else {
+                signingConfig = signingConfigs.debug
+            }
         }
     }
     compileOptions {

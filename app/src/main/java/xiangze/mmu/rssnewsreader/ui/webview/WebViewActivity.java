@@ -1255,10 +1255,8 @@ public class WebViewActivity extends AppCompatActivity implements ReloadDialog.R
                 }
             } else if (u != null && (u.startsWith("http://") || u.startsWith("https://"))) {
                 final String executionToken = currentLoadToken;
-                // Reduce the initial delay from database delay to a faster baseline (e.g., 1s)
-                // but still respect if the database asks for something extremely specific.
-                int dbDelay = feedRepository.getDelayTimeById(feedId);
-                int delay = Math.min(dbDelay, 1); 
+                // Respect the feed's configured delay time from the database
+                int delay = feedRepository.getDelayTimeById(feedId);
                 new Handler(Looper.getMainLooper()).postDelayed(() -> checkReadyState(v, executionToken, 1), delay * 1000L);
             }
         }

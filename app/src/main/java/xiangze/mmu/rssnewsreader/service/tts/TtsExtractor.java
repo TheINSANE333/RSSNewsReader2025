@@ -328,25 +328,41 @@ public class TtsExtractor {
                     });
                     lastExtractStart = System.currentTimeMillis();
 
+                    final int capturedDelayTime = delayTime;
+                    long timeoutMs = Math.max(45000L, (capturedDelayTime + 35) * 1000L);
                     new Handler(Looper.getMainLooper()).postDelayed(() -> {
-                        if (extractionInProgress && System.currentTimeMillis() - lastExtractStart > 30000) {
-                            Timber.w("[Timeout] WebView extraction stuck >30s, attempting HTTP fallback...");
-                            long id = currentIdInProgress;
-                            String link = currentLink;
-                            String title = currentTitle;
-                            // Stop WebView loading on UI thread
-                            ContextCompat.getMainExecutor(context).execute(() -> {
-                                if (webView != null) {
-                                    webView.stopLoading();
-                                    webView.loadUrl("about:blank");
-                                }
-                            });
-                            extractViaHttp(id, link, title);
+                        if (extractionInProgress && System.currentTimeMillis() - lastExtractStart >= timeoutMs - 1000) {
+                            if (capturedDelayTime > 0) {
+                                // Feed requires JS-based content loading (e.g. paywall unlock).
+                                // HTTP fallback won't work, so skip it and defer to next cycle.
+                                Timber.w("[Timeout] WebView extraction stuck >" + (timeoutMs / 1000) + "s for JS-dependent feed (delay=" + capturedDelayTime + "s). Skipping HTTP fallback, deferring extraction.");
+                                finishAndMoveToNext();
+                            } else {
+                                Timber.w("[Timeout] WebView extraction stuck >" + (timeoutMs / 1000) + "s, attempting HTTP fallback...");
+                                long id = currentIdInProgress;
+                                String link = currentLink;
+                                String title = currentTitle;
+                                // Stop WebView loading on UI thread
+                                ContextCompat.getMainExecutor(context).execute(() -> {
+                                    if (webView != null) {
+                                        webView.stopLoading();
+                                        webView.loadUrl("about:blank");
+                                    }
+                                });
+                                extractViaHttp(id, link, title);
+                            }
                         }
-                    }, 30000);
+                    }, timeoutMs);
                 } else {
-                    Timber.d("WebView is NOT serviceable (background/screen off). Using direct HTTP extraction.");
-                    extractViaHttp(entry.getId(), currentLink, currentTitle);
+                    if (delayTime > 0) {
+                        // Feed requires JS-based content loading (e.g. paywall unlock).
+                        // HTTP extraction cannot execute JS, so skip and defer to when WebView is available.
+                        Timber.d("WebView is NOT serviceable and feed requires JS (delay=" + delayTime + "s). Deferring extraction for ID: " + entry.getId());
+                        finishAndMoveToNext();
+                    } else {
+                        Timber.d("WebView is NOT serviceable (background/screen off). Using direct HTTP extraction.");
+                        extractViaHttp(entry.getId(), currentLink, currentTitle);
+                    }
                 }
             }
         } else {
@@ -416,23 +432,10 @@ public class TtsExtractor {
     }
 
     private boolean isWebViewServiceable() {
-        PowerManager powerManager = (PowerManager) context.getSystemService(Context.POWER_SERVICE);
-        if (powerManager != null && !powerManager.isInteractive()) {
-            Timber.d("WebView not serviceable: Screen is off");
+        if (webView == null) {
+            Timber.d("WebView not serviceable: webView is null");
             return false;
         }
-
-        try {
-            android.app.ActivityManager.RunningAppProcessInfo appProcessInfo = new android.app.ActivityManager.RunningAppProcessInfo();
-            android.app.ActivityManager.getMyMemoryState(appProcessInfo);
-            if (appProcessInfo.importance != android.app.ActivityManager.RunningAppProcessInfo.IMPORTANCE_FOREGROUND) {
-                Timber.d("WebView not serviceable: App is in background (importance: " + appProcessInfo.importance + ")");
-                return false;
-            }
-        } catch (Exception e) {
-            Timber.e(e, "Error checking app foreground state");
-        }
-
         return true;
     }
 
@@ -446,11 +449,39 @@ public class TtsExtractor {
                         return;
                     }
                 }
-                org.jsoup.nodes.Document doc = org.jsoup.Jsoup.connect(link)
+
+                // Respect the feed's configured delay before making the request
+                if (delayTime > 0) {
+                    Timber.d("HTTP extraction: waiting " + delayTime + "s (feed delay) before request for ID: " + entryId);
+                    Thread.sleep(delayTime * 1000L);
+                }
+
+                // Sync cookies from WebView's CookieManager for authenticated access
+                String cookies = null;
+                try {
+                    android.webkit.CookieManager cookieManager = android.webkit.CookieManager.getInstance();
+                    if (cookieManager != null) {
+                        cookies = cookieManager.getCookie(link);
+                    }
+                } catch (Exception e) {
+                    Timber.w(e, "Failed to get cookies for HTTP extraction");
+                }
+
+                org.jsoup.Connection connection = org.jsoup.Jsoup.connect(link)
                         .userAgent("Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.7778.216 Mobile Safari/537.36")
-                        .timeout(15000)
+                        .timeout(30000)
                         .followRedirects(true)
-                        .get();
+                        .header("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8")
+                        .header("Accept-Language", "en-US,en;q=0.9")
+                        .header("Sec-Fetch-Dest", "document")
+                        .header("Sec-Fetch-Mode", "navigate")
+                        .header("Sec-Fetch-Site", "none");
+
+                if (cookies != null && !cookies.isEmpty()) {
+                    connection.header("Cookie", cookies);
+                }
+
+                org.jsoup.nodes.Document doc = connection.get();
                 String html = doc.outerHtml();
 
                 if (html != null && html.length() >= 500) {
@@ -776,9 +807,10 @@ public class TtsExtractor {
                     boolean isProcessed = newHtml.contains("summarized-title") || newHtml.contains("translated-title");
 
                     if (!isProcessed) {
-                        if (isManual || existingOriginal == null || existingOriginal.trim().isEmpty() || !existingIsFull || (newHtml != null && newHtml.length() > existingOriginal.length() + 100)) {
+                        boolean contentSignificantlyLonger = existingContent != null && extractedContent.length() > existingContent.length() + 100;
+                        if (isManual || existingOriginal == null || existingOriginal.trim().isEmpty() || !existingIsFull || contentSignificantlyLonger || (newHtml != null && newHtml.length() > existingOriginal.length() + 100)) {
                             entryRepository.updateOriginalHtml(newHtml, entryId);
-                            Timber.d("Original HTML backed up or updated for ID: " + entryId + " (New size: " + (newHtml != null ? newHtml.length() : 0) + ", isManual: " + isManual + ", existingIsFull: " + existingIsFull + ")");
+                            Timber.d("Original HTML backed up or updated for ID: " + entryId + " (New size: " + (newHtml != null ? newHtml.length() : 0) + ", isManual: " + isManual + ", existingIsFull: " + existingIsFull + ", contentSignificantlyLonger: " + contentSignificantlyLonger + ")");
                         }
                     }
 
