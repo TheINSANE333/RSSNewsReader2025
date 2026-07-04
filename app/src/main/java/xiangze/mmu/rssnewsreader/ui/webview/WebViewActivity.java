@@ -1185,6 +1185,14 @@ public class WebViewActivity extends AppCompatActivity implements ReloadDialog.R
     @Override public void onStart() { super.onStart(); if (!isReadingMode && mMediaBrowserHelper != null) mMediaBrowserHelper.onStart(); }
     @Override public void onStop() { if (!isReadingMode && mMediaBrowserHelper != null) mMediaBrowserHelper.onStop(); super.onStop(); }
     @Override protected void onPause() {
+        if (currentId != 0) {
+            sharedPreferencesRepository.setCurrentReadingEntryId(currentId);
+            try {
+                entryRepository.updateDate(new java.util.Date(), currentId);
+            } catch (Exception e) {
+                Timber.e(e, "Error updating visited date in onPause");
+            }
+        }
         sharedPreferencesRepository.setScrollX(currentId, webView.getScrollX());
         sharedPreferencesRepository.setScrollY(currentId, webView.getScrollY());
         super.onPause();

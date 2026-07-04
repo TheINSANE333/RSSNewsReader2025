@@ -5,6 +5,7 @@ import timber.log.Timber;
 
 import androidx.lifecycle.LiveData;
 import androidx.lifecycle.MutableLiveData;
+import androidx.lifecycle.SavedStateHandle;
 import androidx.lifecycle.Transformations;
 import androidx.lifecycle.ViewModel;
 
@@ -24,9 +25,11 @@ import dagger.hilt.android.lifecycle.HiltViewModel;
 @HiltViewModel
 public class WebViewViewModel extends ViewModel {
 
+    private static final String KEY_CURRENT_ID = "current_id";
     private final EntryRepository entryRepository;
     private final xiangze.mmu.rssnewsreader.data.playlist.PlaylistRepository playlistRepository;
     private final SharedPreferencesRepository sharedPreferencesRepository;
+    private final SavedStateHandle savedStateHandle;
     private long currentId;
 
     private final MutableLiveData<String> originalHtmlLiveData = new MutableLiveData<>();
@@ -74,6 +77,7 @@ public class WebViewViewModel extends ViewModel {
             clearViewData();
         }
         this.currentId = id;
+        savedStateHandle.set(KEY_CURRENT_ID, id);
         setLiveDataValue(currentIdLiveData, id);
         triggerEntryRefresh(id);
     }
@@ -145,10 +149,18 @@ public class WebViewViewModel extends ViewModel {
     @Inject
     public WebViewViewModel(EntryRepository entryRepository, 
                             xiangze.mmu.rssnewsreader.data.playlist.PlaylistRepository playlistRepository,
-                            SharedPreferencesRepository sharedPreferencesRepository) {
+                            SharedPreferencesRepository sharedPreferencesRepository,
+                            SavedStateHandle savedStateHandle) {
         this.entryRepository = entryRepository;
         this.playlistRepository = playlistRepository;
         this.sharedPreferencesRepository = sharedPreferencesRepository;
+        this.savedStateHandle = savedStateHandle;
+
+        Long savedId = savedStateHandle.get(KEY_CURRENT_ID);
+        if (savedId != null) {
+            this.currentId = savedId;
+            setLiveDataValue(currentIdLiveData, currentId);
+        }
     }
 
     public void resetEntry(long id) {

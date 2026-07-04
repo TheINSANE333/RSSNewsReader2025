@@ -379,7 +379,7 @@ public class SharedPreferencesRepository {
     }
 
     public void setCurrentReadingEntryId(long entryId) {
-        sharedPreferences.edit().putLong(KEY_CURRENT_READING_ENTRY_ID, entryId).apply();
+        sharedPreferences.edit().putLong(KEY_CURRENT_READING_ENTRY_ID, entryId).commit();
     }
 
     public long getCurrentReadingEntryId() {
