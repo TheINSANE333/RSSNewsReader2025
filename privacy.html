@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Privacy Policy - LXZ RSS News Reader</title>
+    <style>
+        :root {
+            --bg-color: #f8f9fa;
+            --text-color: #212529;
+            --container-bg: #ffffff;
+            --border-color: #dee2e6;
+            --primary-color: #4D2C89;
+            --secondary-color: #E8643B;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --bg-color: #0D0A21;
+                --text-color: #f8f9fa;
+                --container-bg: #130D2E;
+                --border-color: #2E1C4E;
+            }
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            line-height: 1.6;
+            padding: 20px;
+            margin: 0;
+            display: flex;
+            justify-content: center;
+        }
+
+        .container {
+            max-width: 800px;
+            width: 100%;
+            background-color: var(--container-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 40px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+            margin: 20px 0;
+        }
+
+        h1 {
+            color: var(--primary-color);
+            font-size: 2.5rem;
+            margin-top: 0;
+            border-bottom: 2px solid var(--border-color);
+            padding-bottom: 10px;
+        }
+
+        h2 {
+            color: var(--secondary-color);
+            font-size: 1.5rem;
+            margin-top: 30px;
+        }
+
+        p, li {
+            font-size: 1.05rem;
+            opacity: 0.9;
+        }
+
+        ul {
+            padding-left: 20px;
+        }
+
+        li {
+            margin-bottom: 8px;
+        }
+
+        footer {
+            margin-top: 40px;
+            padding-top: 20px;
+            border-top: 1px solid var(--border-color);
+            font-size: 0.9rem;
+            opacity: 0.7;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Privacy Policy</h1>
+        <p><strong>Effective Date:</strong> July 4, 2026</p>
+        
+        <p>This Privacy Policy describes how <strong>LXZ RSS News Reader</strong> ("we", "our", or "the App") handles information. We value your privacy and are committed to protecting it through complete transparency.</p>
+
+        <h2>1. Personal Information Collection</h2>
+        <p>The App does <strong>not</strong> collect, store, or transmit any personal identifiable information (PII). There is no user registration, account creation, or user profile tracking required to use the App.</p>
+
+        <h2>2. Locally Stored Data</h2>
+        <p>All data generated or imported by the user is stored strictly locally on the user's mobile device using secure Android local storage (SharedPreferences and SQLite database). This includes:</p>
+        <ul>
+            <li>Your subscribed RSS and podcast feed URLs.</li>
+            <li>Downloaded articles, read/unread flags, and bookmarks.</li>
+            <li>Your personal Groq API keys (used for AI features).</li>
+            <li>Custom reading preferences, Text-to-Speech voice settings, and custom TTS substitutions.</li>
+        </ul>
+        <p>We have no access to this data, and it is never uploaded to our servers.</p>
+
+        <h2>3. Third-Party Network Connections</h2>
+        <p>To provide its core functions, the App makes direct outbound network connections from your device to the following third-party services:</p>
+        <ul>
+            <li><strong>RSS Feed Providers:</strong> When fetching articles, the App requests content directly from the RSS feed URLs you subscribe to.</li>
+            <li><strong>Groq AI API:</strong> When utilizing translation, summarization, or chatbot features, the App sends the article text to the Groq API. This requires your personal Groq API key and is governed by Groq's privacy policy.</li>
+            <li><strong>MediaPipe Local LLM:</strong> Local AI processing (such as on-device language identification or local model execution) is run entirely on your physical device and does not send any text data over the internet.</li>
+        </ul>
+
+        <h2>4. Data Deletion</h2>
+        <p>Because all data is stored locally on your device, deleting the App will permanently delete all stored articles, settings, database, and API keys. You can also manually reset the database or delete individual feeds from the App's settings.</p>
+
+        <h2>5. Children's Privacy</h2>
+        <p>Our App is suitable for users of all ages. Because we do not collect any personal data, we do not knowingly collect or solicit personal information from children under 13.</p>
+
+        <h2>6. Changes to this Policy</h2>
+        <p>We may update this Privacy Policy from time to time. Any changes will be reflected by updating the "Effective Date" at the top of this page. You are advised to review this policy periodically for any changes.</p>
+
+        <h2>7. Contact Us</h2>
+        <p>If you have any questions or feedback regarding this Privacy Policy, feel free to contact us at the email provided in the Play Store developer listing.</p>
+
+        <footer>
+            &copy; 2026 LXZ RSS News Reader. All rights reserved.
+        </footer>
+    </div>
+</body>
+</html>
