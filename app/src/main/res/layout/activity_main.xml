@@ -245,6 +245,15 @@
                 android:text="@string/help"
                 app:icon="@drawable/ic_help" />
 
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/aboutButton"
+                style="@style/Widget.Material3.Button.TextButton"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="start|center_vertical"
+                android:text="@string/about_app"
+                app:icon="@drawable/ic_info" />
+
             <androidx.constraintlayout.widget.ConstraintLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"

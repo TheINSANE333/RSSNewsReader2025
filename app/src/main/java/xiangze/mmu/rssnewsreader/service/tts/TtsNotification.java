@@ -104,7 +104,7 @@ public class TtsNotification extends Notification {
                     .setContentText(description.getSubtitle())
                     .setLargeIcon(description.getIconBitmap());
         } else {
-            builder.setContentTitle("RSS News Reader")
+            builder.setContentTitle("Text to Speech News Reader")
                     .setContentText("Preparing playback...");
         }
 

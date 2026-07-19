@@ -15,5 +15,5 @@ dependencyResolutionManagement {
         mavenCentral()
     }
 }
-rootProject.name = "RSS News Reader"
+rootProject.name = "Text to Speech News Reader"
 include ':app'

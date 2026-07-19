@@ -68,7 +68,7 @@ public class TtsService extends MediaBrowserServiceCompat {
                     // Create a placeholder if no metadata is ready yet
                     data = new MediaMetadataCompat.Builder()
                             .putString(MediaMetadataCompat.METADATA_KEY_TITLE, "Loading...")
-                            .putString(MediaMetadataCompat.METADATA_KEY_DISPLAY_TITLE, "RSS News Reader")
+                            .putString(MediaMetadataCompat.METADATA_KEY_DISPLAY_TITLE, "Text to Speech News Reader")
                             .build();
                 }
                 

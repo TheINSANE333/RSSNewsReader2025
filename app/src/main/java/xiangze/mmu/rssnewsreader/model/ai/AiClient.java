@@ -28,7 +28,7 @@ public class AiClient {
     private static final String BASE_URL = "https://api.groq.com/openai/v1/";
     private String userKey;
     private static final String SITE_URL = "https://github.com/TheINSANE333/RSSNewsReader2025"; // Replace with your app/site URL
-    private static final String SITE_NAME = "RSS News Reader 2025"; // Replace with your app name
+    private static final String SITE_NAME = "Text to Speech News Reader 2025"; // Replace with your app name
 
     private AiService service;
     private final Context context;

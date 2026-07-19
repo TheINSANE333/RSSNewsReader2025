@@ -355,7 +355,7 @@ public class MainActivity extends AppCompatActivity {
             Intent intent = new Intent(Intent.ACTION_CREATE_DOCUMENT);
             intent.addCategory(Intent.CATEGORY_OPENABLE);
             intent.setType("text/xml");
-            intent.putExtra(Intent.EXTRA_TITLE, "rss_news_reader.opml");
+            intent.putExtra(Intent.EXTRA_TITLE, "text_to_speech_news_reader.opml");
 
             // Launch the activity for exporting the OPML file
             exportOpmlLauncher.launch(intent);
@@ -372,7 +372,7 @@ public class MainActivity extends AppCompatActivity {
             Intent intent = new Intent(Intent.ACTION_CREATE_DOCUMENT);
             intent.addCategory(Intent.CATEGORY_OPENABLE);
             intent.setType("text/xml");
-            intent.putExtra(Intent.EXTRA_TITLE, "rss_settings.opml");
+            intent.putExtra(Intent.EXTRA_TITLE, "text_to_speech_settings.opml");
             exportSettingsLauncher.launch(intent);
         });
 
@@ -397,6 +397,18 @@ public class MainActivity extends AppCompatActivity {
                     .setPopExitAnim(R.anim.slide_out_right_fade)
                     .build();
             navController.navigate(R.id.helpFragment, null, navOptions);
+            drawerLayout.closeDrawer(GravityCompat.START);
+        });
+
+        binding.navigationView.findViewById(R.id.aboutButton).setOnClickListener(view -> {
+            NavOptions navOptions = new NavOptions.Builder()
+                    .setPopUpTo(R.id.allEntriesFragment, false)
+                    .setEnterAnim(R.anim.slide_in_right)
+                    .setExitAnim(R.anim.slide_out_left_fade)
+                    .setPopEnterAnim(R.anim.slide_in_left_fade)
+                    .setPopExitAnim(R.anim.slide_out_right_fade)
+                    .build();
+            navController.navigate(R.id.aboutFragment, null, navOptions);
             drawerLayout.closeDrawer(GravityCompat.START);
         });
 

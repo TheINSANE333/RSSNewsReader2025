@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">LXZ RSS News Reader</string>
+    <string name="app_name">Text to Speech News Reader</string>
     <string name="action_settings">Settings</string>
     <!-- Strings used for fragments for navigation -->
     <string name="first_fragment_label">First Fragment</string>
@@ -195,7 +195,7 @@
 
     <!-- Help Page -->
     <string name="help_what_is_rss">What is RSS?</string>
-    <string name="help_what_is_rss_desc">RSS (Really Simple Syndication) is a technology that allows you to gather and receive updates from various news websites in a standardized format. By subscribing to RSS feeds, you can stay informed and effortlessly access the latest articles from your favorite sources.\n\nRSS eliminates the need to visit multiple websites individually to check for updates. Instead, the RSS news reader app collects and organizes the content from subscribed feeds into a single place. This way, you can conveniently browse and read news articles and other updates from various sources without the need to visit each website separately.\n\nWith the app\'s RSS functionality, you can easily discover new content, personalize your news feed by selecting specific sources, and stay up to date with the latest information across different categories. The app automatically fetches and presents the newest articles from your subscribed feeds, allowing you to efficiently consume news and stay informed with just a few taps.</string>
+    <string name="help_what_is_rss_desc">RSS (Really Simple Syndication) is a technology that allows you to gather and receive updates from various news websites in a standardized format. By subscribing to RSS feeds, you can stay informed and effortlessly access the latest articles from your favorite sources.\n\nRSS eliminates the need to visit multiple websites individually to check for updates. Instead, the Text to Speech news reader app collects and organizes the content from subscribed feeds into a single place. This way, you can conveniently browse and read news articles and other updates from various sources without the need to visit each website separately.\n\nWith the app\'s RSS functionality, you can easily discover new content, personalize your news feed by selecting specific sources, and stay up to date with the latest information across different categories. The app automatically fetches and presents the newest articles from your subscribed feeds, allowing you to efficiently consume news and stay informed with just a few taps.</string>
     <string name="help_start">How to get started?</string>
     <string name="help_start_desc">To subscribe to a news source, navigate to the feed page and paste the URL to the text box under the \'Add\' tab. Once the feed is successfully extracted, the articles will be displayed in the News page if the feed is not empty.\n\nTo obtain the URL, you can look for an RSS feed on your desired website and copy the link. Alternatively, you can check if your website has an RSS feed by using the link provided on the feed page under the \'Add\' tab.\n\nHowever, if the website does not support RSS, you can search and paste the news page link directly eg. https://www.bbc.com/.</string>
     <string name="help_change_feed_language">How to change the language of a feed?</string>
@@ -243,5 +243,15 @@
 
     <string name="loading_app_state">Loading app state...</string>
     <string name="do_not_quit">Please do not quit the app</string>
+
+    <!-- About Page -->
+    <string name="about_app">About App</string>
+    <string name="about_title">Text to Speech News Reader</string>
+    <string name="about_subtitle">A Smart &amp; Accessible Text to Speech Reader</string>
+    <string name="about_credits_header">Project Credits</string>
+    <string name="about_credits_text">The Text to Speech News Reader is created by Lee Xiang Ze for Bachelor of Computer Science, specialisation in Software Engineering, Final Year Project under Assoc. Prof. Dr. Ian Chai, Faculty of Computing Informatics, Multimedia University, Cyberjaya, Malaysia.</string>
+    <string name="about_version">Version %s</string>
+    <string name="about_project_details_header">About the Project</string>
+    <string name="about_project_details_text">This application is designed to make news consumption highly accessible by combining a full-featured News Reader with high-quality Text-To-Speech (TTS). It supports multi-lingual reading, automated translation, AI summarization, dynamic theme customization, and customizable speech parameters to tailor the listening experience for every user.</string>
 
 </resources>

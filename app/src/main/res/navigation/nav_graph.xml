@@ -106,4 +106,20 @@
             app:popEnterAnim="@anim/slide_in_right"
             app:popExitAnim="@anim/slide_out_left_fade"/>
     </fragment>
+
+    <fragment
+        android:id="@+id/aboutFragment"
+        android:name="xiangze.mmu.rssnewsreader.ui.about.AboutFragment"
+        android:label="About App"
+        tools:layout="@layout/fragment_about" >
+        <action
+            android:id="@+id/action_aboutFragment_to_allEntriesFragment"
+            app:destination="@id/allEntriesFragment"
+            app:popUpTo="@id/allEntriesFragment"
+            app:popUpToInclusive="true"
+            app:enterAnim="@anim/slide_in_left_fade"
+            app:exitAnim="@anim/slide_out_right_fade"
+            app:popEnterAnim="@anim/slide_in_right"
+            app:popExitAnim="@anim/slide_out_left_fade"/>
+    </fragment>
 </navigation>

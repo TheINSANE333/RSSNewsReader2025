@@ -18,7 +18,7 @@ public class OnboardingPagerAdapter extends FragmentStateAdapter {
         switch (position) {
             case 0:
                 return OnboardingPageFragment.newInstance(
-                        "Welcome to RSS Reader",
+                        "Welcome to Text to Speech Reader",
                         "Stay updated with your favorite news sources in one place.",
                         R.drawable.ic_rss_feed);
             case 1:
