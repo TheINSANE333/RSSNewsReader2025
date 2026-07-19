@@ -519,7 +519,13 @@ public class WebViewActivity extends AppCompatActivity implements ReloadDialog.R
     }
 
     private void loadCurrentViewState(Entry entry) {
-        if (entry == null || entry.getId() != currentId) return;
+        if (entry == null) return;
+        // Reject stale entries that no longer match the article the user is viewing.
+        // This prevents showing a previous article's body with the current article's title.
+        if (entry.getId() != currentId) {
+            Timber.d("loadCurrentViewState: Rejecting stale entry %d (currentId=%d)", entry.getId(), currentId);
+            return;
+        }
 
         applyZoomSettings();
 
@@ -553,7 +559,10 @@ public class WebViewActivity extends AppCompatActivity implements ReloadDialog.R
         if (htmlToLoad != null && !htmlToLoad.trim().isEmpty()) {
             if (!htmlToLoad.equals(lastLoadedHtml)) {
                 lastLoadedHtml = htmlToLoad;
-                contentManager.loadHtml(htmlToLoad, currentId, ttsPlayer.isSpeaking());
+                // Use entry.getId() (not currentId) to guarantee the header title matches
+                // the body HTML. currentId may have already changed due to TTS auto-advance
+                // or user navigation while the async DB fetch for this entry was in flight.
+                contentManager.loadHtml(htmlToLoad, entry.getId(), ttsPlayer.isSpeaking());
             }
         } else {
             lastLoadedHtml = ""; // Reset since we are loading a URL
@@ -582,7 +591,14 @@ public class WebViewActivity extends AppCompatActivity implements ReloadDialog.R
 
     private void observeLiveEntry() {
         webViewViewModel.getLiveEntry().observe(this, entry -> {
-            if (entry == null || entry.getId() != currentId) return;
+            if (entry == null) return;
+            // Guard: reject stale LiveData emissions that don't match the article
+            // the user is currently viewing. The switchMap in getLiveEntry() can
+            // briefly emit the previous entry before the new query resolves.
+            if (entry.getId() != currentId) {
+                Timber.d("observeLiveEntry: Ignoring stale entry %d (currentId=%d)", entry.getId(), currentId);
+                return;
+            }
 
             // If we are in WebView mode, DO NOT auto-switch or reload content based on extracted state.
             if (sharedPreferencesRepository.getWebViewMode(currentId)) {

@@ -20,6 +20,7 @@ import androidx.preference.PreferenceFragmentCompat;
 
 import xiangze.mmu.rssnewsreader.R;
 import xiangze.mmu.rssnewsreader.data.sharedpreferences.SharedPreferencesRepository;
+import xiangze.mmu.rssnewsreader.model.ai.AiClient;
 import xiangze.mmu.rssnewsreader.model.ai.LocalLlmManager;
 import xiangze.mmu.rssnewsreader.model.ai.TokenUsageGuard;
 import xiangze.mmu.rssnewsreader.service.rss.RssWorkManager;
@@ -31,7 +32,12 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
 import java.util.Objects;
+import java.util.concurrent.Executors;
 
 import javax.inject.Inject;
 
@@ -117,6 +123,9 @@ public class SettingsFragment extends PreferenceFragmentCompat {
                     String newApiKey = sharedPreferences.getString(key, "");
                     sharedPreferencesRepository.setGroqApiKey(newApiKey);
                     break;
+                case "enable_dynamic_model_fallback":
+                    updateModelPrefsEnabledState();
+                    break;
             }
         }
     };
@@ -195,6 +204,74 @@ public class SettingsFragment extends PreferenceFragmentCompat {
                 showManageApiKeysDialog();
                 return true;
             });
+        }
+
+        // Dynamically fetch available Groq models and populate the dropdowns
+        fetchAndPopulateGroqModels();
+        updateModelPrefsEnabledState();
+    }
+
+    /**
+     * Fetches available models from the Groq API on a background thread
+     * and populates the chatbot, translation, and summarization model dropdowns.
+     * Falls back to hardcoded XML arrays if the API call fails.
+     */
+    private void fetchAndPopulateGroqModels() {
+        ListPreference chatbotModelPref = findPreference("chatbot_model");
+        ListPreference translationModelPref = findPreference("translation_model");
+        ListPreference summarizationModelPref = findPreference("summarization_model");
+
+        Executors.newSingleThreadExecutor().execute(() -> {
+            AiClient aiClient = new AiClient(requireContext());
+            List<String> modelIds = aiClient.fetchAvailableModels();
+
+            if (modelIds == null || modelIds.isEmpty()) {
+                return; // Keep hardcoded XML arrays as fallback
+            }
+
+            // Build entries (display names) and entryValues (model IDs)
+            // Groq models + Local Qwen at the end
+            int totalSize = modelIds.size() + 1; // +1 for Local Qwen
+            CharSequence[] entries = new CharSequence[totalSize];
+            CharSequence[] entryValues = new CharSequence[totalSize];
+
+            for (int i = 0; i < modelIds.size(); i++) {
+                entryValues[i] = modelIds.get(i);
+                entries[i] = AiClient.formatModelName(modelIds.get(i));
+            }
+
+            // Append local model at the end
+            entries[totalSize - 1] = "Local Qwen2.5 (1.5B)";
+            entryValues[totalSize - 1] = "local_qwen_2_5_1_5b";
+
+            // Post to main thread to update UI
+            if (getActivity() != null) {
+                getActivity().runOnUiThread(() -> {
+                    List<CharSequence> valuesList = Arrays.asList(entryValues);
+
+                    updateModelPreference(chatbotModelPref, entries, entryValues, valuesList);
+                    updateModelPreference(translationModelPref, entries, entryValues, valuesList);
+                    updateModelPreference(summarizationModelPref, entries, entryValues, valuesList);
+                });
+            }
+        });
+    }
+
+    /**
+     * Updates a single ListPreference with the new entries/values.
+     * If the currently selected value is no longer in the list, resets to the first entry.
+     */
+    private void updateModelPreference(ListPreference pref, CharSequence[] entries,
+                                       CharSequence[] entryValues, List<CharSequence> valuesList) {
+        if (pref == null) return;
+
+        String currentValue = pref.getValue();
+        pref.setEntries(entries);
+        pref.setEntryValues(entryValues);
+
+        // If the user's current selection is no longer available, reset to first
+        if (currentValue == null || !valuesList.contains(currentValue)) {
+            pref.setValue(entryValues[0].toString());
         }
     }
 
@@ -641,6 +718,32 @@ public class SettingsFragment extends PreferenceFragmentCompat {
         } catch (IOException e) {
             sharedPreferencesRepository.setBackgroundMusicFile("default");
             e.printStackTrace();
+        }
+    }
+
+    /**
+     * Greys out (disables) the model selection dropdowns if dynamic model fallback is active.
+     */
+    private void updateModelPrefsEnabledState() {
+        if (getContext() == null) return;
+        
+        SharedPreferences prefs = getPreferenceManager().getSharedPreferences();
+        if (prefs == null) return;
+        
+        boolean enableFallback = prefs.getBoolean("enable_dynamic_model_fallback", true);
+
+        ListPreference chatbotModelPref = findPreference("chatbot_model");
+        ListPreference translationModelPref = findPreference("translation_model");
+        ListPreference summarizationModelPref = findPreference("summarization_model");
+
+        if (chatbotModelPref != null) {
+            chatbotModelPref.setEnabled(!enableFallback);
+        }
+        if (translationModelPref != null) {
+            translationModelPref.setEnabled(!enableFallback);
+        }
+        if (summarizationModelPref != null) {
+            summarizationModelPref.setEnabled(!enableFallback);
         }
     }
 }

@@ -134,6 +134,14 @@
             app:summary="Delete downloaded model files to free up space."
             app:icon="@drawable/ic_trash" />
 
+        <SwitchPreferenceCompat
+            app:defaultValue="true"
+            app:icon="@drawable/ic_auto_mode"
+            app:key="enable_dynamic_model_fallback"
+            app:summaryOff="Use the specified model strictly (may fail when exhausted)"
+            app:summaryOn="Automatically fall back to other models when rate limits are hit"
+            app:title="Enable Dynamic Model Fallback" />
+
         <ListPreference
             app:defaultValue="meta-llama/llama-3.3-70b-instruct:free"
             app:entries="@array/ai_model"

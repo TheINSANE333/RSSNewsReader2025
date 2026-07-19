@@ -4,11 +4,16 @@ import android.content.Context;
 import androidx.preference.PreferenceManager;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import xiangze.mmu.rssnewsreader.data.ai.ChatRequest;
 import xiangze.mmu.rssnewsreader.data.ai.ChatResponse;
+import xiangze.mmu.rssnewsreader.data.ai.GroqModelsResponse;
 import xiangze.mmu.rssnewsreader.data.ai.Message;
 import xiangze.mmu.rssnewsreader.data.sharedpreferences.SharedPreferencesRepository;
 import xiangze.mmu.rssnewsreader.service.ai.AiService;
@@ -17,6 +22,7 @@ import okhttp3.Request;
 import okhttp3.logging.HttpLoggingInterceptor;
 import retrofit2.Retrofit;
 import retrofit2.converter.gson.GsonConverterFactory;
+import timber.log.Timber;
 
 public class AiClient {
     private static final String BASE_URL = "https://api.groq.com/openai/v1/";
@@ -148,6 +154,14 @@ public class AiClient {
                             return getChatResponseInternal(messages, model, retryCount + 1);
                         }
                     }
+                    
+                    // Fall back to next model if we run out of API keys for the current model
+                    String fallbackModel = getNextFallbackModel(model);
+                    if (fallbackModel != null) {
+                        Timber.w("Rate limit (429/402) hit on model %s. Falling back to: %s", model, fallbackModel);
+                        return getChatResponseInternal(messages, fallbackModel, 0);
+                    }
+                    
                     errorMessage = (errorCode == 429) ? "Rate Limit Exceeded - Too many requests" : "Payment Required - Check your groq credits";
                     break;
                 default:
@@ -166,5 +180,102 @@ public class AiClient {
         }
 
         return "Sorry, I didn't get a response.";
+    }
+
+    /**
+     * Fetches the list of available model IDs from the Groq API.
+     * @return sorted list of model IDs, or null on failure.
+     */
+    public List<String> fetchAvailableModels() {
+        if (userKey == null || userKey.isEmpty()) {
+            return null;
+        }
+        try {
+            retrofit2.Response<GroqModelsResponse> response = service.listModels().execute();
+            if (response.isSuccessful() && response.body() != null && response.body().data != null) {
+                List<String> modelIds = new ArrayList<>();
+                for (GroqModelsResponse.Model model : response.body().data) {
+                    if (model.id != null && !model.id.isEmpty()) {
+                        modelIds.add(model.id);
+                    }
+                }
+                Collections.sort(modelIds);
+                return modelIds;
+            }
+        } catch (IOException e) {
+            // Network or parsing error — fall back to hardcoded list
+        }
+        return null;
+    }
+
+    /**
+     * Converts a raw model ID into a user-friendly display name.
+     * e.g. "meta-llama/llama-4-scout-17b-16e-instruct" → "Llama 4 Scout 17B 16e Instruct"
+     *      "llama-3.3-70b-versatile" → "Llama 3.3 70B Versatile"
+     */
+    public static String formatModelName(String modelId) {
+        if (modelId == null || modelId.isEmpty()) return modelId;
+
+        // Strip owner prefix (everything before and including '/')
+        int slashIndex = modelId.lastIndexOf('/');
+        String name = (slashIndex >= 0) ? modelId.substring(slashIndex + 1) : modelId;
+
+        // Replace hyphens with spaces, but keep decimal version numbers intact (e.g. 3.3)
+        name = name.replace('-', ' ');
+
+        // Title-case each word, with special handling for size suffixes
+        String[] words = name.split(" ");
+        StringBuilder sb = new StringBuilder();
+        // Pattern for size tokens like "70b", "8b", "1.5b" — keep the letter uppercase
+        Pattern sizePattern = Pattern.compile("^(\\d+\\.?\\d*)(b)$", Pattern.CASE_INSENSITIVE);
+
+        for (int i = 0; i < words.length; i++) {
+            String word = words[i];
+            if (word.isEmpty()) continue;
+            if (sb.length() > 0) sb.append(' ');
+
+            Matcher sizeMatcher = sizePattern.matcher(word);
+            if (sizeMatcher.matches()) {
+                // e.g. "70b" → "70B"
+                sb.append(sizeMatcher.group(1)).append(sizeMatcher.group(2).toUpperCase());
+            } else if (word.matches("\\d+.*")) {
+                // Starts with digit (version numbers like "3.3", "16e") — keep as-is
+                sb.append(word);
+            } else {
+                // Normal word — capitalize first letter
+                sb.append(Character.toUpperCase(word.charAt(0)));
+                if (word.length() > 1) {
+                    sb.append(word.substring(1));
+                }
+            }
+        }
+        return sb.toString();
+    }
+
+    private String getNextFallbackModel(String currentModel) {
+        boolean enableFallback = PreferenceManager.getDefaultSharedPreferences(context)
+                .getBoolean("enable_dynamic_model_fallback", true);
+        if (!enableFallback) {
+            return null;
+        }
+
+        if (currentModel == null) return null;
+
+        switch (currentModel) {
+            case "llama-3.3-70b-versatile":
+            case "meta-llama/llama-3.3-70b-instruct:free":
+                return "openai/gpt-oss-120b";
+            case "openai/gpt-oss-120b":
+                return "openai/gpt-oss-20b";
+            case "openai/gpt-oss-20b":
+                return "llama-3.1-8b-instant";
+            case "llama-3.1-8b-instant":
+                return "local_qwen_2_5_1_5b";
+            case "local_qwen_2_5_1_5b":
+                return null; // Local model is final fallback (runs offline)
+            default:
+                // Fall back to llama-3.1-8b-instant as general high-limit fallback
+                return "llama-3.1-8b-instant";
+        }
     }
 }
