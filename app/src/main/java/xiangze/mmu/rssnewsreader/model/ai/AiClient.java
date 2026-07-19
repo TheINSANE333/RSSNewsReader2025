@@ -89,6 +89,16 @@ public class AiClient {
             model = PreferenceManager.getDefaultSharedPreferences(context).getString("ai_model", "llama-3.3-70b-versatile");
         }
 
+        boolean enableFallback = PreferenceManager.getDefaultSharedPreferences(context)
+                .getBoolean("enable_dynamic_model_fallback", true);
+        if (enableFallback) {
+            // Force starting with the best model (which has the highest TPM limit of 12k)
+            // if a lower-tier model was requested, maximizing chance of success for large prompts.
+            if ("llama-3.1-8b-instant".equals(model) || "openai/gpt-oss-20b".equals(model) || "local_qwen_2_5_1_5b".equals(model)) {
+                model = "llama-3.3-70b-versatile";
+            }
+        }
+
         if ("local_qwen_2_5_1_5b".equals(model)) {
             try {
                 StringBuilder promptBuilder = new StringBuilder();
@@ -116,7 +126,20 @@ public class AiClient {
             throw new IOException(e.getMessage());
         }
 
-        ChatRequest request = new ChatRequest(model, messages, 0.0, 6000);
+        // Estimate prompt token count
+        int estimatedPromptTokens = estimateTokenCount(messages);
+        int contextLimit = getModelContextLimit(model);
+
+        // Dynamically adjust max_tokens so that prompt_tokens + max_tokens fits in the model context limit
+        int maxTokens = 6000;
+        if (estimatedPromptTokens + maxTokens > contextLimit) {
+            maxTokens = contextLimit - estimatedPromptTokens - 100;
+        }
+        if (maxTokens < 128) {
+            maxTokens = 128; // safe minimum to avoid empty responses
+        }
+
+        ChatRequest request = new ChatRequest(model, messages, 0.0, maxTokens);
 
         retrofit2.Response<ChatResponse> response = service.chatCompletion(request).execute();
 
@@ -145,25 +168,6 @@ public class AiClient {
                 case 401:
                     errorMessage = "Invalid groq API Key";
                     break;
-                case 402:
-                case 429:
-                    if (retryCount < sharedPreferencesRepository.getSavedApiKeys().size()) {
-                        if (sharedPreferencesRepository.switchToNextKey()) {
-                            this.userKey = sharedPreferencesRepository.getGroqApiKey();
-                            initializeService();
-                            return getChatResponseInternal(messages, model, retryCount + 1);
-                        }
-                    }
-                    
-                    // Fall back to next model if we run out of API keys for the current model
-                    String fallbackModel = getNextFallbackModel(model);
-                    if (fallbackModel != null) {
-                        Timber.w("Rate limit (429/402) hit on model %s. Falling back to: %s", model, fallbackModel);
-                        return getChatResponseInternal(messages, fallbackModel, 0);
-                    }
-                    
-                    errorMessage = (errorCode == 429) ? "Rate Limit Exceeded - Too many requests" : "Payment Required - Check your groq credits";
-                    break;
                 default:
                     // Try to get error message from response body
                     try {
@@ -174,8 +178,24 @@ public class AiClient {
                     } catch (IOException e) {
                         errorMessage = "groq Error " + errorCode + ": " + response.message();
                     }
-            }
 
+                    // Trigger key rotation first for any error other than 401
+                    if (retryCount < sharedPreferencesRepository.getSavedApiKeys().size()) {
+                        if (sharedPreferencesRepository.switchToNextKey()) {
+                            this.userKey = sharedPreferencesRepository.getGroqApiKey();
+                            initializeService();
+                            return getChatResponseInternal(messages, model, retryCount + 1);
+                        }
+                    }
+
+                    // Fall back to next model if we run out of API keys for the current model
+                    String fallbackModel = getNextFallbackModel(model);
+                    if (fallbackModel != null) {
+                        Timber.w("API error (%d) hit on model %s. Falling back to: %s", errorCode, model, fallbackModel);
+                        return getChatResponseInternal(messages, fallbackModel, 0);
+                    }
+                    break;
+            }
             throw new IOException(errorMessage);
         }
 
@@ -270,12 +290,51 @@ public class AiClient {
             case "openai/gpt-oss-20b":
                 return "llama-3.1-8b-instant";
             case "llama-3.1-8b-instant":
-                return "local_qwen_2_5_1_5b";
+                return null; // Don't use local model in fallback cascade
             case "local_qwen_2_5_1_5b":
-                return null; // Local model is final fallback (runs offline)
+                return null;
             default:
                 // Fall back to llama-3.1-8b-instant as general high-limit fallback
                 return "llama-3.1-8b-instant";
         }
+    }
+    /**
+     * Estimates the token count of a message list based on character counts.
+     */
+    private int estimateTokenCount(List<Message> messages) {
+        int charCount = 0;
+        for (Message msg : messages) {
+            if (msg.content != null) {
+                charCount += msg.content.length();
+            }
+        }
+        // Rough rule of thumb: 1 token ≈ 4 characters
+        return (int) Math.ceil(charCount / 4.0);
+    }
+
+    /**
+     * Gets the known context limit (or organization TPM limit) of a given model.
+     * Capped at the organization's TPM rate limit since single requests exceeding 
+     * this are rejected by Groq with a 413 error.
+     */
+    private int getModelContextLimit(String model) {
+        if (model == null) return 6000;
+
+        if (model.contains("llama-3.3")) {
+            return 12000; // 12,000 TPM limit
+        }
+        if (model.contains("gpt-oss")) {
+            return 8000; // 8,000 TPM limit
+        }
+        if (model.contains("llama-3.1") || model.contains("allam")) {
+            return 6000; // 6,000 TPM limit
+        }
+        if (model.contains("qwen") || model.contains("local")) {
+            return 4000; // 4k context limits
+        }
+        if (model.contains("gemma")) {
+            return 8192; // 8k context limit
+        }
+        return 6000; // Safe default for unrecognized models
     }
 }
