@@ -1,7 +1,9 @@
 package xiangze.mmu.rssnewsreader.ui.about;
 
+import android.content.Intent;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
+import android.net.Uri;
 import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -44,6 +46,27 @@ public class AboutFragment extends Fragment {
         }
 
         binding.aboutVersionText.setText(getString(R.string.about_version, versionName));
+
+        binding.aboutContactEmail.setOnClickListener(v -> {
+            Intent intent = new Intent(Intent.ACTION_SENDTO);
+            intent.setData(Uri.parse("mailto:" + getString(R.string.about_contact_email_value)));
+            intent.putExtra(Intent.EXTRA_SUBJECT, "Text to Speech News Reader Support");
+            try {
+                startActivity(intent);
+            } catch (Exception e) {
+                Timber.e(e, "Could not launch email client");
+            }
+        });
+
+        binding.aboutContactWebsite.setOnClickListener(v -> {
+            String url = "https://TheINSANE333.github.io/RSSNewsReader2025/privacy.html";
+            Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(url));
+            try {
+                startActivity(intent);
+            } catch (Exception e) {
+                Timber.e(e, "Could not launch web browser");
+            }
+        });
     }
 
     @Override

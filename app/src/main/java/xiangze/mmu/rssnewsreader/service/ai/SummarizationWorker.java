@@ -64,9 +64,13 @@ public class SummarizationWorker extends RxWorker {
                     }
 
                     Timber.d("Found " + entries.size() + " potential entries to summarize");
+                    showToast("Starting auto-summarization for " + entries.size() + " articles...");
 
                     return processEntries(entries)
-                            .andThen(io.reactivex.rxjava3.core.Single.just(Result.success()));
+                            .andThen(io.reactivex.rxjava3.core.Single.fromCallable(() -> {
+                                showToast("Auto-summarization completed successfully.");
+                                return Result.success();
+                            }));
                 })
                 .subscribeOn(io.reactivex.rxjava3.schedulers.Schedulers.io());
     }
@@ -108,8 +112,12 @@ public class SummarizationWorker extends RxWorker {
                         // if it's not already filtered by the query.
                         int progress = entries.indexOf(info) + 1;
                         int total = entries.size();
+                        String title = entryInfo.getEntryTitle();
                         return summarizeEntry(entryInfo)
-                                .doOnSubscribe(d -> updateNotification(progress, total, entryInfo.getEntryTitle()))
+                                .doOnSubscribe(d -> {
+                                    updateNotification(progress, total, title);
+                                    showToast("Summarizing (" + progress + "/" + total + "): " + title);
+                                })
                                 .delay(3000, TimeUnit.MILLISECONDS);
                     });
                 });
@@ -180,11 +188,6 @@ public class SummarizationWorker extends RxWorker {
     private void updateNotification(int progress, int total, String title) {
         NotificationManager notificationManager = (NotificationManager) getApplicationContext().getSystemService(Context.NOTIFICATION_SERVICE);
         
-//        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-//            NotificationChannel channel = new NotificationChannel(CHANNEL_ID, "AI Processing", NotificationManager.IMPORTANCE_LOW);
-//            notificationManager.createNotificationChannel(channel);
-//        }
-
         NotificationCompat.Builder builder = new NotificationCompat.Builder(getApplicationContext(), CHANNEL_ID)
                 .setContentTitle("Summarizing Articles")
                 .setContentText(progress + "/" + total + ": " + title)
@@ -193,5 +196,11 @@ public class SummarizationWorker extends RxWorker {
                 .setOngoing(true);
 
         notificationManager.notify(NOTIFICATION_ID, builder.build());
+    }
+
+    private void showToast(String message) {
+        new android.os.Handler(android.os.Looper.getMainLooper()).post(() -> {
+            android.widget.Toast.makeText(getApplicationContext(), message, android.widget.Toast.LENGTH_SHORT).show();
+        });
     }
 }

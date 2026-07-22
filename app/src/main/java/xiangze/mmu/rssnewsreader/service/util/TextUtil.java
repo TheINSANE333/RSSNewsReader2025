@@ -219,31 +219,25 @@ public class TextUtil {
 
             Timber.d("Attempting to acquire Translation Lock for ID: " + articleId + " (Priority: " + isPriority + ")");
 
+            boolean acquired = false;
             try {
-                if (isPriority) {
-                    // To jump a fair semaphore's queue, we can't use acquire().
-                    // We need to use tryAcquire() repeatedly or use a different sync primitive.
-                    // For now, let's use a loop with tryAcquire to "cut" the line.
-                    while (!GLOBAL_TRANSLATION_LOCK.tryAcquire()) {
-                        Thread.sleep(50); // Small wait to avoid spinning too hard
-                    }
-                } else {
+                if (!isPriority) {
                     GLOBAL_TRANSLATION_LOCK.acquire();
+                    acquired = true;
                 }
             } catch (InterruptedException e) {
                 return Single.error(e);
             }
 
-            Timber.d("Lock Acquired. Starting translation for ID: " + articleId);
+            Timber.d("Lock Acquired/Bypassed. Starting translation for ID: " + articleId);
 
-            // 2. RUN: Your existing translation logic goes here.
-            // Ensure this returns a Single<String>.
+            final boolean finalAcquired = acquired;
             return performActualTranslation(sourceLanguage, targetLanguage, html, title, articleId, progressCallback)
                     .doFinally(() -> {
-                        // 3. RELEASE: This runs whether the translation Succeeds OR Fails.
-                        // It is critical to ensure the next item in line can proceed.
-                        GLOBAL_TRANSLATION_LOCK.release();
-                        Timber.d("Lock Released for ID: " + articleId);
+                        if (finalAcquired) {
+                            GLOBAL_TRANSLATION_LOCK.release();
+                            Timber.d("Lock Released for ID: " + articleId);
+                        }
                     });
         });
     }
@@ -263,28 +257,25 @@ public class TextUtil {
 
             Timber.d("Attempting to acquire Summarization Lock for ID: " + articleId + " (Priority: " + isPriority + ")");
 
+            boolean acquired = false;
             try {
-                if (isPriority) {
-                    while (!GLOBAL_SUMMARIZATION_LOCK.tryAcquire()) {
-                        Thread.sleep(50);
-                    }
-                } else {
+                if (!isPriority) {
                     GLOBAL_SUMMARIZATION_LOCK.acquire();
+                    acquired = true;
                 }
             } catch (InterruptedException e) {
                 return Single.error(e);
             }
 
-            Timber.d("Lock Acquired. Starting summarization for ID: " + articleId);
+            Timber.d("Lock Acquired/Bypassed. Starting summarization for ID: " + articleId);
 
-            // 2. RUN: Your existing translation logic goes here.
-            // Ensure this returns a Single<String>.
+            final boolean finalAcquired = acquired;
             return performActualSummarization(sourceLanguage, targetLanguage, html, length, articleId, title, progressCallback)
                     .doFinally(() -> {
-                        // 3. RELEASE: This runs whether the translation Succeeds OR Fails.
-                        // It is critical to ensure the next item in line can proceed.
-                        GLOBAL_SUMMARIZATION_LOCK.release();
-                        Timber.d("Lock Released for ID: " + articleId);
+                        if (finalAcquired) {
+                            GLOBAL_SUMMARIZATION_LOCK.release();
+                            Timber.d("Lock Released for ID: " + articleId);
+                        }
                     });
         });
     }

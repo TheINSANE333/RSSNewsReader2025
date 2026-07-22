@@ -253,5 +253,10 @@
     <string name="about_version">Version %s</string>
     <string name="about_project_details_header">About the Project</string>
     <string name="about_project_details_text">This application is designed to make news consumption highly accessible by combining a full-featured News Reader with high-quality Text-To-Speech (TTS). It supports multi-lingual reading, automated translation, AI summarization, dynamic theme customization, and customizable speech parameters to tailor the listening experience for every user.</string>
+    <string name="about_contact_header">Contact Us &amp; Developer Support</string>
+    <string name="about_contact_desc">For support, inquiries, or feedback regarding Text to Speech News Reader, please contact us using the details below:</string>
+    <string name="about_contact_email">Developer Email: xiangzelee@gmail.com</string>
+    <string name="about_contact_email_value">xiangzelee@gmail.com</string>
+    <string name="about_contact_website">Website: https://TheINSANE333.github.io/RSSNewsReader2025/privacy.html</string>
 
 </resources>

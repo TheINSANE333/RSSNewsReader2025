@@ -61,8 +61,13 @@ public class TranslationWorker extends RxWorker {
                     }
 
                     Timber.d("Found " + entries.size() + " potential entries to translate");
+                    showToast("Starting auto-translation for " + entries.size() + " articles...");
+
                     return processEntries(entries)
-                            .andThen(io.reactivex.rxjava3.core.Single.just(Result.success()));
+                            .andThen(io.reactivex.rxjava3.core.Single.fromCallable(() -> {
+                                showToast("Auto-translation completed successfully.");
+                                return Result.success();
+                            }));
                 })
                 .subscribeOn(io.reactivex.rxjava3.schedulers.Schedulers.io());
     }
@@ -92,8 +97,12 @@ public class TranslationWorker extends RxWorker {
                 .concatMapCompletable(entryInfo -> {
                     int progress = entries.indexOf(entryInfo) + 1;
                     int total = entries.size();
+                    String title = entryInfo.getEntryTitle();
                     return translateEntry(entryInfo)
-                            .doOnSubscribe(d -> updateNotification(progress, total, entryInfo.getEntryTitle()))
+                            .doOnSubscribe(d -> {
+                                updateNotification(progress, total, title);
+                                showToast("Translating (" + progress + "/" + total + "): " + title);
+                            })
                             .delay(3000, TimeUnit.MILLISECONDS);
                 });
     }
@@ -171,5 +180,11 @@ public class TranslationWorker extends RxWorker {
                 .setOngoing(true);
 
         notificationManager.notify(NOTIFICATION_ID, builder.build());
+    }
+
+    private void showToast(String message) {
+        new android.os.Handler(android.os.Looper.getMainLooper()).post(() -> {
+            android.widget.Toast.makeText(getApplicationContext(), message, android.widget.Toast.LENGTH_SHORT).show();
+        });
     }
 }
