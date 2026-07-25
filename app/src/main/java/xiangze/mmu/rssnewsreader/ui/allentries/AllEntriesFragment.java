@@ -212,15 +212,11 @@ public class AllEntriesFragment extends Fragment implements EntryItemAdapter.Ent
                     ArrayList<android.net.Uri> contentUris = new ArrayList<>();
                     int lastIndex = prompts.size() - 1;
                     String systemInstruction = prompts.get(lastIndex);
-                    
-                    StringBuilder combinedText = new StringBuilder();
-                    combinedText.append(systemInstruction).append("\n\n--- CONTENT BELOW ---\n\n");
 
                     for (int i = 0; i < lastIndex; i++) {
                         String partText = prompts.get(i);
-                        combinedText.append(partText).append("\n\n");
 
-                        String fileName = "daily_summary_part_" + (i + 1) + ".txt";
+                        String fileName = String.format(java.util.Locale.US, "daily_summary_part_%02d.txt", (i + 1));
                         java.io.File newFile = new java.io.File(cachePath, fileName);
                         
                         java.io.FileWriter writer = new java.io.FileWriter(newFile);
@@ -235,49 +231,32 @@ public class AllEntriesFragment extends Fragment implements EntryItemAdapter.Ent
                             contentUris.add(contentUri);
                         }
                     }
-                    
-                    // Create a "Full" version for AI apps that prefer a single file
-                    java.io.File fullFile = new java.io.File(cachePath, "daily_summary_FULL.txt");
-                    java.io.FileWriter fullWriter = new java.io.FileWriter(fullFile);
-                    fullWriter.write(combinedText.toString());
-                    fullWriter.close();
-                    
-                    android.net.Uri fullUri = androidx.core.content.FileProvider.getUriForFile(
-                            requireContext(),
-                            requireContext().getPackageName() + ".fileprovider",
-                            fullFile);
-                    if (fullUri != null) {
-                        contentUris.add(fullUri);
-                    }
 
                     if (!contentUris.isEmpty()) {
-                        // Create a final "All-in-one" file for best compatibility
-                        java.io.File finalFile = new java.io.File(cachePath, "news_articles_for_ai.txt");
-                        java.io.FileWriter finalWriter = new java.io.FileWriter(finalFile);
-                        finalWriter.write(combinedText.toString());
-                        finalWriter.close();
-
-                        android.net.Uri finalUri = androidx.core.content.FileProvider.getUriForFile(
-                                requireContext(),
-                                requireContext().getPackageName() + ".fileprovider",
-                                finalFile);
-
-                        Intent sendIntent = new Intent(Intent.ACTION_SEND);
-                        sendIntent.setType("text/plain");
-                        sendIntent.putExtra(Intent.EXTRA_STREAM, finalUri);
-                        sendIntent.putExtra(Intent.EXTRA_SUBJECT, "News Summary Content");
-                        
                         // CRITICAL: Copy prompt to clipboard so user can "paste it" after attaching the file
                         android.content.ClipboardManager clipboard = (android.content.ClipboardManager) requireContext().getSystemService(android.content.Context.CLIPBOARD_SERVICE);
                         if (clipboard != null) {
                             android.content.ClipData clip = android.content.ClipData.newPlainText("Daily Summary Prompt", systemInstruction);
                             clipboard.setPrimaryClip(clip);
-                            Toast.makeText(requireContext(), "Prompt copied! Attach the file then paste your instruction.", Toast.LENGTH_LONG).show();
                         }
 
+                        Intent sendIntent;
+                        if (contentUris.size() == 1) {
+                            // Single chunk — use ACTION_SEND
+                            sendIntent = new Intent(Intent.ACTION_SEND);
+                            sendIntent.setType("text/plain");
+                            sendIntent.putExtra(Intent.EXTRA_STREAM, contentUris.get(0));
+                            sendIntent.setClipData(android.content.ClipData.newRawUri("News Content", contentUris.get(0)));
+                            Toast.makeText(requireContext(), "Prompt copied! Attach the file then paste your instruction.", Toast.LENGTH_LONG).show();
+                        } else {
+                            // Multiple chunks — use ACTION_SEND_MULTIPLE so each chunk is a separate file
+                            sendIntent = new Intent(Intent.ACTION_SEND_MULTIPLE);
+                            sendIntent.setType("text/plain");
+                            sendIntent.putParcelableArrayListExtra(Intent.EXTRA_STREAM, contentUris);
+                            Toast.makeText(requireContext(), "Prompt copied! " + contentUris.size() + " files attached. Paste your instruction.", Toast.LENGTH_LONG).show();
+                        }
+                        sendIntent.putExtra(Intent.EXTRA_SUBJECT, "News Summary Content");
                         sendIntent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
-                        // For ACTION_SEND with a file, some apps prefer the URI in ClipData as well
-                        sendIntent.setClipData(android.content.ClipData.newRawUri("News Content", finalUri));
 
                         startActivity(Intent.createChooser(sendIntent, "Share to AI"));
                     }
