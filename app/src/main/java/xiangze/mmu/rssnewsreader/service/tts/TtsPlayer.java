@@ -486,8 +486,8 @@ public class TtsPlayer extends PlayerAdapter implements TtsPlayerListener {
         }
 
         if (content != null) {
-            if (!isNewArticle && !content.equals(lastContent)) {
-                Timber.d("Content changed for SAME article, resetting sentence counter to 0");
+            if (!isNewArticle && (!content.equals(lastContent) || !isSameViewMode)) {
+                Timber.d("Content or view mode changed for SAME article, resetting sentence counter to 0");
                 updateSentCountInDb(0, currentId);
             }
             lastContent = content; // Update lastContent here
@@ -653,7 +653,7 @@ public class TtsPlayer extends PlayerAdapter implements TtsPlayerListener {
                     if (!firstBatchSignaled && (sentences.size() >= 5 || i == sentenceList.size() - 1)) {
                         firstBatchSignaled = true;
                         int savedProgress = entryRepository.getSentCount(currentId);
-                        sentenceCounter = savedProgress; // NO CLAMP HERE
+                        sentenceCounter = Math.min(savedProgress, Math.max(0, sentences.size() - 1));
                         if (isInit) {
                             setupTts(extractionId);
                         } else {

@@ -609,8 +609,8 @@ public class WebViewActivity extends AppCompatActivity implements ReloadDialog.R
             boolean isTranslated = Boolean.TRUE.equals(webViewViewModel.getIsTranslatedViewLiveData().getValue());
 
             // Auto-switch to summarized view if it just became available, we are in original view,
-            // AND the user hasn't manually chosen to see the original content.
-            if (!isSummarized && !isTranslated && !userManuallySwitchedToOriginal) {
+            // AND the user hasn't manually chosen to see the original content, AND TTS is not actively reading.
+            if (!isSummarized && !isTranslated && !userManuallySwitchedToOriginal && !ttsPlayer.isSpeaking()) {
                 boolean hasSummary = entry.getSummarizedHtml() != null && !entry.getSummarizedHtml().trim().isEmpty();
                 if (hasSummary) {
                     webViewViewModel.setIsSummarizedView(true);
@@ -619,8 +619,8 @@ public class WebViewActivity extends AppCompatActivity implements ReloadDialog.R
             }
 
             // Auto-switch to translated view if it just became available, we are in original view,
-            // AND the user hasn't manually chosen to see the original content.
-            if (!isSummarized && !isTranslated && !userManuallySwitchedToOriginal) {
+            // AND the user hasn't manually chosen to see the original content, AND TTS is not actively reading.
+            if (!isSummarized && !isTranslated && !userManuallySwitchedToOriginal && !ttsPlayer.isSpeaking()) {
                 boolean hasTranslation = entry.getTranslatedHtml() != null && !entry.getTranslatedHtml().trim().isEmpty();
                 if (hasTranslation) {
                     webViewViewModel.setIsTranslatedView(true);
