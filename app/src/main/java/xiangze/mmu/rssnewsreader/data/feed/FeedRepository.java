@@ -363,6 +363,36 @@ public class FeedRepository {
         return feedDao.getFeedById(id);
     }
 
+    public void seedDefaultFeedsIfEmpty() {
+        compositeDisposable.add(
+            Completable.fromAction(() -> {
+                if (feedDao.getFeedCount() == 0) {
+                    Timber.d("No feeds found. Seeding default live news feeds...");
+                    String[] defaultFeeds = new String[]{
+                        "http://feeds.bbci.co.uk/news/world/rss.xml",
+                        "https://feeds.npr.org/1004/rss.xml"
+                    };
+                    for (String url : defaultFeeds) {
+                        try {
+                            RssReader rssReader = new RssReader(url);
+                            RssFeed rssFeed = rssReader.getFeed(15);
+                            if (rssFeed != null) {
+                                addNewFeed(rssFeed).blockingAwait();
+                            }
+                        } catch (Exception e) {
+                            Timber.e(e, "Error seeding default feed: " + url);
+                        }
+                    }
+                }
+            })
+            .subscribeOn(Schedulers.io())
+            .subscribe(
+                () -> Timber.d("Default feeds seeded successfully"),
+                e -> Timber.e(e, "Error seeding default feeds")
+            )
+        );
+    }
+
     public Flowable<List<Feed>> getFeedsWithUnreadArticles() {
         return feedDao.getFeedsWithUnreadArticles();
     }

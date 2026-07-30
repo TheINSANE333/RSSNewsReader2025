@@ -44,6 +44,9 @@ public class MainActivityViewModel extends ViewModel {
         this.entryRepository = entryRepository;
         this.sharedPreferencesRepository = sharedPreferencesRepository;
 
+        // Auto-seed live feeds on fresh launch if database is empty to satisfy News Policy
+        feedRepository.seedDefaultFeedsIfEmpty();
+
         Disposable disposable = feedRepository.getAllFeeds()
                 .subscribeOn(Schedulers.io())
                 .observeOn(AndroidSchedulers.mainThread())
