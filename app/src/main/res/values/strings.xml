@@ -253,10 +253,14 @@
     <string name="about_version">Version %s</string>
     <string name="about_project_details_header">About the Project</string>
     <string name="about_project_details_text">This application is designed to make news consumption highly accessible by combining a full-featured News Reader with high-quality Text-To-Speech (TTS). It supports multi-lingual reading, automated translation, AI summarization, dynamic theme customization, and customizable speech parameters to tailor the listening experience for every user.</string>
-    <string name="about_contact_header">Contact Us &amp; Developer Support</string>
-    <string name="about_contact_desc">For support, inquiries, or feedback regarding Text to Speech News Reader, please contact us using the details below:</string>
-    <string name="about_contact_email">Developer Email: xiangzelee@gmail.com</string>
+    <string name="about_news_disclaimer_header">News &amp; Content Policy Disclaimer</string>
+    <string name="about_news_disclaimer_text">Text to Speech News Reader functions strictly as an open RSS feed aggregator and client utility tool. The app does not generate, author, or edit original news stories. All headlines, articles, audio, and media content are fetched directly from user-subscribed public RSS feeds. All rights, copyright, and intellectual property remain solely with the original news publishers. Direct links to original sources are provided for every article.</string>
+    <string name="about_contact_header">Developer &amp; Publisher Contact</string>
+    <string name="about_contact_desc">For support, policy compliance, content removal requests, or general inquiries regarding Text to Speech News Reader, please contact the developer:</string>
+    <string name="about_contact_publisher">Publisher: Lee Xiang Ze (Multimedia University)</string>
+    <string name="about_contact_email">Email: xiangzelee@gmail.com</string>
     <string name="about_contact_email_value">xiangzelee@gmail.com</string>
-    <string name="about_contact_website">Website: https://TheINSANE333.github.io/RSSNewsReader2025/privacy.html</string>
+    <string name="about_contact_address">Address: Faculty of Computing &amp; Informatics, Multimedia University, 63100 Cyberjaya, Selangor, Malaysia</string>
+    <string name="about_contact_website">Privacy Policy &amp; Terms: https://sites.google.com/view/lxz-rss-news-reader-privacy/home</string>
 
 </resources>

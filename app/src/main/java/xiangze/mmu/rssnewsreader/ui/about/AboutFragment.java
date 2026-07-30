@@ -59,7 +59,7 @@ public class AboutFragment extends Fragment {
         });
 
         binding.aboutContactWebsite.setOnClickListener(v -> {
-            String url = "https://TheINSANE333.github.io/RSSNewsReader2025/privacy.html";
+            String url = "https://sites.google.com/view/lxz-rss-news-reader-privacy/home";
             Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(url));
             try {
                 startActivity(intent);
