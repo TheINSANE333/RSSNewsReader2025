@@ -493,7 +493,8 @@ public class WebViewActivity extends AppCompatActivity implements ReloadDialog.R
                         if (!sharedPreferencesRepository.getWebViewMode(targetId) 
                             && !showingBetterView 
                             && entry.getContent() != null 
-                            && textUtil.isErrorContent(entry.getContent())) {
+                            && textUtil.isErrorContent(entry.getContent())
+                            && !ttsPlayer.isActivePlayback()) {
                             Timber.d("Error content detected for ID: " + targetId + ". Triggering auto re-extraction.");
                             ttsExtractor.resetAndRetry(targetId);
                             showFakeLoading();
@@ -610,7 +611,7 @@ public class WebViewActivity extends AppCompatActivity implements ReloadDialog.R
 
             // Auto-switch to summarized view if it just became available, we are in original view,
             // AND the user hasn't manually chosen to see the original content, AND TTS is not actively reading.
-            if (!isSummarized && !isTranslated && !userManuallySwitchedToOriginal && !ttsPlayer.isSpeaking()) {
+            if (!isSummarized && !isTranslated && !userManuallySwitchedToOriginal && !ttsPlayer.isActivePlayback()) {
                 boolean hasSummary = entry.getSummarizedHtml() != null && !entry.getSummarizedHtml().trim().isEmpty();
                 if (hasSummary) {
                     webViewViewModel.setIsSummarizedView(true);
@@ -620,7 +621,7 @@ public class WebViewActivity extends AppCompatActivity implements ReloadDialog.R
 
             // Auto-switch to translated view if it just became available, we are in original view,
             // AND the user hasn't manually chosen to see the original content, AND TTS is not actively reading.
-            if (!isSummarized && !isTranslated && !userManuallySwitchedToOriginal && !ttsPlayer.isSpeaking()) {
+            if (!isSummarized && !isTranslated && !userManuallySwitchedToOriginal && !ttsPlayer.isActivePlayback()) {
                 boolean hasTranslation = entry.getTranslatedHtml() != null && !entry.getTranslatedHtml().trim().isEmpty();
                 if (hasTranslation) {
                     webViewViewModel.setIsTranslatedView(true);

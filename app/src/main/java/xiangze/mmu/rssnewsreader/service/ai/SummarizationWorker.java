@@ -137,8 +137,12 @@ public class SummarizationWorker extends RxWorker {
         // Check if the current plain text content is an error message
         String plainContent = entryRepository.getContentById(entryInfo.getEntryId());
         if (textUtil.isErrorContent(plainContent)) {
-            Timber.w("Error content detected for " + entryInfo.getEntryTitle() + ". Triggering re-extraction.");
-            ttsExtractor.resetAndRetry(entryInfo.getEntryId());
+            if (entryInfo.getEntryId() != xiangze.mmu.rssnewsreader.data.GlobalState.getCurrentViewingId()) {
+                Timber.w("Error content detected for " + entryInfo.getEntryTitle() + ". Triggering re-extraction.");
+                ttsExtractor.resetAndRetry(entryInfo.getEntryId());
+            } else {
+                Timber.d("Skipping resetAndRetry for currently-viewed article: " + entryInfo.getEntryTitle());
+            }
             return io.reactivex.rxjava3.core.Completable.complete(); // Skip for now
         }
 
@@ -149,8 +153,12 @@ public class SummarizationWorker extends RxWorker {
 
         // Check if the HTML source itself is an error page (e.g., browser error, 404, etc.)
         if (textUtil.isErrorHtml(htmlSource)) {
-            Timber.w("Error HTML detected for " + entryInfo.getEntryTitle() + ". Triggering re-extraction.");
-            ttsExtractor.resetAndRetry(entryInfo.getEntryId());
+            if (entryInfo.getEntryId() != xiangze.mmu.rssnewsreader.data.GlobalState.getCurrentViewingId()) {
+                Timber.w("Error HTML detected for " + entryInfo.getEntryTitle() + ". Triggering re-extraction.");
+                ttsExtractor.resetAndRetry(entryInfo.getEntryId());
+            } else {
+                Timber.d("Skipping resetAndRetry for currently-viewed article HTML: " + entryInfo.getEntryTitle());
+            }
             return io.reactivex.rxjava3.core.Completable.complete(); // Skip for now
         }
 

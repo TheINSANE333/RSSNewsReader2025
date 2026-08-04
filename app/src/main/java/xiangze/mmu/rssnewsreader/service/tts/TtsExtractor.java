@@ -175,29 +175,34 @@ public class TtsExtractor {
             // Your existing cleanup logic
             if (currentIdInProgress == GlobalState.getCurrentViewingId()) {
                 if (ttsCallback != null) {
-                    String lang = currentLanguage != null ? currentLanguage : "en";
-                    Entry entry = entryRepository.getEntryById(currentIdInProgress);
-                    String contentToRead;
-
-                    // We fetch the preference again to ensure we use the latest user setting
-                    boolean isTranslated = sharedPreferencesRepository.getIsTranslatedView(currentIdInProgress);
-                    boolean isSummarized = sharedPreferencesRepository.getIsSummarizedView(currentIdInProgress);
-
-                    if (isTranslated && entry != null && entry.getTranslated() != null && !entry.getTranslated().trim().isEmpty()) {
-                        contentToRead = entry.getTranslated();
-                        lang = sharedPreferencesRepository.getDefaultTranslationLanguage();
-                        Timber.d("[TtsExtractor] Using translated content for TTS");
-                    } else if (isSummarized && entry != null && entry.getSummarized() != null && !entry.getSummarized().trim().isEmpty()) {
-                        contentToRead = entry.getSummarized();
-                        lang = sharedPreferencesRepository.getDefaultTranslationLanguage();
-                        Timber.d("[TtsExtractor] Using summarized content for TTS");
+                    if (ttsCallback instanceof TtsPlayer && ((TtsPlayer) ttsCallback).getCurrentId() == currentIdInProgress && ((TtsPlayer) ttsCallback).isActivePlayback()) {
+                        Timber.d("[TtsExtractor] TTS is actively playing this article, skipping callback delivery to avoid interrupting playback.");
+                        ttsCallback = null;
                     } else {
-                        contentToRead = entry != null ? entry.getContent() : "";
-                        Timber.d("[TtsExtractor] Using original content for TTS");
-                    }
+                        String lang = currentLanguage != null ? currentLanguage : "en";
+                        Entry entry = entryRepository.getEntryById(currentIdInProgress);
+                        String contentToRead;
 
-                    ttsCallback.extractToTts(contentToRead, lang);
-                    ttsCallback = null; // Consume the callback so it doesn't fire again unexpectedly
+                        // We fetch the preference again to ensure we use the latest user setting
+                        boolean isTranslated = sharedPreferencesRepository.getIsTranslatedView(currentIdInProgress);
+                        boolean isSummarized = sharedPreferencesRepository.getIsSummarizedView(currentIdInProgress);
+
+                        if (isTranslated && entry != null && entry.getTranslated() != null && !entry.getTranslated().trim().isEmpty()) {
+                            contentToRead = entry.getTranslated();
+                            lang = sharedPreferencesRepository.getDefaultTranslationLanguage();
+                            Timber.d("[TtsExtractor] Using translated content for TTS");
+                        } else if (isSummarized && entry != null && entry.getSummarized() != null && !entry.getSummarized().trim().isEmpty()) {
+                            contentToRead = entry.getSummarized();
+                            lang = sharedPreferencesRepository.getDefaultTranslationLanguage();
+                            Timber.d("[TtsExtractor] Using summarized content for TTS");
+                        } else {
+                            contentToRead = entry != null ? entry.getContent() : "";
+                            Timber.d("[TtsExtractor] Using original content for TTS");
+                        }
+
+                        ttsCallback.extractToTts(contentToRead, lang);
+                        ttsCallback = null; // Consume the callback so it doesn't fire again unexpectedly
+                    }
                 }
             } else {
                 Timber.d("Not viewing this ID. CurrentInProgress: " + currentIdInProgress + ", GlobalViewing: " + GlobalState.getCurrentViewingId());
@@ -216,6 +221,11 @@ public class TtsExtractor {
     public void resetAndRetry(long entryId) {
         Schedulers.single().scheduleDirect(() -> {
             synchronized (this) {
+                if (entryId == xiangze.mmu.rssnewsreader.data.GlobalState.getCurrentViewingId()) {
+                    Timber.d("resetAndRetry: Skipping reset for currently-viewed article ID: " + entryId);
+                    return;
+                }
+
                 Timber.d("resetAndRetry called for article ID: " + entryId);
                 
                 // Remove from failed list if present

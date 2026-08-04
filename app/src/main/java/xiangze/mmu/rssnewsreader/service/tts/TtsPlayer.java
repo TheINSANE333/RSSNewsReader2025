@@ -1234,6 +1234,11 @@ public class TtsPlayer extends PlayerAdapter implements TtsPlayerListener {
         return tts != null && tts.isSpeaking();
     }
 
+    public boolean isActivePlayback() {
+        return currentState == PlaybackStateCompat.STATE_PLAYING || 
+               currentState == PlaybackStateCompat.STATE_BUFFERING;
+    }
+
     public boolean isArticleFinished() {
         return isArticleFinished;
     }
