@@ -122,6 +122,7 @@ public class SettingsFragment extends PreferenceFragmentCompat {
                 case "groq_api_key":
                     String newApiKey = sharedPreferences.getString(key, "");
                     sharedPreferencesRepository.setGroqApiKey(newApiKey);
+                    xiangze.mmu.rssnewsreader.model.ai.AiClient.invalidateModelCache();
                     break;
                 case "enable_dynamic_model_fallback":
                     updateModelPrefsEnabledState();

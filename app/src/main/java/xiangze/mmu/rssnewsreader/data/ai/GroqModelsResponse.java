@@ -14,5 +14,7 @@ public class GroqModelsResponse {
         public String id;
         public String object;
         public String owned_by;
+        public boolean active;
+        public int context_window;
     }
 }
