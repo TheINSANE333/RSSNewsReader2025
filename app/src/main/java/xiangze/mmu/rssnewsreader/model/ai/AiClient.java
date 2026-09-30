@@ -146,14 +146,30 @@ public class AiClient {
         int estimatedPromptTokens = estimateTokenCount(messages);
         int contextLimit = getModelContextLimit(model);
 
+        // If the prompt alone is approaching the context limit, truncate the
+        // last (user) message so that it fits.  Leave room for max_tokens output.
+        int desiredMaxTokens = 6000;
+        int safetyMargin = 200; // overhead for message framing, special tokens, etc.
+        if (estimatedPromptTokens + desiredMaxTokens + safetyMargin > contextLimit) {
+            // First, try to truncate the user message to make room
+            int allowedPromptTokens = contextLimit - desiredMaxTokens - safetyMargin;
+            if (allowedPromptTokens > 0) {
+                truncateMessagesToFit(messages, allowedPromptTokens);
+                estimatedPromptTokens = estimateTokenCount(messages);
+            }
+        }
+
         // Dynamically adjust max_tokens so that prompt_tokens + max_tokens fits in the model context limit
-        int maxTokens = 6000;
-        if (estimatedPromptTokens + maxTokens > contextLimit) {
-            maxTokens = contextLimit - estimatedPromptTokens - 100;
+        int maxTokens = desiredMaxTokens;
+        if (estimatedPromptTokens + maxTokens + safetyMargin > contextLimit) {
+            maxTokens = contextLimit - estimatedPromptTokens - safetyMargin;
         }
         if (maxTokens < 128) {
             maxTokens = 128; // safe minimum to avoid empty responses
         }
+
+        Timber.d("Model: %s | contextLimit: %d | estPromptTokens: %d | maxTokens: %d",
+                model, contextLimit, estimatedPromptTokens, maxTokens);
 
         ChatRequest request = new ChatRequest(model, messages, 0.0, maxTokens);
 
@@ -192,22 +208,37 @@ public class AiClient {
             int errorCode = response.code();
             String errorMessage = "API request failed: " + errorCode;
 
+            // Try to get error message from response body
+            try {
+                if (response.errorBody() != null) {
+                    String errorBody = response.errorBody().string();
+                    errorMessage = "groq Error " + errorCode + ": " + errorBody;
+                }
+            } catch (IOException e) {
+                errorMessage = "groq Error " + errorCode + ": " + response.message();
+            }
+
+            Timber.w("API error %d on model %s: %s", errorCode, model, errorMessage);
+
             switch (errorCode) {
                 case 401:
                     errorMessage = "Invalid groq API Key";
                     break;
-                default:
-                    // Try to get error message from response body
-                    try {
-                        if (response.errorBody() != null) {
-                            String errorBody = response.errorBody().string();
-                            errorMessage = "groq Error " + errorCode + ": " + errorBody;
-                        }
-                    } catch (IOException e) {
-                        errorMessage = "groq Error " + errorCode + ": " + response.message();
-                    }
 
-                    // Trigger key rotation first for any error other than 401
+                case 400:
+                    // 400 = Bad Request — the request itself is invalid (e.g. prompt
+                    // exceeds the model's context window). Rotating API keys won't
+                    // help; instead try a model with a larger context window.
+                    Timber.w("400 Bad Request on model %s — prompt may exceed context window. Trying fallback.", model);
+                    String fallback400 = getNextFallbackModel(model, triedModels);
+                    if (fallback400 != null) {
+                        Timber.w("Falling back from %s to %s after 400 error", model, fallback400);
+                        return getChatResponseInternal(messages, fallback400, 0, triedModels);
+                    }
+                    break;
+
+                default:
+                    // For rate-limit (429) and server errors (5xx), try key rotation first
                     if (retryCount < sharedPreferencesRepository.getSavedApiKeys().size()) {
                         if (sharedPreferencesRepository.switchToNextKey()) {
                             this.userKey = sharedPreferencesRepository.getGroqApiKey();
@@ -387,16 +418,89 @@ public class AiClient {
 
     /**
      * Estimates the token count of a message list based on character counts.
+     * Uses a more conservative estimate for non-Latin scripts (CJK, Arabic, etc.)
+     * where each character can map to 1–3 tokens.
      */
     private int estimateTokenCount(List<Message> messages) {
-        int charCount = 0;
+        int latinChars = 0;
+        int nonLatinChars = 0;
         for (Message msg : messages) {
             if (msg.content != null) {
-                charCount += msg.content.length();
+                for (int i = 0; i < msg.content.length(); i++) {
+                    char c = msg.content.charAt(i);
+                    if (c <= '\u024F') {
+                        latinChars++;
+                    } else {
+                        nonLatinChars++;
+                    }
+                }
             }
         }
-        // Rough rule of thumb: 1 token ≈ 4 characters
-        return (int) Math.ceil(charCount / 4.0);
+        // Latin text: ~1 token per 4 characters
+        // Non-Latin text (CJK, etc.): ~1 token per 1.5 characters (conservative)
+        int estimate = (int) Math.ceil(latinChars / 4.0) + (int) Math.ceil(nonLatinChars / 1.5);
+        // Add overhead for message framing tokens (role markers, etc.)
+        estimate += messages.size() * 4;
+        return estimate;
+    }
+
+    /**
+     * Truncates the content of the last user message so the total estimated
+     * token count fits within {@code maxTokens}.
+     */
+    private void truncateMessagesToFit(List<Message> messages, int maxTokens) {
+        if (messages.isEmpty()) return;
+
+        // Find the last user message (the one with the article content)
+        Message lastUserMsg = null;
+        for (int i = messages.size() - 1; i >= 0; i--) {
+            if ("user".equals(messages.get(i).role)) {
+                lastUserMsg = messages.get(i);
+                break;
+            }
+        }
+        if (lastUserMsg == null || lastUserMsg.content == null) return;
+
+        // Calculate how many tokens the other messages consume
+        int otherTokens = 0;
+        for (Message msg : messages) {
+            if (msg != lastUserMsg && msg.content != null) {
+                otherTokens += estimateTokenCountForString(msg.content);
+            }
+        }
+
+        int allowedForUser = maxTokens - otherTokens;
+        if (allowedForUser < 100) allowedForUser = 100;
+
+        int currentUserTokens = estimateTokenCountForString(lastUserMsg.content);
+        if (currentUserTokens <= allowedForUser) return; // Already fits
+
+        // Rough: trim characters proportionally
+        double ratio = (double) allowedForUser / currentUserTokens;
+        int newLength = (int) (lastUserMsg.content.length() * ratio * 0.95); // 5% extra margin
+        if (newLength < 100) newLength = 100;
+        if (newLength < lastUserMsg.content.length()) {
+            lastUserMsg.content = lastUserMsg.content.substring(0, newLength)
+                    + "\n\n[Content truncated to fit model context window]";
+            Timber.w("Truncated user message from %d to %d chars to fit context window",
+                    currentUserTokens, estimateTokenCountForString(lastUserMsg.content));
+        }
+    }
+
+    /** Estimates token count for a single string. */
+    private int estimateTokenCountForString(String text) {
+        if (text == null) return 0;
+        int latinChars = 0;
+        int nonLatinChars = 0;
+        for (int i = 0; i < text.length(); i++) {
+            char c = text.charAt(i);
+            if (c <= '\u024F') {
+                latinChars++;
+            } else {
+                nonLatinChars++;
+            }
+        }
+        return (int) Math.ceil(latinChars / 4.0) + (int) Math.ceil(nonLatinChars / 1.5);
     }
 
     /**
