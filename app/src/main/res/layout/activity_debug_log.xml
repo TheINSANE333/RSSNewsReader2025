@@ -1,0 +1,156 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="?android:attr/colorBackground">
+
+    <!-- Toolbar -->
+    <com.google.android.material.appbar.MaterialToolbar
+        android:id="@+id/toolbar_debug_log"
+        android:layout_width="match_parent"
+        android:layout_height="?attr/actionBarSize"
+        android:background="?android:attr/colorBackground"
+        app:title="Debug Logs"
+        app:navigationIcon="@drawable/ic_back"
+        app:titleTextAppearance="@style/TextAppearance.App.TitleLarge" />
+
+    <!-- Filter chips row -->
+    <HorizontalScrollView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:scrollbars="none"
+        android:paddingStart="12dp"
+        android:paddingEnd="12dp"
+        android:paddingTop="4dp"
+        android:paddingBottom="4dp">
+
+        <com.google.android.material.chip.ChipGroup
+            android:id="@+id/chip_group_filter"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            app:singleSelection="true"
+            app:selectionRequired="true">
+
+            <com.google.android.material.chip.Chip
+                android:id="@+id/chip_all"
+                style="@style/Widget.App.Chip"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="All"
+                android:checked="true" />
+
+            <com.google.android.material.chip.Chip
+                android:id="@+id/chip_error"
+                style="@style/Widget.App.Chip"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Errors" />
+
+            <com.google.android.material.chip.Chip
+                android:id="@+id/chip_warn"
+                style="@style/Widget.App.Chip"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Warnings" />
+
+            <com.google.android.material.chip.Chip
+                android:id="@+id/chip_info"
+                style="@style/Widget.App.Chip"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Info+" />
+
+        </com.google.android.material.chip.ChipGroup>
+    </HorizontalScrollView>
+
+    <!-- Log count summary -->
+    <TextView
+        android:id="@+id/text_log_count"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingStart="16dp"
+        android:paddingEnd="16dp"
+        android:paddingBottom="4dp"
+        android:textSize="12sp"
+        android:textColor="?attr/colorOnSurfaceVariant" />
+
+    <!-- Divider -->
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:background="?attr/colorOutlineVariant" />
+
+    <!-- Log entries list -->
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/recycler_debug_log"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:clipToPadding="false"
+        android:paddingTop="4dp"
+        android:paddingBottom="80dp" />
+
+    <!-- Empty state -->
+    <LinearLayout
+        android:id="@+id/layout_empty"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical"
+        android:gravity="center"
+        android:visibility="gone"
+        android:padding="32dp">
+
+        <ImageView
+            android:layout_width="64dp"
+            android:layout_height="64dp"
+            android:src="@drawable/ic_check"
+            android:alpha="0.4"
+            android:importantForAccessibility="no" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:text="No log entries"
+            android:textSize="16sp"
+            android:textColor="?attr/colorOnSurfaceVariant" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:text="Errors and warnings will appear here"
+            android:textSize="13sp"
+            android:textColor="?attr/colorOutline" />
+    </LinearLayout>
+
+    <!-- Bottom action bar -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="end"
+        android:padding="8dp"
+        android:background="?attr/colorSurfaceVariant">
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btn_clear_logs"
+            style="@style/Widget.App.OutlineButton"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Clear"
+            app:icon="@drawable/ic_trash"
+            android:layout_marginEnd="8dp" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btn_share_logs"
+            style="@style/Widget.App.FilledButton"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Share"
+            app:icon="@drawable/ic_baseline_share_24" />
+    </LinearLayout>
+
+</LinearLayout>

@@ -41,6 +41,12 @@
             android:label="TTS Substitutions"
             android:exported="false" />
         <activity
+            android:name=".ui.debuglog.DebugLogActivity"
+            android:label="Debug Logs"
+            android:exported="false"
+            android:theme="@style/Theme.RSSNewsReader" />
+
+        <activity
             android:name=".ui.onboarding.OnboardingActivity"
             android:exported="false"
             android:theme="@style/Theme.RSSNewsReader" />

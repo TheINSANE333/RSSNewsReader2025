@@ -14,6 +14,7 @@ import javax.inject.Inject;
 import dagger.hilt.android.HiltAndroidApp;
 import timber.log.Timber;
 import xiangze.mmu.rssnewsreader.BuildConfig;
+import xiangze.mmu.rssnewsreader.util.AppLogger;
 
 @HiltAndroidApp
 public class MainApplication extends Application implements Configuration.Provider {
@@ -25,8 +26,19 @@ public class MainApplication extends Application implements Configuration.Provid
     public void onCreate() {
         super.onCreate();
 
+        // Initialize the in-app debug log system (persists across sessions)
+        AppLogger.init(this);
+
+        // Plant AppLogger as the Timber tree — it extends DebugTree so it
+        // still prints to logcat in debug builds, but also captures WARN+
+        // entries into an in-memory ring buffer for the debug log viewer.
         if (BuildConfig.DEBUG) {
-            Timber.plant(new Timber.DebugTree());
+            AppLogger.setMinPriority(android.util.Log.WARN);
+            Timber.plant(new AppLogger());
+        } else {
+            // In release builds, only capture errors for debugging
+            AppLogger.setMinPriority(android.util.Log.ERROR);
+            Timber.plant(new AppLogger());
         }
 
         SharedPreferences sharedPreferences = PreferenceManager.getDefaultSharedPreferences(this);
@@ -46,3 +58,4 @@ public class MainApplication extends Application implements Configuration.Provid
                 .build();
     }
 }
+

@@ -301,4 +301,17 @@
 
     </PreferenceCategory>
 
-</PreferenceScreen>
+    <!-- DEVELOPER & DEBUG -->
+    <PreferenceCategory
+        android:layout="@layout/text_preference_category"
+        app:title="Developer &amp; Debug">
+
+        <Preference
+            app:key="view_debug_logs"
+            app:title="View Debug Logs"
+            app:summary="Browse recent error and warning messages for debugging"
+            app:icon="@drawable/ic_debug_log" />
+
+    </PreferenceCategory>
+
+</PreferenceScreen>

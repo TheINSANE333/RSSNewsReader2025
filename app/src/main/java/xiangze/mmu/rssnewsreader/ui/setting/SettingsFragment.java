@@ -207,10 +207,20 @@ public class SettingsFragment extends PreferenceFragmentCompat {
             });
         }
 
+        Preference viewDebugLogsPreference = findPreference("view_debug_logs");
+        if (viewDebugLogsPreference != null) {
+            viewDebugLogsPreference.setOnPreferenceClickListener(preference -> {
+                Intent intent = new Intent(getActivity(), xiangze.mmu.rssnewsreader.ui.debuglog.DebugLogActivity.class);
+                startActivity(intent);
+                return true;
+            });
+        }
+
         // Dynamically fetch available Groq models and populate the dropdowns
         fetchAndPopulateGroqModels();
         updateModelPrefsEnabledState();
     }
+
 
     /**
      * Fetches available models from the Groq API on a background thread
