@@ -227,9 +227,14 @@ public class AiClient {
 
                 case 400:
                     // 400 = Bad Request — the request itself is invalid (e.g. prompt
-                    // exceeds the model's context window). Rotating API keys won't
-                    // help; instead try a model with a larger context window.
-                    Timber.w("400 Bad Request on model %s — prompt may exceed context window. Trying fallback.", model);
+                    // exceeds the model's context window, or the model doesn't
+                    // support chat completions at all). Rotating API keys won't
+                    // help; instead try a different/larger model.
+                    if (errorMessage.contains("does not support")) {
+                        Timber.w("Model %s does not support chat completions — skipping and trying fallback.", model);
+                    } else {
+                        Timber.w("400 Bad Request on model %s — prompt may exceed context window. Trying fallback.", model);
+                    }
                     String fallback400 = getNextFallbackModel(model, triedModels);
                     if (fallback400 != null) {
                         Timber.w("Falling back from %s to %s after 400 error", model, fallback400);
@@ -291,7 +296,8 @@ public class AiClient {
             if (response.isSuccessful() && response.body() != null && response.body().data != null) {
                 List<GroqModelsResponse.Model> activeModels = new ArrayList<>();
                 for (GroqModelsResponse.Model model : response.body().data) {
-                    if (model.id != null && !model.id.isEmpty() && model.active && model.context_window > 0) {
+                    if (model.id != null && !model.id.isEmpty() && model.active && model.context_window > 0
+                            && isChatCapableModel(model.id)) {
                         activeModels.add(model);
                     }
                 }
@@ -305,6 +311,24 @@ public class AiClient {
             Timber.w(e, "Failed to fetch models from Groq API");
         }
         return null;
+    }
+
+    /**
+     * Returns true if the model ID corresponds to a model that supports
+     * the chat completions endpoint.  Models that are audio-only
+     * (Whisper for STT, PlayAI / PlayDialog for TTS, etc.) are excluded
+     * so they never appear in the model picker or get chosen as fallbacks.
+     */
+    private static boolean isChatCapableModel(String modelId) {
+        if (modelId == null) return false;
+        String lower = modelId.toLowerCase();
+        // Whisper models (speech-to-text) — e.g. whisper-large-v3-turbo, distil-whisper-*
+        if (lower.contains("whisper")) return false;
+        // PlayAI / PlayDialog models (text-to-speech)
+        if (lower.contains("playai") || lower.contains("playdialog")) return false;
+        // Speech / audio-only models
+        if (lower.startsWith("speech-") || lower.startsWith("tts-")) return false;
+        return true;
     }
 
     /**
