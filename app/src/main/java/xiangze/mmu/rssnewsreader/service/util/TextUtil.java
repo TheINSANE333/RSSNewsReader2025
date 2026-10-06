@@ -686,7 +686,21 @@ public class TextUtil {
         AiResponse aiRes = parseAiResponse(rawAiResponse, defaultTitle);
         
         if (isAiRefusalResponse(aiRes.content)) {
-            throw new IllegalArgumentException("AI response indicates a refusal or error: " + aiRes.content);
+            // Instead of crashing, return a graceful error response that the
+            // caller can display normally.  The UI will show the refusal
+            // message as article content rather than blowing up.
+            Timber.w("AI response indicates a refusal or error: %s", aiRes.content);
+            String refusalHtml = formatAiResponseToHtml(
+                    aiRes.title != null ? aiRes.title : defaultTitle,
+                    "<p><em>AI was unable to process this article.</em></p>",
+                    feedTitle,
+                    publishDate,
+                    feedImageUrl,
+                    isNightMode,
+                    titleClass
+            );
+            String refusalTitle = aiRes.title != null ? aiRes.title : defaultTitle;
+            return new ProcessedAiResponse(refusalHtml, refusalTitle, refusalTitle, "AI was unable to process this article.");
         }
 
         String finalHtml = formatAiResponseToHtml(
