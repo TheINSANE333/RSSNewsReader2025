@@ -325,10 +325,12 @@ public class TextUtil {
                     baseSystemPrompt
                 ));
 
-                // Validate content before sending to AI - prevent translating error pages
+                // Warn if content looks like an error page, but still attempt
+                // the AI call — the AI is better at judging content quality
+                // than our heuristic filters, and processAiResponse now
+                // handles refusals gracefully.
                 if (isErrorHtml(html)) {
-                    progressThread.interrupt();
-                    throw new Exception("Article content appears to be an error page or failed to load properly. Please retry.");
+                    Timber.w("HTML for translation may be an error page, but proceeding with AI call anyway.");
                 }
 
                 // Build the prompt
@@ -449,10 +451,12 @@ public class TextUtil {
                     }
                 }
 
-                // Validate content before sending to AI - prevent summarizing error pages
+                // Warn if content looks like an error page, but still attempt
+                // the AI call — the AI is better at judging content quality
+                // than our heuristic filters, and processAiResponse now
+                // handles refusals gracefully.
                 if (isErrorContent(cleanContent) || isErrorHtml(html)) {
-                    progressThread.interrupt();
-                    throw new Exception("Article content appears to be an error page or failed to load properly. Please retry.");
+                    Timber.w("Content for summarization may be an error page (cleanContent length: %d), but proceeding with AI call anyway.", cleanContent.length());
                 }
 
                 // Build the prompt (matching manual mode format)
